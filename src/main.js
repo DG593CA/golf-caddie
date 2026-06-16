@@ -247,6 +247,31 @@ function initUI() {
     }
   });
 
+  // Start New Round triggers
+  const startNewRound = () => {
+    const scoresLogged = state.holes.some(h => h.score > 0);
+    if (scoresLogged) {
+      if (!confirm("Starting a new round will clear your current unsaved active scores. Are you sure you want to proceed?")) {
+        return;
+      }
+    }
+    initActiveRound();
+    saveState();
+    updateUI();
+    updateGPSWidget();
+
+    // Navigate to active round scoring
+    document.getElementById('report-view').classList.add('hidden');
+    document.getElementById('dashboard-view').classList.remove('hidden');
+    document.getElementById('tab-active-round').click();
+
+    // Auto-open settings dialog so they can load/configure a course
+    document.getElementById('btn-settings').click();
+  };
+
+  document.getElementById('btn-history-start-new').addEventListener('click', startNewRound);
+  document.getElementById('btn-report-start-new').addEventListener('click', startNewRound);
+
   // Manual Input Steppers
   // Score
   document.getElementById('btn-score-minus').addEventListener('click', () => {
