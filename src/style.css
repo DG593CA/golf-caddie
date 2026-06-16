@@ -231,6 +231,25 @@ a:hover {
   gap: 1.5rem;
 }
 
+@media (max-width: 991px) {
+  .dashboard-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .tracker-column, .voice-column {
+    display: contents; /* Dissolve wrappers so children order directly in flex */
+  }
+  .voice-card {
+    order: -2; /* Voice console at the absolute top (above the fold) */
+  }
+  .stats-overview-card {
+    order: -1; /* Overview mini bar next */
+  }
+  .finish-round-card {
+    order: 2; /* Complete round button at the absolute bottom */
+  }
+}
+
 @media (min-width: 992px) {
   .dashboard-grid {
     grid-template-columns: 1.6fr 1fr;

@@ -1954,22 +1954,10 @@ function updateGPSWidget() {
         
         statusLbl.textContent = "GPS Sync Active";
         
-        // If distance is far away (more than 1.5 miles), show simulated local yardages for the demo view
-        if (yards > 2500) {
-          statusLbl.textContent = "GPS Active (Demo Mode)";
-          const baseYardages = [382, 502, 395, 325, 185, 495, 106, 420, 460, 430, 370, 202, 403, 570, 396, 401, 208, 540];
-          const standardDist = baseYardages[(holeNum - 1) % baseYardages.length];
-          
-          document.getElementById('gps-dist-val').textContent = standardDist;
-          document.getElementById('gps-dist-center').textContent = standardDist;
-          document.getElementById('gps-dist-front').textContent = standardDist - 15;
-          document.getElementById('gps-dist-back').textContent = standardDist + 15;
-        } else {
-          document.getElementById('gps-dist-val').textContent = yards;
-          document.getElementById('gps-dist-center').textContent = yards;
-          document.getElementById('gps-dist-front').textContent = Math.max(0, yards - 15);
-          document.getElementById('gps-dist-back').textContent = yards + 15;
-        }
+        document.getElementById('gps-dist-val').textContent = yards;
+        document.getElementById('gps-dist-center').textContent = yards;
+        document.getElementById('gps-dist-front').textContent = Math.max(0, yards - 15);
+        document.getElementById('gps-dist-back').textContent = yards + 15;
       },
       (error) => {
         statusLbl.textContent = "GPS Offline (Blocked)";
