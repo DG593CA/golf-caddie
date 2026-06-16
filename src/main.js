@@ -382,6 +382,25 @@ function initUI() {
     updateGPSWidget();
   });
 
+  // Change course button inside GPS widget
+  const gpsChangeCourseBtn = document.getElementById('btn-gps-change-course');
+  if (gpsChangeCourseBtn) {
+    gpsChangeCourseBtn.addEventListener('click', () => {
+      // Open settings dialog by clicking the settings button
+      const btnSettings = document.getElementById('btn-settings');
+      if (btnSettings) {
+        btnSettings.click();
+      }
+      // Focus on the course search input and clear it to trigger recommendations
+      const searchInput = document.getElementById('course-search-input');
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+        showNearestCoursesSuggestions();
+      }
+    });
+  }
+
   // Autocomplete Search input handler
   const searchInput = document.getElementById('course-search-input');
   const searchResults = document.getElementById('course-search-results');
@@ -390,6 +409,11 @@ function initUI() {
   searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     if (searchTimeoutId) clearTimeout(searchTimeoutId);
+
+    if (query.length === 0) {
+      showNearestCoursesSuggestions();
+      return;
+    }
 
     if (query.length < 2) {
       searchResults.classList.add('hidden');
@@ -400,6 +424,19 @@ function initUI() {
       const courses = await searchGolfCourses(query);
       renderSearchResults(courses);
     }, 300);
+  });
+
+  // Focus and click listeners to trigger nearest courses suggestions when input is empty
+  searchInput.addEventListener('focus', () => {
+    if (searchInput.value.trim() === '') {
+      showNearestCoursesSuggestions();
+    }
+  });
+
+  searchInput.addEventListener('click', () => {
+    if (searchInput.value.trim() === '') {
+      showNearestCoursesSuggestions();
+    }
   });
 
   // Hide dropdown on click outside
@@ -1899,6 +1936,110 @@ function renderSearchResults(courses) {
     dropdown.appendChild(item);
   });
   
+  dropdown.classList.remove('hidden');
+}
+
+// Show suggested nearest courses using geolocation
+async function showNearestCoursesSuggestions() {
+  const dropdown = document.getElementById('course-search-results');
+  if (!dropdown) return;
+
+  dropdown.innerHTML = '<div style="padding:0.75rem 1rem; color:var(--color-secondary); font-size:0.85rem">Detecting nearest courses via GPS...</div>';
+  dropdown.classList.remove('hidden');
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const uLat = position.coords.latitude;
+        const uLng = position.coords.longitude;
+        
+        // Calculate distance for all mock courses
+        const coursesWithDistance = MOCK_COURSES.map(course => {
+          const dist = calculateHaversineDistanceYards(
+            uLat, 
+            uLng, 
+            course.coordinates.lat, 
+            course.coordinates.lng
+          );
+          return { ...course, distance: dist };
+        });
+
+        // Sort ascending by distance
+        coursesWithDistance.sort((a, b) => a.distance - b.distance);
+
+        // Render suggested nearest courses
+        renderNearestCourses(coursesWithDistance);
+      },
+      (error) => {
+        console.warn('Geolocation failed for nearest courses, showing default list', error);
+        // Fallback: show mock courses without distance
+        renderNearestCourses(MOCK_COURSES.map(c => ({ ...c, distance: null })));
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  } else {
+    // Geolocation not supported, show mock courses without distance
+    renderNearestCourses(MOCK_COURSES.map(c => ({ ...c, distance: null })));
+  }
+}
+
+// Render the suggested nearest courses in search dropdown
+function renderNearestCourses(courses) {
+  const dropdown = document.getElementById('course-search-results');
+  if (!dropdown) return;
+  dropdown.innerHTML = '';
+
+  if (courses.length === 0) {
+    dropdown.innerHTML = '<div style="padding:0.75rem 1rem; color:var(--color-secondary); font-size:0.85rem">No courses available.</div>';
+    dropdown.classList.remove('hidden');
+    return;
+  }
+
+  // Header for suggestions list
+  const header = document.createElement('div');
+  header.style.padding = '0.5rem 1.15rem 0.25rem';
+  header.style.fontSize = '0.75rem';
+  header.style.fontWeight = '700';
+  header.style.textTransform = 'uppercase';
+  header.style.letterSpacing = '0.05em';
+  header.style.color = 'var(--emerald-glow)';
+  header.style.borderBottom = '1px solid var(--border-light)';
+  header.textContent = '📍 Nearest Courses (GPS)';
+  dropdown.appendChild(header);
+
+  courses.forEach(course => {
+    const item = document.createElement('div');
+    item.className = 'search-result-item';
+    
+    let distanceText = '';
+    if (course.distance !== null && course.distance !== undefined) {
+      if (course.distance < 1760) {
+        distanceText = ` &bull; 📍 ${course.distance} Yds`;
+      } else {
+        const miles = (course.distance / 1760).toFixed(1);
+        distanceText = ` &bull; 📍 ${miles} miles`;
+      }
+    }
+
+    item.innerHTML = `
+      <span class="search-result-name">${escapeHTML(course.name)}</span>
+      <span class="search-result-details">${escapeHTML(course.city)}, ${escapeHTML(course.state)} &bull; ${course.holesCount} Holes &bull; Rating ${course.rating}${distanceText}</span>
+    `;
+    item.addEventListener('click', () => {
+      state.selectedCourse = course;
+      applySelectedCourse();
+      saveState();
+      updateUI();
+      updateGPSWidget();
+      renderParsConfig(); // re-draw Settings par inputs
+      dropdown.classList.add('hidden');
+      
+      const searchInput = document.getElementById('course-search-input');
+      if (searchInput) searchInput.value = course.name;
+    });
+    dropdown.appendChild(item);
+  });
+
   dropdown.classList.remove('hidden');
 }
 
