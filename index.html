@@ -58,36 +58,12 @@
               <div class="mic-glow-wrapper">
                 <button type="button" id="btn-voice-toggle" class="mic-btn" aria-label="Start Voice Recognition">
                   <div class="mic-icon-inner">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mic-svg"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" x2="12" y1="19" y2="22"></line></button>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mic-svg"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
                   </div>
                   <div class="pulse-wave wave-1"></div>
                   <div class="pulse-wave wave-2"></div>
                 </button>
                 <div id="mic-status-label" class="mic-status-text">Tap to Speak</div>
-              </div>
-
-              <!-- Continuous Listening Toggle -->
-              <div class="settings-row flex-between">
-                <label for="switch-continuous" class="switch-label">
-                  <span>Keep microphone listening</span>
-                  <small class="switch-subtext">Ideal for keeping device open on a stand or cart</small>
-                </label>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="switch-continuous">
-                  <span class="slider round"></span>
-                </label>
-              </div>
-
-              <!-- Audio Readback Confirmation -->
-              <div class="settings-row flex-between">
-                <label for="switch-audio-feedback" class="switch-label">
-                  <span>Voice confirmation (Speak back)</span>
-                  <small class="switch-subtext">App reads back score details after hearing them</small>
-                </label>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="switch-audio-feedback" checked>
-                  <span class="slider round"></span>
-                </label>
               </div>
 
               <!-- Live Transcript Box -->
@@ -116,6 +92,14 @@
               </details>
             </section>
 
+            <!-- Finish Round Card -->
+            <section class="finish-round-card glass-card">
+              <h3>Finish Round</h3>
+              <p>Ready to see your analysis? Finalize your scorecard to calculate your full stats and review coaching insights.</p>
+              <button type="button" id="btn-complete-round" class="btn btn-success btn-lg btn-block">
+                Complete Round &amp; See Summary
+              </button>
+            </section>
           </div>
           
           <!-- Column 1: Active Hole & Scorecard Tracking -->
@@ -300,15 +284,6 @@
                 </table>
               </div>
             </section>
-
-            <!-- Finish Round Card -->
-            <section class="finish-round-card glass-card">
-              <h3>Finish Round</h3>
-              <p>Ready to see your analysis? Finalize your scorecard to calculate your full stats and review coaching insights.</p>
-              <button type="button" id="btn-complete-round" class="btn btn-success btn-lg btn-block">
-                Complete Round &amp; See Summary
-              </button>
-            </section>
           </div>
 
         </div>
@@ -492,6 +467,33 @@
               <label for="gemini-api-key" class="form-section-title">Gemini API Key (Optional)</label>
               <p class="form-help-text">Add your Google Gemini API Key for deep personal coaching and summary details at the end of the round. Key is saved locally on your browser.</p>
               <input type="password" id="gemini-api-key" class="form-input" placeholder="AIzaSy...">
+            </div>
+
+            <!-- Voice Control Options (Moved from Dashboard Voice Card) -->
+            <div class="form-group-block">
+              <label class="form-section-title">Voice Control Options</label>
+              
+              <div class="settings-row flex-between" style="border-top: none; padding: 0.5rem 0;">
+                <label for="switch-continuous" class="switch-label">
+                  <span>Keep microphone listening</span>
+                  <small class="switch-subtext">Ideal for keeping device open on a stand or cart</small>
+                </label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="switch-continuous">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="settings-row flex-between" style="border-top: 1px solid var(--border-light); padding: 0.75rem 0 0.5rem;">
+                <label for="switch-audio-feedback" class="switch-label">
+                  <span>Voice confirmation (Speak back)</span>
+                  <small class="switch-subtext">App reads back score details after hearing them</small>
+                </label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="switch-audio-feedback" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
             </div>
 
             <!-- Course Autocomplete Search & GolfAPI.io Key -->

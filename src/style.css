@@ -629,15 +629,15 @@ a:hover {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 0 2rem;
+  padding: 1.25rem 0 1rem;
   position: relative;
 }
 
 .mic-btn {
   background: var(--emerald-gradient);
   border: none;
-  width: 90px;
-  height: 90px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -665,8 +665,8 @@ a:hover {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 90px;
-  height: 90px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   background-color: var(--emerald-glow);
   opacity: 0;
@@ -691,8 +691,8 @@ a:hover {
 }
 
 .mic-status-text {
-  margin-top: 1rem;
-  font-size: 1.1rem;
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--emerald-glow);
   letter-spacing: 0.02em;

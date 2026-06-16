@@ -1868,7 +1868,7 @@ async function searchGolfCourses(query) {
   // If user configured GolfAPI.io key, fetch from remote database!
   if (state.golfApiKey) {
     try {
-      const url = `https://golfapi.io/api/v1/clubs?name=${encodeURIComponent(query)}`;
+      const url = `/api-golf/api/v1/clubs?name=${encodeURIComponent(query)}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
