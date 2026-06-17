@@ -342,6 +342,7 @@ function initActiveRound() {
       putts: 0,
       fairway: 'NA', // NA, HIT, LEFT, RIGHT, OB
       gir: 'NA', // NA, YES, NO
+      conceded: false,
       notes: []
     });
   }
@@ -490,6 +491,7 @@ function initUI() {
             putts: 0,
             fairway: 'NA',
             gir: 'NA',
+            conceded: false,
             notes: []
           });
         }
@@ -628,6 +630,30 @@ function initUI() {
       updateHoleMetric('gir', btn.dataset.value);
     });
   });
+
+  // Conceded Toggle Buttons
+  const concededGroup = document.querySelector('[aria-label="Conceded Status"]');
+  if (concededGroup) {
+    concededGroup.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        concededGroup.querySelectorAll('.toggle-btn').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-checked', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-checked', 'true');
+        
+        const isConceded = (btn.dataset.value === 'YES');
+        const activeHole = state.holes[state.currentHoleIndex];
+        
+        updateHoleMetric('conceded', isConceded);
+        
+        if (isConceded && activeHole && activeHole.score === 0) {
+          updateHoleMetric('score', activeHole.par);
+        }
+      });
+    });
+  }
 
   // Add notes manually
   document.getElementById('btn-add-note').addEventListener('click', () => {
@@ -1282,6 +1308,21 @@ function updateUI() {
     }
   });
 
+  // Conceded toggle button active states
+  const concededGroup = document.querySelector('[aria-label="Conceded Status"]');
+  if (concededGroup) {
+    concededGroup.querySelectorAll('.toggle-btn').forEach(btn => {
+      const isConcededVal = (btn.dataset.value === 'YES');
+      if (isConcededVal === !!activeHole.conceded) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-checked', 'true');
+      } else {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-checked', 'false');
+      }
+    });
+  }
+
   // Active hole notes bubbles list
   renderNotesList(activeHole);
 
@@ -1352,8 +1393,13 @@ function renderScorecard() {
     // Score
     const tdScore = document.createElement('td');
     if (isCurrent) tdScore.className = 'active-col';
-    tdScore.className += ` cell-val ${getScoreClass(hole)}`;
-    tdScore.textContent = hole.score > 0 ? hole.score : '-';
+    if (hole.conceded) {
+      tdScore.className += ' cell-val cell-conceded';
+      tdScore.textContent = 'C';
+    } else {
+      tdScore.className += ` cell-val ${getScoreClass(hole)}`;
+      tdScore.textContent = hole.score > 0 ? hole.score : '-';
+    }
     tdScore.addEventListener('click', () => navigateHole(index));
     scoreRow.appendChild(tdScore);
 
@@ -1734,7 +1780,7 @@ async function sendAudioToWhisper(audioBlob, extension) {
   
   formData.append('file', file);
   formData.append('model', 'whisper-1');
-  formData.append('prompt', 'Golf score tracker stats. Terms: hole, score, putts, par, fairway, gir, ob, hit fairway, birdie, bogey, eagle, double bogey, albatross, green in regulation.');
+  formData.append('prompt', 'Golf score tracker stats. Terms: hole, score, putts, par, fairway, gir, ob, hit fairway, birdie, bogey, eagle, double bogey, albatross, green in regulation, concede, conceded, conceded hole.');
   formData.append('language', 'en');
 
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -1988,6 +2034,22 @@ function processFinalTranscript(transcript) {
         clause = clause.replace(girYesMatch[0], '').trim();
         isStat = true;
       }
+    }
+
+    // 4b. Conceded Hole
+    const concededMatch = clause.match(/\b(?:concede(?:d)?(?:\s+hole)?|hole\s+concede(?:d)?)\b/);
+    if (concededMatch) {
+      activeHole.conceded = true;
+      updates.conceded = true;
+      
+      // Default to par if score is 0
+      if (activeHole.score === 0) {
+        activeHole.score = activeHole.par;
+        updates.score = activeHole.par;
+      }
+      
+      clause = clause.replace(concededMatch[0], '').trim();
+      isStat = true;
     }
 
     // 5. Score
@@ -2268,7 +2330,8 @@ function calculateAndShowReport(roundData) {
       
       const diffVal = h.score - h.par;
       let scoreLabel = '';
-      if (diffVal === 0) scoreLabel = 'Par';
+      if (h.conceded) scoreLabel = 'Conceded';
+      else if (diffVal === 0) scoreLabel = 'Par';
       else if (diffVal === -1) scoreLabel = 'Birdie';
       else if (diffVal <= -2) scoreLabel = 'Eagle';
       else if (diffVal === 1) scoreLabel = 'Bogey';
@@ -2281,10 +2344,13 @@ function calculateAndShowReport(roundData) {
         ? `<div class="hole-log-notes-area"><strong>Notes:</strong> ${h.notes.map(n => escapeHTML(n)).join('; ')}</div>` 
         : '';
 
+      const scoreClass = h.conceded ? 'cell-conceded' : getScoreClass(h);
+      const scoreDisplay = h.conceded ? `C (${scoreLabel})` : `${h.score} (${scoreLabel})`;
+
       div.innerHTML = `
         <div class="hole-log-header">
           <span>Hole ${h.number} (Par ${h.par})</span>
-          <span class="${getScoreClass(h)}">${h.score} (${scoreLabel})</span>
+          <span class="${scoreClass}">${scoreDisplay}</span>
         </div>
         <div class="hole-log-stats-row">
           <span>${puttsText}</span>
@@ -2332,6 +2398,7 @@ async function generateCoachingAssessment(roundData, totalScore, totalPar, total
       putts: h.putts,
       fairway: h.fairway,
       gir: h.gir,
+      conceded: h.conceded || false,
       notes: h.notes
     }));
 
@@ -2721,6 +2788,7 @@ function applySelectedCourse() {
         putts: 0,
         fairway: 'NA',
         gir: 'NA',
+        conceded: false,
         notes: []
       });
     }
