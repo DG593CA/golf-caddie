@@ -467,6 +467,17 @@
               </div>
             </div>
 
+            <!-- Cloud Database Sync -->
+            <div class="form-group-block">
+              <label class="form-section-title">Cloud Database Sync</label>
+              <p class="form-help-text">Sync your scores and settings to the cloud. Enter a Sync ID to connect your phone or another device.</p>
+              <div class="sync-id-row" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <input type="text" id="sync-id-input" class="form-input" placeholder="caddie-..." style="font-family: monospace;">
+                <button type="button" id="btn-copy-sync-id" class="btn btn-secondary btn-sm" style="flex-shrink: 0; padding: 0.5rem 0.8rem;">📋 Copy</button>
+              </div>
+              <button type="button" id="btn-connect-sync" class="btn btn-secondary btn-sm btn-block">Connect &amp; Load Records</button>
+            </div>
+
             <!-- Gemini AI Key -->
             <div class="form-group-block">
               <label for="gemini-api-key" class="form-section-title">Gemini API Key (Optional)</label>

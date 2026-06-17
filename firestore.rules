@@ -1,0 +1,142 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: syncId (length 15-50 characters)
+    // Fields:
+    //   - syncId: string (required, must match Document ID)
+    //   - apiKey: string (optional, Gemini key, max 100 chars)
+    //   - openaiApiKey: string (optional, Whisper key, max 100 chars)
+    //   - golfApiKey: string (optional, GolfCourseAPI key, max 100 chars)
+    //   - roundIds: list of strings (required, list of completed round IDs associated with the user, max 500 items, each max 50 chars)
+    //   - createdAt: timestamp (required)
+    //   - updatedAt: timestamp (required)
+    //
+    // Collection: rounds
+    // Document ID: syncId + "_" + roundId (string)
+    // Fields:
+    //   - id: number (required, local timestamp, e.g. 1781652433924)
+    //   - syncId: string (required, must match the syncId in the document ID prefix)
+    //   - courseName: string (required, max 120 chars)
+    //   - date: string (required, date of play, format YYYY-MM-DD)
+    //   - rating: number (required, course rating, positive)
+    //   - slope: number (required, course slope, positive)
+    //   - numHoles: number (required, number of holes, 9 or 18)
+    //   - totalScore: number (required, total shots taken)
+    //   - totalPar: number (required, total par of course)
+    //   - totalPutts: number (required, total putts taken)
+    //   - avgPutts: number (required, average putts per hole)
+    //   - threePutts: number (required, number of 3-putts)
+    //   - onePutts: number (required, number of 1-putts)
+    //   - fairwayPercent: number (required, percentage of fairways hit)
+    //   - girPercent: number (required, percentage of greens in regulation)
+    //   - holes: list of maps (required, max size 18)
+    //     - Each map contains:
+    //       - number: number (required, positive, 1-18)
+    //       - par: number (required, positive, 3-5)
+    //       - score: number (required, positive, 0-15)
+    //       - putts: number (required, positive, 0-10)
+    //       - fairway: string (required, NA, HIT, LEFT, RIGHT, OB)
+    //       - gir: string (required, NA, YES, NO)
+    //       - notes: list of strings (required, max size 10, each string max 200 chars)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // Helper functions
+    function isValidSyncId(syncId) {
+      return syncId is string && syncId.size() >= 15 && syncId.size() <= 50;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isRecent(time) {
+      return time is timestamp &&
+             time > request.time - duration.value(5, 'm') &&
+             time <= request.time;
+    }
+
+    function isValidOptionalString(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    // Domain validation functions
+    function isValidUserDoc(data, syncId) {
+      return hasRequiredFields(['syncId', 'roundIds', 'createdAt', 'updatedAt']) &&
+             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'createdAt', 'updatedAt']) &&
+             data.syncId == syncId &&
+             isValidSyncId(data.syncId) &&
+             isValidOptionalString(data, 'apiKey', 100) &&
+             isValidOptionalString(data, 'openaiApiKey', 100) &&
+             isValidOptionalString(data, 'golfApiKey', 100) &&
+             data.roundIds is list &&
+             data.roundIds.size() <= 500 &&
+             isRecent(data.createdAt);
+    }
+
+    function isValidRoundDoc(data, docId) {
+      return hasRequiredFields([
+               'id', 'syncId', 'courseName', 'date', 'rating', 'slope', 'numHoles',
+               'totalScore', 'totalPar', 'totalPutts', 'avgPutts', 'threePutts',
+               'onePutts', 'fairwayPercent', 'girPercent', 'holes', 'createdAt'
+             ]) &&
+             hasOnlyAllowedFields([
+               'id', 'syncId', 'courseName', 'date', 'rating', 'slope', 'numHoles',
+               'totalScore', 'totalPar', 'totalPutts', 'avgPutts', 'threePutts',
+               'onePutts', 'fairwayPercent', 'girPercent', 'holes', 'createdAt'
+             ]) &&
+             docId == data.syncId + "_" + string(data.id) &&
+             data.id is number && data.id > 0 &&
+             isValidSyncId(data.syncId) &&
+             data.courseName is string && data.courseName.size() <= 120 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.rating is number && data.rating >= 20.0 && data.rating <= 90.0 &&
+             data.slope is number && data.slope >= 55 && data.slope <= 155 &&
+             data.numHoles is number && (data.numHoles == 9 || data.numHoles == 18) &&
+             data.totalScore is number && data.totalScore >= 0 &&
+             data.totalPar is number && data.totalPar >= 20 && data.totalPar <= 90 &&
+             data.totalPutts is number && data.totalPutts >= 0 &&
+             data.avgPutts is number && data.avgPutts >= 0.0 &&
+             data.threePutts is number && data.threePutts >= 0 &&
+             data.onePutts is number && data.onePutts >= 0 &&
+             (data.fairwayPercent is number || data.fairwayPercent is float) &&
+             (data.girPercent is number || data.girPercent is float) &&
+             data.holes is list && data.holes.size() <= 18 &&
+             isRecent(data.createdAt);
+    }
+
+    // Rules matching
+    match /users/{syncId} {
+      allow get: if isValidSyncId(syncId);
+      allow create: if isValidSyncId(syncId) && isValidUserDoc(request.resource.data, syncId);
+      allow update: if isValidSyncId(syncId) && 
+                     isValidUserDoc(request.resource.data, syncId) &&
+                     request.resource.data.createdAt == resource.data.createdAt; // immutable createdAt
+      allow delete: if false; // do not allow deletion via client
+      allow list: if false; // prevent listing users!
+    }
+
+    match /rounds/{roundDocId} {
+      allow get: if true; // Safe because they can't list, and doc ID is high-entropy (syncId_roundId)
+      allow create: if isValidRoundDoc(request.resource.data, roundDocId);
+      allow update: if isValidRoundDoc(request.resource.data, roundDocId) &&
+                     request.resource.data.syncId == resource.data.syncId &&
+                     request.resource.data.id == resource.data.id &&
+                     request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if true; // Safe because they must know the doc ID to delete it
+      allow list: if false; // prevent listing rounds globally!
+    }
+  }
+}

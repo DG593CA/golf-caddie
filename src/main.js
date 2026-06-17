@@ -1,4 +1,6 @@
 import './style.css';
+import { db } from './firebase.js';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Mock Golf Courses Database
 const MOCK_COURSES = [
@@ -70,8 +72,8 @@ const MOCK_COURSES = [
   }
 ];
 
-// Core State Definition
 let state = {
+  syncId: '',
   numHoles: 9,
   currentHoleIndex: 0,
   apiKey: '',
@@ -81,7 +83,8 @@ let state = {
   useSpeechSynthesis: true,
   isListening: false,
   continuous: false,
-  holes: []
+  holes: [],
+  history: []
 };
 
 // Speech Recognition Variables
@@ -99,6 +102,7 @@ function initApp() {
   applySelectedCourse();
   updateUI();
   updateGPSWidget();
+  syncFromCloud();
 }
 
 if (document.readyState === 'loading') {
@@ -114,6 +118,7 @@ function loadState() {
     try {
       state = JSON.parse(savedState);
       state.isListening = false;
+      if (!state.syncId) state.syncId = generateSyncId();
       if (!state.history) state.history = [];
       if (!state.golfApiKey) state.golfApiKey = 'JU7TE2S574463W653KOETCNKH4';
       if (state.openaiApiKey === undefined) state.openaiApiKey = '';
@@ -130,6 +135,7 @@ function loadState() {
 }
 
 function initDefaultState() {
+  state.syncId = generateSyncId();
   state.numHoles = 9;
   state.apiKey = '';
   state.golfApiKey = 'JU7TE2S574463W653KOETCNKH4';
@@ -140,6 +146,179 @@ function initDefaultState() {
   state.continuous = false;
   state.history = [];
   initActiveRound();
+}
+
+function generateSyncId() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'caddie-';
+  for (let i = 0; i < 16; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+async function syncFromCloud() {
+  if (!state.syncId) return;
+  try {
+    const userDocRef = doc(db, 'users', state.syncId);
+    const userDocSnap = await getDoc(userDocRef);
+    
+    if (userDocSnap.exists()) {
+      const userData = userDocSnap.data();
+      
+      // Update local keys if they match
+      if (userData.apiKey) state.apiKey = userData.apiKey;
+      if (userData.openaiApiKey) state.openaiApiKey = userData.openaiApiKey;
+      if (userData.golfApiKey) state.golfApiKey = userData.golfApiKey;
+      
+      // Fetch completed rounds from roundIds
+      if (userData.roundIds && userData.roundIds.length > 0) {
+        const cloudRounds = [];
+        for (const roundDocId of userData.roundIds) {
+          const roundDocRef = doc(db, 'rounds', roundDocId);
+          const roundSnap = await getDoc(roundDocRef);
+          if (roundSnap.exists()) {
+            cloudRounds.push(roundSnap.data());
+          }
+        }
+        
+        if (cloudRounds.length > 0) {
+          if (!state.history) state.history = [];
+          
+          let modified = false;
+          cloudRounds.forEach(cloudRound => {
+            const exists = state.history.some(r => r.id === cloudRound.id);
+            if (!exists) {
+              state.history.push(cloudRound);
+              modified = true;
+            }
+          });
+          
+          if (modified) {
+            state.history.sort((a, b) => b.id - a.id);
+          }
+        }
+      }
+      
+      saveState();
+      updateUI();
+      // Populate inputs in modal if currently open
+      const syncInput = document.getElementById('sync-id-input');
+      if (syncInput) syncInput.value = state.syncId;
+    } else {
+      // First time user registration in Cloud database
+      await saveSettingsToCloud();
+    }
+  } catch (error) {
+    console.error("Failed to sync from Cloud Firestore:", error);
+  }
+}
+
+async function saveSettingsToCloud() {
+  if (!state.syncId) return;
+  try {
+    const userDocRef = doc(db, 'users', state.syncId);
+    const userDocSnap = await getDoc(userDocRef);
+    const roundIds = userDocSnap.exists() ? (userDocSnap.data().roundIds || []) : [];
+    
+    await setDoc(userDocRef, {
+      syncId: state.syncId,
+      apiKey: state.apiKey || '',
+      openaiApiKey: state.openaiApiKey || '',
+      golfApiKey: state.golfApiKey || '',
+      roundIds: roundIds,
+      createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
+      updatedAt: new Date()
+    });
+    console.log("Settings successfully synced to Cloud.");
+  } catch (error) {
+    console.error("Failed to save settings to Cloud:", error);
+  }
+}
+
+async function saveRoundToCloud(archivedRound) {
+  if (!state.syncId) return;
+  const docId = `${state.syncId}_${archivedRound.id}`;
+  try {
+    const roundDocRef = doc(db, 'rounds', docId);
+    await setDoc(roundDocRef, {
+      ...archivedRound,
+      syncId: state.syncId,
+      createdAt: new Date()
+    });
+    
+    const userDocRef = doc(db, 'users', state.syncId);
+    let roundIds = [];
+    const userDocSnap = await getDoc(userDocRef);
+    if (userDocSnap.exists()) {
+      roundIds = userDocSnap.data().roundIds || [];
+    }
+    
+    if (!roundIds.includes(docId)) {
+      roundIds.push(docId);
+    }
+    
+    await setDoc(userDocRef, {
+      syncId: state.syncId,
+      apiKey: state.apiKey || '',
+      openaiApiKey: state.openaiApiKey || '',
+      golfApiKey: state.golfApiKey || '',
+      roundIds: roundIds,
+      createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
+      updatedAt: new Date()
+    });
+    console.log("Round successfully archived in the Cloud database:", docId);
+  } catch (error) {
+    console.error("Failed to save round to Cloud:", error);
+  }
+}
+
+async function connectExistingSyncId(newSyncId) {
+  const trimmedId = newSyncId.trim();
+  if (!trimmedId || trimmedId.length < 15 || trimmedId.length > 50) {
+    alert("Invalid Sync ID. Must be between 15 and 50 characters.");
+    return;
+  }
+  
+  try {
+    const userDocRef = doc(db, 'users', trimmedId);
+    const userDocSnap = await getDoc(userDocRef);
+    
+    if (userDocSnap.exists()) {
+      const userData = userDocSnap.data();
+      state.syncId = trimmedId;
+      state.apiKey = userData.apiKey || '';
+      state.openaiApiKey = userData.openaiApiKey || '';
+      state.golfApiKey = userData.golfApiKey || '';
+      
+      state.history = [];
+      if (userData.roundIds && userData.roundIds.length > 0) {
+        for (const roundDocId of userData.roundIds) {
+          const roundDocRef = doc(db, 'rounds', roundDocId);
+          const roundSnap = await getDoc(roundDocRef);
+          if (roundSnap.exists()) {
+            state.history.push(roundSnap.data());
+          }
+        }
+        state.history.sort((a, b) => b.id - a.id);
+      }
+      
+      saveState();
+      updateUI();
+      alert(`Connected successfully! Loaded settings and ${state.history.length} round records.`);
+    } else {
+      if (confirm("Sync ID does not have any active cloud records yet. Would you like to use this ID for your current cloud session?")) {
+        state.syncId = trimmedId;
+        await saveSettingsToCloud();
+        saveState();
+        updateUI();
+        alert(`Connected successfully. New Cloud profile initialized with ID: ${trimmedId}`);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to connect existing Sync ID:", error);
+    alert("Failed to connect. Please check your network connection.");
+  }
 }
 
 function initActiveRound() {
@@ -179,6 +358,7 @@ function initUI() {
   const settingsDialog = document.getElementById('settings-dialog');
   document.getElementById('btn-settings').addEventListener('click', () => {
     renderParsConfig();
+    document.getElementById('sync-id-input').value = state.syncId || '';
     document.getElementById('gemini-api-key').value = state.apiKey || '';
     document.getElementById('openai-api-key').value = state.openaiApiKey || '';
     document.getElementById('golfapi-key').value = state.golfApiKey || '';
@@ -189,6 +369,35 @@ function initUI() {
       document.getElementById('holes-18').checked = true;
     }
     settingsDialog.showModal();
+  });
+
+  // Copy sync ID button
+  document.getElementById('btn-copy-sync-id').addEventListener('click', () => {
+    const syncId = document.getElementById('sync-id-input').value;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(syncId).then(() => {
+        alert("Sync ID copied to clipboard!");
+      }).catch(err => {
+        console.error("Failed to copy Sync ID:", err);
+      });
+    } else {
+      const syncInput = document.getElementById('sync-id-input');
+      syncInput.select();
+      document.execCommand('copy');
+      alert("Sync ID copied to clipboard!");
+    }
+  });
+
+  // Connect to existing sync ID
+  document.getElementById('btn-connect-sync').addEventListener('click', () => {
+    const syncId = document.getElementById('sync-id-input').value.trim();
+    if (syncId === state.syncId) {
+      alert("Already syncing with this ID.");
+      return;
+    }
+    if (confirm("Connecting to another Sync ID will overwrite your current settings and history. Are you sure you want to proceed?")) {
+      connectExistingSyncId(syncId);
+    }
   });
 
   document.getElementById('btn-close-settings').addEventListener('click', () => {
@@ -252,6 +461,7 @@ function initUI() {
     }
 
     saveState();
+    saveSettingsToCloud();
     updateUI();
     updateGPSWidget();
     settingsDialog.close();
@@ -577,6 +787,7 @@ function initUI() {
 
     if (!state.history) state.history = [];
     state.history.push(archivedRound);
+    saveRoundToCloud(archivedRound);
 
     // Track review context: we just finished the round
     state.reviewContext = 'active';
