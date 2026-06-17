@@ -1000,11 +1000,84 @@ function stopListeningUI() {
 }
 
 // Golf Spoken Text Parser
+function normalizeGolfTranscript(text) {
+  if (!text) return '';
+  let normalized = text.toLowerCase();
+
+  // 1. Punctuation cleaning (dashes to spaces)
+  normalized = normalized.replace(/-/g, ' ');
+
+  // 2. Map common golf word homophones and accents
+  const homophones = [
+    // hole
+    { regex: /\b(?:wholes?|holds?|homes?)\b/g, replace: 'hole' },
+    // putts / putt / pots
+    { regex: /\b(?:pots?|puts?|pats?|poets?|butts?|path?s)\b/g, replace: 'putt' },
+    { regex: /\bputted\b/g, replace: 'putt' },
+    // par / pars
+    { regex: /\b(?:parts|pairs|bars|pers|peers)\b/g, replace: 'pars' },
+    { regex: /\b(?:part|pair|bar|per|peer)\b/g, replace: 'par' },
+    // fairway
+    { regex: /\b(?:fair\s+ways?|pharaohs?|ferries|ferry|fareways?)\b/g, replace: 'fairway' },
+    // OB
+    { regex: /\b(?:o\.b\.|o b|out of bounds?)\b/g, replace: 'ob' },
+    // GIR
+    { regex: /\b(?:g\.i\.r\.|g i r|green in regulation|green regulation)\b/g, replace: 'gir' },
+    // bogey
+    { regex: /\b(?:bogies?|bogys?|boogies?)\b/g, replace: 'bogey' },
+    // birdie
+    { regex: /\b(?:birdys?|berti?es?)\b/g, replace: 'birdie' },
+    // eagle
+    { regex: /\b(?:egals?|equals?)\b/g, replace: 'eagle' }
+  ];
+
+  homophones.forEach(item => {
+    normalized = normalized.replace(item.regex, item.replace);
+  });
+
+  // 3. Normalize numbers (handling numbers 1-10 and their homophones contextually)
+  const numberMaps = [
+    { regex: /\bone\b/g, replace: '1' },
+    { regex: /\bwon\b(?=\s*(?:putt|shot|bogey|birdie|eagle|par|ob|gir|hit|miss|\d))/g, replace: '1' },
+    
+    { regex: /\b(?:two|too)\b/g, replace: '2' },
+    { regex: /\bto\b(?=\s*(?:putt|shot|bogey|birdie|eagle|par|ob|gir|hit|miss|\d|hole))/g, replace: '2' },
+    
+    { regex: /\bthree\b/g, replace: '3' },
+    { regex: /\bfree\b(?=\s*(?:putt|shot|bogey|birdie|eagle|par|ob|gir|hit|miss|\d))/g, replace: '3' },
+    
+    { regex: /\b(?:four|fore)\b/g, replace: '4' },
+    { regex: /\bfor\b(?=\s*(?:putt|shot|bogey|birdie|eagle|par|ob|gir|hit|miss|\d))/g, replace: '4' },
+    { regex: /(?<=\b(?:score|shot|got|made|took|putt|par|hole)\s+)for\b/g, replace: '4' },
+    
+    { regex: /\bfive\b/g, replace: '5' },
+    
+    { regex: /\bsix\b/g, replace: '6' },
+    { regex: /\bsex\b(?=\s*(?:putt|shot|bogey|birdie|eagle|par|ob|gir|hit|miss|\d))/g, replace: '6' },
+    
+    { regex: /\bseven\b/g, replace: '7' },
+    
+    { regex: /\beight\b/g, replace: '8' },
+    { regex: /\bate\b(?=\s*(?:putt|shot|bogey|birdie|eagle|par|ob|gir|hit|miss|\d))/g, replace: '8' },
+    
+    { regex: /\bnine\b/g, replace: '9' },
+    { regex: /\bten\b/g, replace: '10' }
+  ];
+
+  numberMaps.forEach(item => {
+    normalized = normalized.replace(item.regex, item.replace);
+  });
+
+  return normalized;
+}
+
 function processFinalTranscript(transcript) {
   if (!transcript || !transcript.trim()) return;
 
-  // Split the transcript into clauses by pauses or connectors
-  const clauses = transcript.split(/\b(?:and|then|but)\b|[,.;?!]+/i);
+  const normalized = normalizeGolfTranscript(transcript);
+  
+  // Split transcript into clauses by pauses or connectors
+  const clauses = normalized.split(/\b(?:and\s+then|then|and|but)\b|[,.;?!]+/i);
   let notesToAdd = [];
   
   // Track updates for voice confirmation speakback
@@ -1018,103 +1091,241 @@ function processFinalTranscript(transcript) {
     notesCount: 0
   };
 
-  // Phase 1: Check for navigation in any of the clauses first, so we record stats on the correct hole
-  for (let clause of clauses) {
-    clause = clause.trim().toLowerCase();
+  // Phase 1: Navigation check and strip from clauses
+  for (let i = 0; i < clauses.length; i++) {
+    let clause = clauses[i].trim();
     if (!clause) continue;
 
-    // Check navigation Match
-    const navigateHoleMatch = clause.match(/(?:go to|select)?\s*hole\s*(\d+)/);
-    if (navigateHoleMatch) {
-      const holeNum = parseInt(navigateHoleMatch[1]);
+    // Go to hole X
+    const holeMatch = clause.match(/\bhole\s*(\d+)\b/);
+    if (holeMatch) {
+      const holeNum = parseInt(holeMatch[1]);
       if (holeNum >= 1 && holeNum <= state.numHoles) {
         state.currentHoleIndex = holeNum - 1;
         updates.holeChanged = true;
         updates.newHoleNum = holeNum;
+        clauses[i] = clause.replace(holeMatch[0], '').trim();
       }
-    } else if (clause.includes("next hole") || clause.includes("go to next")) {
+      continue;
+    }
+
+    // Go to next hole
+    const nextMatch = clause.match(/\b(?:next\s+hole|go\s+to\s+next|go\s+2\s+next)\b/);
+    if (nextMatch) {
       if (state.currentHoleIndex < state.numHoles - 1) {
         state.currentHoleIndex++;
         updates.holeChanged = true;
         updates.newHoleNum = state.currentHoleIndex + 1;
+        clauses[i] = clause.replace(nextMatch[0], '').trim();
       }
-    } else if (clause.includes("previous hole") || clause.includes("go back") || clause.includes("prev hole")) {
+      continue;
+    }
+
+    // Go to previous hole
+    const prevMatch = clause.match(/\b(?:previous\s+hole|prev\s+hole|go\s+back)\b/);
+    if (prevMatch) {
       if (state.currentHoleIndex > 0) {
         state.currentHoleIndex--;
         updates.holeChanged = true;
         updates.newHoleNum = state.currentHoleIndex + 1;
+        clauses[i] = clause.replace(prevMatch[0], '').trim();
       }
+      continue;
     }
   }
 
-  // Get active hole object (might be newly navigated to)
+  // Get active hole object
   const activeHole = state.holes[state.currentHoleIndex];
   if (!activeHole) return;
 
   // Phase 2: Process stats commands and extract custom notes
-  for (let clause of clauses) {
-    clause = clause.trim();
+  for (let i = 0; i < clauses.length; i++) {
+    let clause = clauses[i].trim();
     if (!clause) continue;
-
-    const lowerClause = clause.toLowerCase();
-
-    // Skip pure navigation statements already handled
-    if (isPureNavigation(lowerClause)) {
-      continue;
-    }
 
     let isStat = false;
 
-    // 1. Check Par settings: "par 4", "par 3"
-    const parMatch = lowerClause.match(/\bpar\s*(3|4|5)\b/);
+    // 1. Par setting: "par 4", "par 3", "par 5"
+    const parMatch = clause.match(/\bpar\s*([345])\b/);
     if (parMatch) {
       const parVal = parseInt(parMatch[1]);
       activeHole.par = parVal;
+      clause = clause.replace(parMatch[0], '').trim();
       isStat = true;
     }
 
-    // 2. Check Score
-    const scoreVal = parseScore(lowerClause, activeHole.par);
-    if (scoreVal !== null) {
+    // 2. Putts: "2 putt", "putt 2"
+    const puttMatch = clause.match(/\b(\d+)\s*putts?\b/) || clause.match(/\bputts?\s*(\d+)\b/);
+    if (puttMatch) {
+      const puttVal = parseInt(puttMatch[1]);
+      activeHole.putts = puttVal;
+      updates.putts = puttVal;
+      clause = clause.replace(puttMatch[0], '').trim();
+      isStat = true;
+    } else {
+      if (clause.includes("putted once") || clause.includes("single putt")) {
+        activeHole.putts = 1;
+        updates.putts = 1;
+        clause = clause.replace(/putted once|single putt/g, '').trim();
+        isStat = true;
+      } else if (clause.includes("putted twice") || clause.includes("two putt") || clause.includes("two-putt")) {
+        activeHole.putts = 2;
+        updates.putts = 2;
+        clause = clause.replace(/putted twice/g, '').trim();
+        isStat = true;
+      }
+    }
+
+    // 3. Fairway
+    const obMatch = clause.match(/\b(?:ob|out\s+of\s+bounds)\b/);
+    if (obMatch) {
+      activeHole.fairway = "OB";
+      updates.fairway = "OB";
+      clause = clause.replace(obMatch[0], '').trim();
+      isStat = true;
+    } else {
+      const hitMatch = clause.match(/\b(?:fairway\s+hit|hit\s+fairway|hit\s+the\s+fairway|in\s+the\s+fairway)\b/);
+      if (hitMatch) {
+        activeHole.fairway = "HIT";
+        updates.fairway = "HIT";
+        clause = clause.replace(hitMatch[0], '').trim();
+        isStat = true;
+      } else {
+        const leftMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+left|miss(?:ed)?\s+left|fairway\s+left|miss\s+left|miss(?:ed)?\s+the\s+fairway\s+left)\b/);
+        if (leftMatch) {
+          activeHole.fairway = "LEFT";
+          updates.fairway = "LEFT";
+          clause = clause.replace(leftMatch[0], '').trim();
+          isStat = true;
+        } else {
+          const rightMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+right|miss(?:ed)?\s+right|fairway\s+right|miss\s+right|miss(?:ed)?\s+the\s+fairway\s+right)\b/);
+          if (rightMatch) {
+            activeHole.fairway = "RIGHT";
+            updates.fairway = "RIGHT";
+            clause = clause.replace(rightMatch[0], '').trim();
+            isStat = true;
+          } else {
+            const missMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway|miss(?:ed)?\s+the\s+fairway|fairway\s+miss)\b/);
+            if (missMatch) {
+              activeHole.fairway = "LEFT"; // Default miss direction
+              updates.fairway = "LEFT";
+              clause = clause.replace(missMatch[0], '').trim();
+              isStat = true;
+            }
+          }
+        }
+      }
+    }
+
+    // 4. GIR
+    const girYesMatch = clause.match(/\b(?:green\s+in\s+regulation|gir|hit\s+the\s+green|hit\s+green|on\s+the\s+green|in\s+regulation)\b/);
+    if (girYesMatch) {
+      activeHole.gir = "YES";
+      updates.gir = "YES";
+      clause = clause.replace(girYesMatch[0], '').trim();
+      isStat = true;
+    } else {
+      const girNoMatch = clause.match(/\b(?:miss(?:ed)?\s+the\s+green|miss(?:ed)?\s+green|miss(?:ed)?\s+gir|not\s+on\s+the\s+green)\b/);
+      if (girNoMatch) {
+        activeHole.gir = "NO";
+        updates.gir = "NO";
+        clause = clause.replace(girNoMatch[0], '').trim();
+        isStat = true;
+      }
+    }
+
+    // 5. Score
+    const explicitScoreMatch = clause.match(/\b(?:score(?:\s+of)?|shot(?:\s+a)?|got(?:\s+a)?|made(?:\s+a)?|took)\s*(\d+)\b/) ||
+                                clause.match(/\b(\d+)\s*(?:shots?|strokes?)\b/);
+    if (explicitScoreMatch) {
+      const scoreVal = parseInt(explicitScoreMatch[1]);
       activeHole.score = scoreVal;
       updates.score = scoreVal;
+      clause = clause.replace(explicitScoreMatch[0], '').trim();
       isStat = true;
+    } else {
+      let scoreVal = null;
+      let matchedTerm = null;
+
+      const albatrossMatch = clause.match(/\b(?:double\s+eagle|albatross)\b/);
+      if (albatrossMatch) {
+        scoreVal = activeHole.par - 3;
+        matchedTerm = albatrossMatch[0];
+      } else {
+        const eagleMatch = clause.match(/\beagle\b/);
+        if (eagleMatch) {
+          scoreVal = activeHole.par - 2;
+          matchedTerm = eagleMatch[0];
+        } else {
+          const birdieMatch = clause.match(/\bbirdie\b/);
+          if (birdieMatch) {
+            scoreVal = activeHole.par - 1;
+            matchedTerm = birdieMatch[0];
+          } else {
+            const doubleBogeyMatch = clause.match(/\bdouble\s+bogey\b/);
+            if (doubleBogeyMatch) {
+              scoreVal = activeHole.par + 2;
+              matchedTerm = doubleBogeyMatch[0];
+            } else {
+              const tripleBogeyMatch = clause.match(/\btriple\s+bogey\b/);
+              if (tripleBogeyMatch) {
+                scoreVal = activeHole.par + 3;
+                matchedTerm = tripleBogeyMatch[0];
+              } else {
+                const bogeyMatch = clause.match(/\bbogey\b/);
+                if (bogeyMatch) {
+                  scoreVal = activeHole.par + 1;
+                  matchedTerm = bogeyMatch[0];
+                } else {
+                  const parScoreMatch = clause.match(/\b(?:got|made|shot|had)?\s*a?\s*par(?:red)?\b/);
+                  if (parScoreMatch) {
+                    scoreVal = activeHole.par;
+                    matchedTerm = parScoreMatch[0];
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (scoreVal !== null) {
+        activeHole.score = scoreVal;
+        updates.score = scoreVal;
+        clause = clause.replace(matchedTerm, '').trim();
+        isStat = true;
+      } else {
+        // Fallback: standalone remaining digit
+        const standaloneDigitMatch = clause.match(/\b(\d+)\b/);
+        if (standaloneDigitMatch) {
+          const scoreVal = parseInt(standaloneDigitMatch[1]);
+          activeHole.score = scoreVal;
+          updates.score = scoreVal;
+          clause = clause.replace(standaloneDigitMatch[0], '').trim();
+          isStat = true;
+        }
+      }
     }
 
-    // 3. Check Putts
-    const puttsVal = parsePutts(lowerClause);
-    if (puttsVal !== null) {
-      activeHole.putts = puttsVal;
-      updates.putts = puttsVal;
-      isStat = true;
-    }
+    // Clean punctuation from ends of remaining clause
+    clause = clause.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '').trim();
 
-    // 4. Check Fairway
-    const fairwayVal = parseFairway(lowerClause);
-    if (fairwayVal !== null) {
-      activeHole.fairway = fairwayVal;
-      updates.fairway = fairwayVal;
-      isStat = true;
-    }
-
-    // 5. Check GIR
-    const girVal = parseGIR(lowerClause);
-    if (girVal !== null) {
-      activeHole.gir = girVal;
-      updates.gir = girVal;
-      isStat = true;
-    }
-
-    // If no stats matched, it's a general description
-    if (!isStat) {
+    // 6. Custom Note addition
+    if (clause) {
       const cleanNote = cleanNoteText(clause);
       if (cleanNote) {
-        notesToAdd.push(cleanNote);
+        const words = cleanNote.toLowerCase().split(/\s+/);
+        const stopWords = ['on', 'in', 'at', 'a', 'the', 'i', 'had', 'got', 'made', 'took', 'it', 'for', 'to', 'and', 'then', 'but', 'so', 'of'];
+        const onlyStopWords = words.every(word => stopWords.includes(word));
+
+        if (!onlyStopWords && cleanNote.length >= 2) {
+          notesToAdd.push(cleanNote);
+        }
       }
     }
   }
 
-  // Add notes if any
+  // Add notes
   if (notesToAdd.length > 0) {
     if (!activeHole.notes) activeHole.notes = [];
     activeHole.notes.push(...notesToAdd);
@@ -1123,114 +1334,11 @@ function processFinalTranscript(transcript) {
 
   saveState();
   updateUI();
-  
+
   // Audio Speech Confirmation Readback
   if (state.useSpeechSynthesis) {
     triggerVoiceConfirmation(updates, activeHole.number);
   }
-}
-
-// Navigation pattern detector
-function isPureNavigation(clause) {
-  if (clause.match(/^\s*(?:go to|select)?\s*hole\s*\d+\s*$/)) return true;
-  if (clause.trim() === "next hole" || clause.trim() === "go to next") return true;
-  if (clause.trim() === "previous hole" || clause.trim() === "go back" || clause.trim() === "prev hole") return true;
-  return false;
-}
-
-// Regex extraction functions
-function parseScore(text, currentPar) {
-  // numeric score match: "score 4", "shot a 5"
-  const numMatch = text.match(/(?:score(?:\s+of)?|shot(?:\s+a)?|got(?:\s+a)?|made(?:\s+a)?|took)\s*(\d+)/);
-  if (numMatch) return parseInt(numMatch[1]);
-
-  // word numbers matching score: "score five", "shot four"
-  const wordScoreMatch = text.match(/(?:score|shot|got|made|took)\s*(one|two|three|four|five|six|seven|eight|nine|ten)/);
-  if (wordScoreMatch) {
-    return wordToNumber(wordScoreMatch[1]);
-  }
-
-  // Standalone numbers: if the clause is literally just a single number, e.g. "4" or "five"
-  if (text.match(/^\s*\d+\s*$/)) {
-    return parseInt(text.trim());
-  }
-  const wordVal = wordToNumber(text.trim());
-  if (wordVal !== null && text.trim().split(/\s+/).length === 1) {
-    return wordVal;
-  }
-
-  // Golf terms
-  if (text.includes("double eagle") || text.includes("albatross")) return currentPar - 3;
-  if (text.includes("eagle")) return currentPar - 2;
-  if (text.includes("birdie")) return currentPar - 1;
-  if (text.includes("double bogey")) return currentPar + 2;
-  if (text.includes("triple bogey")) return currentPar + 3;
-  if (text.includes("bogey")) return currentPar + 1;
-  
-  // Standalone par (avoiding "par 4")
-  if (text.includes("par") && !text.match(/par\s*[345]/)) {
-    if (text.includes("parred") || text.includes("got a par") || text.includes("made a par") || text.trim() === "par") {
-      return currentPar;
-    }
-  }
-
-  return null;
-}
-
-function parsePutts(text) {
-  // numeric putt match: "2 putts", "1 putt"
-  const numMatch = text.match(/(\d+)\s*putt/);
-  if (numMatch) return parseInt(numMatch[1]);
-
-  // word numbers matching putt: "two putts", "one putt"
-  const wordPuttMatch = text.match(/(one|two|three|four|five|six)\s*putt/);
-  if (wordPuttMatch) {
-    return wordToNumber(wordPuttMatch[1]);
-  }
-
-  // "putted twice" or "putted once"
-  if (text.includes("putted once") || text.includes("single putt")) return 1;
-  if (text.includes("putted twice") || text.includes("two putt") || text.includes("two-putt")) return 2;
-  if (text.includes("three putted") || text.includes("three putt") || text.includes("three-putt")) return 3;
-
-  return null;
-}
-
-function parseFairway(text) {
-  if (text.includes("out of bounds") || text.includes("o.b.") || text.includes("ob") || text.includes("o b") || text.includes("hit it ob") || text.includes("shot out of bounds")) {
-    return "OB";
-  }
-  if (text.includes("fairway hit") || text.includes("hit fairway") || text.includes("hit the fairway") || text.includes("in the fairway")) {
-    return "HIT";
-  }
-  if (text.includes("missed fairway left") || text.includes("missed left") || text.includes("fairway left") || text.includes("miss left") || text.includes("missed the fairway left")) {
-    return "LEFT";
-  }
-  if (text.includes("missed fairway right") || text.includes("missed right") || text.includes("fairway right") || text.includes("miss right") || text.includes("missed the fairway right")) {
-    return "RIGHT";
-  }
-  if (text.includes("missed fairway") || text.includes("missed the fairway") || text.includes("fairway miss")) {
-    return "LEFT"; // Default miss direction
-  }
-  return null;
-}
-
-function parseGIR(text) {
-  if (text.includes("green in regulation") || text.includes("gir") || text.includes("hit the green") || text.includes("hit green") || text.includes("on the green") || text.includes("in regulation")) {
-    return "YES";
-  }
-  if (text.includes("missed the green") || text.includes("missed green") || text.includes("missed gir") || text.includes("not on the green")) {
-    return "NO";
-  }
-  return null;
-}
-
-function wordToNumber(word) {
-  const map = {
-    one: 1, two: 2, three: 3, four: 4, five: 5,
-    six: 6, seven: 7, eight: 8, nine: 9, ten: 10
-  };
-  return map[word.trim().toLowerCase()] || null;
 }
 
 function cleanNoteText(text) {
