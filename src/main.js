@@ -824,6 +824,273 @@ function initUI() {
   // Sync controls in DOM with state loaded
   document.getElementById('switch-continuous').checked = state.continuous;
   document.getElementById('switch-audio-feedback').checked = state.useSpeechSynthesis;
+
+  // Caddie Assistant Initialization
+  initCaddieAssistant();
+}
+
+// Caddie AI Assistant Controller
+let assistantMicIsRecording = false;
+let assistantMediaRecorder = null;
+let assistantAudioChunks = [];
+let assistantSpeechTimeout = null;
+
+function initCaddieAssistant() {
+  const askBtn = document.getElementById('btn-assistant-ask');
+  const voiceBtn = document.getElementById('btn-assistant-voice');
+  const inputEl = document.getElementById('assistant-input');
+  
+  if (!askBtn || !voiceBtn || !inputEl) return;
+  
+  askBtn.addEventListener('click', () => {
+    askCaddieAssistant(inputEl.value);
+  });
+  
+  voiceBtn.addEventListener('click', () => {
+    toggleAssistantVoice();
+  });
+  
+  inputEl.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      askCaddieAssistant(inputEl.value);
+    }
+  });
+
+  document.getElementById('btn-assistant-speak').addEventListener('click', () => {
+    const answer = document.getElementById('assistant-response-text').textContent;
+    if (answer && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(answer);
+      utterance.rate = 1.05;
+      window.speechSynthesis.speak(utterance);
+    }
+  });
+}
+
+async function askCaddieAssistant(question) {
+  const inputVal = question.trim();
+  if (!inputVal) return;
+  
+  const container = document.getElementById('assistant-response-container');
+  const responseText = document.getElementById('assistant-response-text');
+  const statusLbl = document.getElementById('assistant-status');
+  
+  container.classList.add('hidden');
+  statusLbl.classList.remove('hidden');
+  statusLbl.textContent = 'Thinking...';
+  
+  let answer = "";
+  try {
+    if (state.apiKey) {
+      answer = await queryGeminiAssistant(inputVal, state.apiKey);
+    } else {
+      const lower = inputVal.toLowerCase();
+      if (lower.includes("out of bounds") || lower.includes("ob") || lower.includes("stake")) {
+        if (lower.includes("red")) {
+          answer = "Red stakes indicate a lateral penalty area. You can play the ball as it lies without penalty, or take relief with a 1-stroke penalty: 1) play from the previous spot, 2) drop back-on-the-line, or 3) take lateral relief within 2 club-lengths of where it crossed.";
+        } else if (lower.includes("yellow")) {
+          answer = "Yellow stakes indicate a regular penalty area. Relief options (1-stroke penalty): 1) play from the previous spot (stroke-and-distance), or 2) take back-on-the-line relief directly behind where the ball crossed.";
+        } else if (lower.includes("white") || lower.includes("bounds")) {
+          answer = "White stakes define Out of Bounds (OB). You cannot play the ball. You must take a 1-stroke penalty and play another ball from the previous spot (stroke-and-distance relief).";
+        } else {
+          answer = "Stake rules: Red defines lateral penalty areas (3 relief options), Yellow defines regular penalty areas (2 relief options), and White defines Out of Bounds (stroke-and-distance relief only). All carry a 1-stroke penalty for relief.";
+        }
+      } else if (lower.includes("uphill") || lower.includes("downhill") || lower.includes("slope") || lower.includes("lie")) {
+        if (lower.includes("uphill")) {
+          answer = "Uphill lie: Tilt your shoulders parallel to the slope (lean back), play the ball slightly forward, and swing along the slope. The ball will fly higher and shorter—take one extra club.";
+        } else if (lower.includes("downhill")) {
+          answer = "Downhill lie: Tilt your shoulders parallel to the slope (lean forward), play the ball slightly back in your stance, and swing down the slope. The ball will fly lower and roll more—consider taking less club.";
+        } else if (lower.includes("sidehill") || lower.includes("above") || lower.includes("below")) {
+          if (lower.includes("above")) {
+            answer = "Ball above feet: Grip down on the club, stand slightly taller, and expect the ball to curve to the left. Aim slightly right to compensate.";
+          } else {
+            answer = "Ball below feet: Bend more at your knees, maintain your spine angle throughout the swing, and expect the ball to curve to the right. Aim slightly left to compensate.";
+          }
+        } else {
+          answer = "Slope lies: Match your shoulders to the angle of the slope, play the ball forward for uphill (flies higher) and back for downhill (flies lower), and swing smoothly along the ground's contour.";
+        }
+      } else if (lower.includes("bunker") || lower.includes("sand")) {
+        answer = "Bunker play: Open your clubface, stand wide, and aim to hit the sand 1-2 inches behind the ball. Swing aggressively through the sand—the sand, not the clubface, should push the ball out.";
+      } else if (lower.includes("rough")) {
+        answer = "Deep rough: Grip the club tighter to prevent the grass from twisting the face, play the ball slightly back, and make a steeper vertical backswing to strike the ball first.";
+      } else {
+        answer = "To ask custom rules, rules officials, or shot execution questions, please configure a Gemini API Key in settings! Try asking about 'red stakes' or 'uphill lie' to test local responses.";
+      }
+    }
+    
+    responseText.textContent = answer;
+    container.classList.remove('hidden');
+    
+    if (state.useSpeechSynthesis && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(answer);
+      utterance.rate = 1.05;
+      window.speechSynthesis.speak(utterance);
+    }
+  } catch (err) {
+    console.error("Assistant query failed:", err);
+    responseText.innerHTML = `<span style="color:var(--danger)">Caddie AI error: ${escapeHTML(err.message)}. Please check your internet connection or Gemini Key in Settings.</span>`;
+    container.classList.remove('hidden');
+  } finally {
+    statusLbl.classList.add('hidden');
+  }
+}
+
+async function queryGeminiAssistant(question, apiKey) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  
+  const promptText = `
+You are an expert PGA rules official and master golf caddie. Answer the golfer's question about golf rules, penalty area relief, shot execution techniques, club selection, or etiquette.
+Provide a concise, direct, and practical answer (max 3 sentences) suitable for reading or hearing on a mobile device while playing on a golf course.
+If the golfer is asking about a rule (e.g. "ball out of bounds red stake"), explain the exact USGA/R&A rule and relief options.
+If the golfer is asking for shot advice (e.g. "uphill lie 60 yards"), provide key setup and swing adjustments.
+
+Golfer's Question: "${question}"
+
+Provide your response in plain text without any markdown or formatting.
+`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{ text: promptText }]
+      }]
+    })
+  });
+  
+  if (!response.ok) {
+    throw new Error('Gemini API request failed');
+  }
+  
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text.trim();
+}
+
+async function toggleAssistantVoice() {
+  const voiceBtn = document.getElementById('btn-assistant-voice');
+  const statusLbl = document.getElementById('assistant-status');
+  
+  if (assistantMicIsRecording) {
+    stopAssistantVoice();
+    return;
+  }
+  
+  voiceBtn.classList.add('recording');
+  statusLbl.textContent = "Listening... Speak your question";
+  statusLbl.classList.remove('hidden');
+  
+  if (state.openaiApiKey) {
+    assistantAudioChunks = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let options = { mimeType: 'audio/webm' };
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        options = { mimeType: 'audio/mp4' };
+      }
+      assistantMediaRecorder = new MediaRecorder(stream, options);
+      
+      assistantMediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) assistantAudioChunks.push(e.data);
+      };
+      
+      assistantMediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const mimeType = assistantMediaRecorder.mimeType;
+        const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const audioBlob = new Blob(assistantAudioChunks, { type: mimeType });
+        
+        statusLbl.textContent = "Transcribing voice...";
+        try {
+          const transcript = await sendAudioToWhisper(audioBlob, extension);
+          if (transcript) {
+            document.getElementById('assistant-input').value = transcript;
+            askCaddieAssistant(transcript);
+          } else {
+            statusLbl.textContent = "No speech detected.";
+            setTimeout(() => statusLbl.classList.add('hidden'), 2000);
+          }
+        } catch (err) {
+          console.error(err);
+          statusLbl.textContent = "Whisper transcription failed.";
+          setTimeout(() => statusLbl.classList.add('hidden'), 2000);
+        } finally {
+          assistantMicIsRecording = false;
+          voiceBtn.classList.remove('recording');
+        }
+      };
+      
+      assistantMediaRecorder.start();
+      assistantMicIsRecording = true;
+      
+      if (assistantSpeechTimeout) clearTimeout(assistantSpeechTimeout);
+      assistantSpeechTimeout = setTimeout(() => {
+        if (assistantMicIsRecording && assistantMediaRecorder && assistantMediaRecorder.state === 'recording') {
+          assistantMediaRecorder.stop();
+        }
+      }, 8000);
+      
+    } catch (err) {
+      console.error(err);
+      voiceBtn.classList.remove('recording');
+      statusLbl.textContent = "Microphone error.";
+      setTimeout(() => statusLbl.classList.add('hidden'), 2000);
+    }
+  } else {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      statusLbl.textContent = "Browser speech recognition unsupported.";
+      voiceBtn.classList.remove('recording');
+      return;
+    }
+    
+    const rec = new SpeechRecognition();
+    rec.lang = 'en-US';
+    rec.continuous = false;
+    rec.interimResults = false;
+    
+    rec.onstart = () => {
+      assistantMicIsRecording = true;
+    };
+    
+    rec.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      document.getElementById('assistant-input').value = transcript;
+      askCaddieAssistant(transcript);
+    };
+    
+    rec.onerror = (e) => {
+      console.error(e);
+      statusLbl.textContent = "Error: " + e.error;
+      setTimeout(() => statusLbl.classList.add('hidden'), 2000);
+    };
+    
+    rec.onend = () => {
+      assistantMicIsRecording = false;
+      voiceBtn.classList.remove('recording');
+    };
+    
+    rec.start();
+    
+    if (assistantSpeechTimeout) clearTimeout(assistantSpeechTimeout);
+    assistantSpeechTimeout = setTimeout(() => {
+      if (assistantMicIsRecording) {
+        rec.stop();
+      }
+    }, 8000);
+  }
+}
+
+function stopAssistantVoice() {
+  const voiceBtn = document.getElementById('btn-assistant-voice');
+  if (assistantMediaRecorder && assistantMediaRecorder.state === 'recording') {
+    assistantMediaRecorder.stop();
+  }
+  assistantMicIsRecording = false;
+  voiceBtn.classList.remove('recording');
 }
 
 // Generate pars inputs inside Course Settings dialog
