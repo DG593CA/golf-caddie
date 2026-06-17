@@ -2504,24 +2504,36 @@ function updateGPSWidget() {
       },
       (error) => {
         statusLbl.textContent = "GPS Offline (Blocked)";
-        const baseYardages = [382, 502, 395, 325, 185, 495, 106, 420, 460, 430, 370, 202, 403, 570, 396, 401, 208, 540];
-        const standardDist = baseYardages[(holeNum - 1) % baseYardages.length];
+        let standardDist = 380;
+        if (parVal === 3) {
+          standardDist = 145 + ((holeNum * 7) % 40);
+        } else if (parVal === 5) {
+          standardDist = 490 + ((holeNum * 13) % 80);
+        } else {
+          standardDist = 360 + ((holeNum * 11) % 90);
+        }
         
         document.getElementById('gps-dist-val').textContent = standardDist;
         document.getElementById('gps-dist-center').textContent = standardDist;
-        document.getElementById('gps-dist-front').textContent = standardDist - 15;
+        document.getElementById('gps-dist-front').textContent = Math.max(0, standardDist - 15);
         document.getElementById('gps-dist-back').textContent = standardDist + 15;
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   } else {
     statusLbl.textContent = "No GPS support";
-    const baseYardages = [382, 502, 395, 325, 185, 495, 106, 420, 460, 430, 370, 202, 403, 570, 396, 401, 208, 540];
-    const standardDist = baseYardages[(holeNum - 1) % baseYardages.length];
+    let standardDist = 380;
+    if (parVal === 3) {
+      standardDist = 145 + ((holeNum * 7) % 40);
+    } else if (parVal === 5) {
+      standardDist = 490 + ((holeNum * 13) % 80);
+    } else {
+      standardDist = 360 + ((holeNum * 11) % 90);
+    }
     
     document.getElementById('gps-dist-val').textContent = standardDist;
     document.getElementById('gps-dist-center').textContent = standardDist;
-    document.getElementById('gps-dist-front').textContent = standardDist - 15;
+    document.getElementById('gps-dist-front').textContent = Math.max(0, standardDist - 15);
     document.getElementById('gps-dist-back').textContent = standardDist + 15;
   }
 }
