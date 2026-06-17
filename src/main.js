@@ -890,12 +890,24 @@ function initCaddieAssistant() {
     }
     updateVoiceColumnLayout();
 
-    assistantHeader.addEventListener('click', (e) => {
-      if (e.target.closest('#btn-assistant-collapse') || !e.target.closest('button')) {
-        assistantCard.classList.toggle('collapsed');
-        const nowCollapsed = assistantCard.classList.contains('collapsed');
-        localStorage.setItem('assistantCardCollapsed', nowCollapsed ? 'true' : 'false');
-        updateVoiceColumnLayout();
+    assistantCard.addEventListener('click', (e) => {
+      const isCardCollapsed = assistantCard.classList.contains('collapsed');
+      if (isCardCollapsed) {
+        // Expand if clicking anywhere except actual form inputs/buttons
+        if (!e.target.closest('button') && !e.target.closest('input')) {
+          assistantCard.classList.remove('collapsed');
+          localStorage.setItem('assistantCardCollapsed', 'false');
+          updateVoiceColumnLayout();
+        }
+      } else {
+        // Collapse if clicking the header or collapse chevron
+        if (e.target.closest('#assistant-header') || e.target.closest('#btn-assistant-collapse')) {
+          if (!e.target.closest('button') || e.target.closest('#btn-assistant-collapse')) {
+            assistantCard.classList.add('collapsed');
+            localStorage.setItem('assistantCardCollapsed', 'true');
+            updateVoiceColumnLayout();
+          }
+        }
       }
     });
   }
@@ -1548,12 +1560,24 @@ function initSpeechRecognition() {
     }
     updateVoiceColumnLayout();
 
-    voiceCardHeader.addEventListener('click', (e) => {
-      if (e.target.closest('#btn-voice-collapse') || !e.target.closest('button')) {
-        voiceCard.classList.toggle('collapsed');
-        const nowCollapsed = voiceCard.classList.contains('collapsed');
-        localStorage.setItem('voiceCardCollapsed', nowCollapsed ? 'true' : 'false');
-        updateVoiceColumnLayout();
+    voiceCard.addEventListener('click', (e) => {
+      const isCardCollapsed = voiceCard.classList.contains('collapsed');
+      if (isCardCollapsed) {
+        // Expand if clicking anywhere on the card background (except the mic toggle button)
+        if (!e.target.closest('#btn-voice-toggle')) {
+          voiceCard.classList.remove('collapsed');
+          localStorage.setItem('voiceCardCollapsed', 'false');
+          updateVoiceColumnLayout();
+        }
+      } else {
+        // Collapse if clicking header or collapse chevron
+        if (e.target.closest('#voice-card-header') || e.target.closest('#btn-voice-collapse')) {
+          if (!e.target.closest('button') || e.target.closest('#btn-voice-collapse')) {
+            voiceCard.classList.add('collapsed');
+            localStorage.setItem('voiceCardCollapsed', 'true');
+            updateVoiceColumnLayout();
+          }
+        }
       }
     });
   }
