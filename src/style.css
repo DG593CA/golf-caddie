@@ -1976,4 +1976,82 @@ a:hover {
   color: var(--emerald-glow);
 }
 
+/* Collapsible Voice Control Console */
+.voice-card {
+  position: relative;
+  transition: padding var(--transition-normal);
+}
+
+.voice-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.voice-card-header h2 {
+  margin-bottom: 0 !important;
+  transition: opacity 0.3s ease-in-out, max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.voice-card-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out;
+  opacity: 1;
+}
+
+.voice-card-body-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Collapsed Voice Card States */
+.voice-card.collapsed {
+  padding-bottom: 1rem;
+}
+
+.voice-card.collapsed .voice-card-header h2 {
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.voice-card.collapsed .voice-card-header {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.voice-card.collapsed .mic-glow-wrapper {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.voice-card.collapsed #mic-status-label {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.voice-card.collapsed .voice-card-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.voice-card.collapsed .collapse-chevron {
+  transform: rotate(-90deg);
+  color: var(--color-primary);
+}
+
+.voice-card-header:hover .collapse-chevron {
+  color: var(--emerald-glow);
+}
+
 

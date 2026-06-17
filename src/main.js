@@ -1521,6 +1521,24 @@ function initSpeechRecognition() {
       }
     }
   });
+
+  // Collapsible Voice Card functionality
+  const voiceCard = document.getElementById('voice-card');
+  const voiceCardHeader = document.getElementById('voice-card-header');
+  if (voiceCard && voiceCardHeader) {
+    const isCollapsed = localStorage.getItem('voiceCardCollapsed') === 'true';
+    if (isCollapsed) {
+      voiceCard.classList.add('collapsed');
+    }
+
+    voiceCardHeader.addEventListener('click', (e) => {
+      if (e.target.closest('#btn-voice-collapse') || !e.target.closest('button')) {
+        voiceCard.classList.toggle('collapsed');
+        const nowCollapsed = voiceCard.classList.contains('collapsed');
+        localStorage.setItem('voiceCardCollapsed', nowCollapsed ? 'true' : 'false');
+      }
+    });
+  }
 }
 
 function stopListeningUI() {

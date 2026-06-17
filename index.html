@@ -55,8 +55,13 @@
           <!-- Column 2: Voice Interaction Panel (Placed first in HTML so it naturally renders above the fold on mobile) -->
           <div class="voice-column">
             <!-- Microphone Card -->
-            <section class="voice-card glass-card" aria-labelledby="voice-console-title">
-              <h2 id="voice-console-title" class="section-title">Voice Control Console</h2>
+            <section class="voice-card glass-card" aria-labelledby="voice-console-title" id="voice-card">
+              <div class="voice-card-header" id="voice-card-header">
+                <h2 id="voice-console-title" class="section-title">Voice Control Console</h2>
+                <button type="button" id="btn-voice-collapse" class="btn-icon" aria-label="Toggle Voice Control Card">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-chevron"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+              </div>
               
               <!-- Micro-animation mic activator -->
               <div class="mic-glow-wrapper">
@@ -70,30 +75,35 @@
                 <div id="mic-status-label" class="mic-status-text">Tap to Speak</div>
               </div>
 
-              <!-- Live Transcript Box -->
-              <div class="transcript-wrapper">
-                <span class="transcript-header">Live Transcript</span>
-                <div id="transcript-box" class="transcript-box">
-                  <p class="transcript-placeholder">Transcript will appear here in real-time. Try saying: <br><em>"Hole 1, score 4, 2 putts, fairway hit"</em></p>
+              <!-- Collapsible Section -->
+              <div class="voice-card-body" id="voice-card-body">
+                <div class="voice-card-body-inner">
+                  <!-- Live Transcript Box -->
+                  <div class="transcript-wrapper">
+                    <span class="transcript-header">Live Transcript</span>
+                    <div id="transcript-box" class="transcript-box">
+                      <p class="transcript-placeholder">Transcript will appear here in real-time. Try saying: <br><em>"Hole 1, score 4, 2 putts, fairway hit"</em></p>
+                    </div>
+                  </div>
+
+                  <!-- Command Helper Accordion -->
+                  <details class="helper-accordion">
+                    <summary class="accordion-header">
+                      <span>Show Voice Commands Cheat Sheet</span>
+                      <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </summary>
+                    <div class="accordion-content">
+                      <ul>
+                        <li><strong>Set Score &amp; Putts:</strong> <em>"Score 4, two putts"</em>, <em>"I shot a five with three putts"</em></li>
+                        <li><strong>Standard Golf terms:</strong> <em>"Parred the hole, one putt"</em>, <em>"Got a birdie, 2 putts"</em></li>
+                        <li><strong>Fairway &amp; GIR:</strong> <em>"Hit the fairway, missed the green"</em>, <em>"Missed fairway left, hit green"</em></li>
+                        <li><strong>Navigation:</strong> <em>"Next hole"</em>, <em>"Previous hole"</em>, <em>"Go to hole 6"</em></li>
+                        <li><strong>Add Notes:</strong> Speak any detail: <em>"approach shot was in the sand"</em>, <em>"sliced it right into the trees"</em></li>
+                      </ul>
+                    </div>
+                  </details>
                 </div>
               </div>
-
-              <!-- Command Helper Accordion -->
-              <details class="helper-accordion">
-                <summary class="accordion-header">
-                  <span>Show Voice Commands Cheat Sheet</span>
-                  <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </summary>
-                <div class="accordion-content">
-                  <ul>
-                    <li><strong>Set Score &amp; Putts:</strong> <em>"Score 4, two putts"</em>, <em>"I shot a five with three putts"</em></li>
-                    <li><strong>Standard Golf terms:</strong> <em>"Parred the hole, one putt"</em>, <em>"Got a birdie, 2 putts"</em></li>
-                    <li><strong>Fairway &amp; GIR:</strong> <em>"Hit the fairway, missed the green"</em>, <em>"Missed fairway left, hit green"</em></li>
-                    <li><strong>Navigation:</strong> <em>"Next hole"</em>, <em>"Previous hole"</em>, <em>"Go to hole 6"</em></li>
-                    <li><strong>Add Notes:</strong> Speak any detail: <em>"approach shot was in the sand"</em>, <em>"sliced it right into the trees"</em></li>
-                  </ul>
-                </div>
-              </details>
             </section>
 
             <!-- Caddie AI Assistant Card -->
