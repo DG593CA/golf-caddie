@@ -103,6 +103,13 @@ function initApp() {
   updateUI();
   updateGPSWidget();
   syncFromCloud();
+
+  // Register Service Worker for PWA support
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => console.log('Service Worker registered:', reg.scope))
+      .catch((err) => console.error('Service Worker registration failed:', err));
+  }
 }
 
 if (document.readyState === 'loading') {
