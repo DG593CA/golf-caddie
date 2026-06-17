@@ -630,6 +630,46 @@
         </div>
       </dialog>
 
+      <!-- GPS Help Modal Dialog -->
+      <dialog id="gps-help-dialog" class="settings-modal glass-modal">
+        <div class="modal-header">
+          <h2>How to Unblock GPS</h2>
+          <button id="btn-close-gps-help" class="btn-close-modal" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body" style="line-height: 1.6; font-size: 0.95rem; color: var(--color-primary);">
+          <p style="margin-bottom: 1rem; font-weight: 600; color: var(--color-primary);">To use the GPS rangefinder, you must allow browser location permissions. Follow these steps:</p>
+          
+          <div style="margin-bottom: 1.25rem;">
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone (Safari)</h3>
+            <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
+              <li>Tap the <strong>aA</strong> icon in the address bar search box.</li>
+              <li>Select <strong>Website Settings</strong>.</li>
+              <li>Set <strong>Location</strong> to <strong>Allow</strong>.</li>
+              <li>Refresh the page!</li>
+            </ol>
+          </div>
+          
+          <div style="margin-bottom: 1.25rem;">
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone (Chrome)</h3>
+            <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
+              <li>Tap the three dots <strong>...</strong> in the bottom right corner.</li>
+              <li>Go to <strong>Settings</strong> &gt; <strong>Content Settings</strong> &gt; <strong>Location</strong>.</li>
+              <li>Toggle it <strong>ON</strong>.</li>
+              <li>Refresh the page!</li>
+            </ol>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">💻 Desktop (Chrome)</h3>
+            <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
+              <li>Click the <strong>settings/padlock icon</strong> to the left of the URL.</li>
+              <li>Set <strong>Location</strong> to <strong>Allow</strong>.</li>
+              <li>Reload the page!</li>
+            </ol>
+          </div>
+        </div>
+      </dialog>
+
       <!-- Footer -->
       <footer class="app-footer">
         <p>&copy; 2026 GolfCaddie AI. Hands-free tracking for better games. Supported browsers: Chrome, Safari, Edge.</p>

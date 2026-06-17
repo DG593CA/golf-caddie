@@ -1611,6 +1611,22 @@ a:hover {
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--emerald-glow);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+.gps-status-badge:hover {
+  background-color: rgba(16, 185, 129, 0.15);
+  transform: scale(1.03);
+}
+
+.gps-status-badge.offline {
+  background-color: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+.gps-status-badge.offline:hover {
+  background-color: rgba(239, 68, 68, 0.15);
 }
 
 .gps-pulse {
@@ -1619,6 +1635,11 @@ a:hover {
   background-color: var(--emerald-glow);
   border-radius: 50%;
   animation: pulseRipple 1.5s infinite;
+  transition: background-color var(--transition-fast);
+}
+.gps-status-badge.offline .gps-pulse {
+  background-color: #ef4444;
+  animation: none;
 }
 
 .gps-distance-display {

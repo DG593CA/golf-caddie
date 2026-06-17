@@ -354,6 +354,25 @@ function initUI() {
     navigateHole(state.currentHoleIndex + 1);
   });
 
+  // GPS Help Modal listeners
+  const gpsHelpDialog = document.getElementById('gps-help-dialog');
+  const gpsStatusBadge = document.querySelector('.gps-status-badge');
+  const closeGpsHelpBtn = document.getElementById('btn-close-gps-help');
+
+  if (gpsStatusBadge && gpsHelpDialog) {
+    gpsStatusBadge.addEventListener('click', () => {
+      // Only show help instructions if the GPS is actually offline/blocked
+      if (gpsStatusBadge.classList.contains('offline')) {
+        gpsHelpDialog.showModal();
+      }
+    });
+  }
+  if (closeGpsHelpBtn && gpsHelpDialog) {
+    closeGpsHelpBtn.addEventListener('click', () => {
+      gpsHelpDialog.close();
+    });
+  }
+
   // Settings elements
   const settingsDialog = document.getElementById('settings-dialog');
   document.getElementById('btn-settings').addEventListener('click', () => {
@@ -3053,7 +3072,10 @@ function updateGPSWidget() {
   const parVal = currentHole ? currentHole.par : 4;
   detailsEl.innerHTML = `Hole ${holeNum} &bull; Par ${parVal} &bull; Rating: ${course.rating} &bull; Slope: ${course.slope}`;
   
+  const badge = statusLbl ? statusLbl.parentElement : null;
+
   if (isWalkSimulating) {
+    if (badge) badge.classList.remove('offline');
     statusLbl.textContent = "Walk Simulating";
     document.getElementById('gps-dist-val').textContent = walkDistanceRemaining;
     document.getElementById('gps-dist-center').textContent = walkDistanceRemaining;
@@ -3065,6 +3087,7 @@ function updateGPSWidget() {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (badge) badge.classList.remove('offline');
         const uLat = position.coords.latitude;
         const uLng = position.coords.longitude;
         const targetCoords = getHoleGreenCoordinates(holeNum);
@@ -3078,6 +3101,7 @@ function updateGPSWidget() {
         document.getElementById('gps-dist-back').textContent = yards + 15;
       },
       (error) => {
+        if (badge) badge.classList.add('offline');
         let msg = "GPS Offline (Unavailable)";
         if (error.code === error.PERMISSION_DENIED) {
           msg = "GPS Offline (Blocked by User)";
@@ -3103,6 +3127,7 @@ function updateGPSWidget() {
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   } else {
+    if (badge) badge.classList.add('offline');
     statusLbl.textContent = "No GPS support";
     let standardDist = 380;
     if (parVal === 3) {
