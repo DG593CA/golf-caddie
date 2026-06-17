@@ -282,6 +282,7 @@ function initUI() {
     document.getElementById('btn-settings').click();
   };
 
+  document.getElementById('btn-start-round').addEventListener('click', startNewRound);
   document.getElementById('btn-history-start-new').addEventListener('click', startNewRound);
   document.getElementById('btn-report-start-new').addEventListener('click', startNewRound);
 
