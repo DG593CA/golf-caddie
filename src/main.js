@@ -76,6 +76,7 @@ let state = {
   currentHoleIndex: 0,
   apiKey: '',
   golfApiKey: '',
+  openaiApiKey: '',
   selectedCourse: null,
   useSpeechSynthesis: true,
   isListening: false,
@@ -86,6 +87,9 @@ let state = {
 // Speech Recognition Variables
 let recognition = null;
 let speechTimeout = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let whisperIsRecording = false;
 
 // Initialize App
 function initApp() {
@@ -112,6 +116,7 @@ function loadState() {
       state.isListening = false;
       if (!state.history) state.history = [];
       if (state.golfApiKey === undefined) state.golfApiKey = '';
+      if (state.openaiApiKey === undefined) state.openaiApiKey = '';
       if (!state.selectedCourse || state.selectedCourse.id === 'mock_pebble') {
         state.selectedCourse = MOCK_COURSES[0];
       }
@@ -128,6 +133,7 @@ function initDefaultState() {
   state.numHoles = 9;
   state.apiKey = '';
   state.golfApiKey = '';
+  state.openaiApiKey = '';
   state.selectedCourse = MOCK_COURSES[0];
   state.useSpeechSynthesis = true;
   state.isListening = false;
@@ -174,6 +180,7 @@ function initUI() {
   document.getElementById('btn-settings').addEventListener('click', () => {
     renderParsConfig();
     document.getElementById('gemini-api-key').value = state.apiKey || '';
+    document.getElementById('openai-api-key').value = state.openaiApiKey || '';
     document.getElementById('golfapi-key').value = state.golfApiKey || '';
     document.getElementById('course-search-input').value = state.selectedCourse ? state.selectedCourse.name : '';
     if (state.numHoles === 9) {
@@ -202,10 +209,12 @@ function initUI() {
     e.preventDefault();
     const numHolesVal = parseInt(document.querySelector('input[name="course-holes"]:checked').value);
     const apiVal = document.getElementById('gemini-api-key').value.trim();
+    const openaiApiVal = document.getElementById('openai-api-key').value.trim();
     const golfApiVal = document.getElementById('golfapi-key').value.trim();
     
     // Save settings
     state.apiKey = apiVal;
+    state.openaiApiKey = openaiApiVal;
     state.golfApiKey = golfApiVal;
     
     if (state.numHoles !== numHolesVal) {
@@ -978,6 +987,20 @@ function initSpeechRecognition() {
 
   // Bind microphone button click toggle
   document.getElementById('btn-voice-toggle').addEventListener('click', () => {
+    // Use Whisper if OpenAI API key is set!
+    if (state.openaiApiKey) {
+      if (whisperIsRecording) {
+        if (speechTimeout) clearTimeout(speechTimeout);
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      } else {
+        startWhisperRecording();
+      }
+      return;
+    }
+
+    // Fall back to native SpeechRecognition if no OpenAI API Key
     if (state.isListening) {
       state.isListening = false;
       recognition.stop();
@@ -997,6 +1020,126 @@ function initSpeechRecognition() {
 function stopListeningUI() {
   document.querySelector('.voice-column .voice-card').classList.remove('listening');
   document.getElementById('mic-status-label').textContent = 'Tap to Speak';
+}
+
+// Whisper API audio recording and transcription helpers
+async function startWhisperRecording() {
+  audioChunks = [];
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    
+    // Choose appropriate mimeType (audio/webm is standard, audio/mp4 on iOS Safari)
+    let options = { mimeType: 'audio/webm' };
+    if (!MediaRecorder.isTypeSupported('audio/webm')) {
+      options = { mimeType: 'audio/mp4' };
+    }
+    
+    mediaRecorder = new MediaRecorder(stream, options);
+    
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+    
+    mediaRecorder.onstop = async () => {
+      // Clean up stream tracks
+      stream.getTracks().forEach(track => track.stop());
+      
+      const mimeType = mediaRecorder.mimeType;
+      const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const audioBlob = new Blob(audioChunks, { type: mimeType });
+      
+      // Update UI to transcribing
+      const transcriptBox = document.getElementById('transcript-box');
+      if (transcriptBox) {
+        transcriptBox.innerHTML = '<p class="transcript-live-txt"><i>Whisper is transcribing...</i></p>';
+      }
+      const label = document.getElementById('mic-status-label');
+      if (label) label.textContent = 'Transcribing...';
+      
+      try {
+        const transcript = await sendAudioToWhisper(audioBlob, extension);
+        if (transcript) {
+          if (transcriptBox) {
+            transcriptBox.innerHTML = `<p class="transcript-final-txt">"${escapeHTML(transcript)}"</p>`;
+          }
+          processFinalTranscript(transcript);
+        } else {
+          if (transcriptBox) {
+            transcriptBox.innerHTML = '<p class="transcript-placeholder" style="color:var(--danger)">No speech recognized. Try again.</p>';
+          }
+        }
+      } catch (err) {
+        console.error('Whisper transcription error:', err);
+        if (transcriptBox) {
+          transcriptBox.innerHTML = `<p class="transcript-placeholder" style="color:var(--danger)">Whisper error: ${escapeHTML(err.message)}</p>`;
+        }
+      } finally {
+        whisperIsRecording = false;
+        state.isListening = false;
+        stopListeningUI();
+      }
+    };
+    
+    mediaRecorder.start();
+    whisperIsRecording = true;
+    state.isListening = true;
+    
+    const card = document.querySelector('.voice-column .voice-card');
+    if (card) card.classList.add('listening');
+    const label = document.getElementById('mic-status-label');
+    if (label) label.textContent = 'Listening (Whisper)... Tap to Stop';
+    
+    const transcriptBox = document.getElementById('transcript-box');
+    if (transcriptBox) {
+      transcriptBox.innerHTML = '<p class="transcript-live-txt"><i>Recording audio for Whisper...</i></p>';
+    }
+    
+    // Auto stop after 8 seconds to prevent runaway recording
+    if (speechTimeout) clearTimeout(speechTimeout);
+    speechTimeout = setTimeout(() => {
+      if (whisperIsRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+    }, 8000);
+    
+  } catch (err) {
+    console.error('Failed to start media recorder', err);
+    const transcriptBox = document.getElementById('transcript-box');
+    if (transcriptBox) {
+      transcriptBox.innerHTML = `<p class="transcript-placeholder" style="color:var(--danger)">Microphone error: ${escapeHTML(err.message)}</p>`;
+    }
+    stopListeningUI();
+  }
+}
+
+async function sendAudioToWhisper(audioBlob, extension) {
+  const formData = new FormData();
+  const filename = `audio.${extension}`;
+  const file = new File([audioBlob], filename, { type: audioBlob.type });
+  
+  formData.append('file', file);
+  formData.append('model', 'whisper-1');
+  formData.append('prompt', 'Golf score tracker stats. Terms: hole, score, putts, par, fairway, gir, ob, hit fairway, birdie, bogey, eagle, double bogey, albatross, green in regulation.');
+  formData.append('language', 'en');
+
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${state.openaiApiKey}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const errMsg = (errData.error && errData.error.message) || `HTTP error ${response.status}`;
+    throw new Error(errMsg);
+  }
+
+  const data = await response.json();
+  return data.text ? data.text.trim() : '';
 }
 
 // Golf Spoken Text Parser
@@ -1987,11 +2130,14 @@ function applySelectedCourse() {
 async function searchGolfCourses(query) {
   const lowerQuery = query.toLowerCase();
   
-  // If user configured GolfCourseAPI.com key, fetch from remote database!
-  if (state.golfApiKey) {
+  // Read key dynamically from input field if settings is open, otherwise fall back to state
+  const keyInput = document.getElementById('golfapi-key');
+  const activeKey = (keyInput && keyInput.value.trim()) || state.golfApiKey;
+
+  if (activeKey) {
     try {
       const url = `/api-golf/v1/search?search_query=${encodeURIComponent(query)}`;
-      const authHeader = state.golfApiKey.startsWith('Key ') ? state.golfApiKey : `Key ${state.golfApiKey}`;
+      const authHeader = activeKey.startsWith('Key ') ? activeKey : `Key ${activeKey}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -2014,14 +2160,22 @@ async function searchGolfCourses(query) {
             };
           });
         }
+      } else {
+        console.error(`GolfCourseAPI returned status ${response.status}`);
+        return [{ isError: true, status: response.status }];
       }
     } catch (e) {
       console.error('Remote GolfCourseAPI search failed, falling back to local mocks', e);
+      return [{ isError: true, message: e.message }];
     }
   }
 
-  // Fallback to local mock database matching query
-  return MOCK_COURSES.filter(c => c.name.toLowerCase().includes(lowerQuery));
+  // Fallback to local mock database matching name, city, or state
+  return MOCK_COURSES.filter(c => 
+    c.name.toLowerCase().includes(lowerQuery) ||
+    c.city.toLowerCase().includes(lowerQuery) ||
+    c.state.toLowerCase().includes(lowerQuery)
+  );
 }
 
 // Render search results dropdown items
@@ -2029,6 +2183,39 @@ function renderSearchResults(courses) {
   const dropdown = document.getElementById('course-search-results');
   dropdown.innerHTML = '';
   
+  if (courses.length === 1 && courses[0].isError) {
+    const err = courses[0];
+    let msg = 'API Search failed.';
+    if (err.status === 401 || err.status === 403) {
+      msg = 'Invalid API Key. Check Settings.';
+    } else if (err.status) {
+      msg = `API Error (Status ${err.status}). Using local courses.`;
+    } else {
+      msg = 'Connection error. Using local courses.';
+    }
+    
+    dropdown.innerHTML = `
+      <div style="padding:0.75rem 1rem; color:var(--danger); font-size:0.85rem; font-weight:600">${msg}</div>
+      <div style="border-top:1px solid var(--border-light); padding:0.5rem 1.15rem 0.25rem; font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--emerald-glow)">Local Courses</div>
+    `;
+    
+    // Append all mock courses as fallback
+    MOCK_COURSES.forEach(course => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.innerHTML = `
+        <span class="search-result-name">${escapeHTML(course.name)}</span>
+        <span class="search-result-details">${escapeHTML(course.city)}, ${escapeHTML(course.state)} &bull; ${course.holesCount} Holes &bull; Rating ${course.rating}</span>
+      `;
+      item.addEventListener('click', () => {
+        handleCourseSelection(course);
+      });
+      dropdown.appendChild(item);
+    });
+    dropdown.classList.remove('hidden');
+    return;
+  }
+
   if (courses.length === 0) {
     dropdown.innerHTML = '<div style="padding:0.75rem 1rem; color:var(--color-secondary); font-size:0.85rem">No courses found.</div>';
     dropdown.classList.remove('hidden');
@@ -2067,7 +2254,10 @@ async function handleCourseSelection(course) {
   if (course.isRemote) {
     try {
       const detailUrl = `/api-golf/v1/courses/${course.id}`;
-      const authHeader = state.golfApiKey.startsWith('Key ') ? state.golfApiKey : `Key ${state.golfApiKey}`;
+      // Read key dynamically from input if open
+      const keyInput = document.getElementById('golfapi-key');
+      const activeKey = (keyInput && keyInput.value.trim()) || state.golfApiKey;
+      const authHeader = activeKey.startsWith('Key ') ? activeKey : `Key ${activeKey}`;
       const response = await fetch(detailUrl, {
         method: 'GET',
         headers: {
@@ -2134,6 +2324,7 @@ async function handleCourseSelection(course) {
   }
   
   applySelectedCourse();
+  initActiveRound();
   saveState();
   updateUI();
   updateGPSWidget();
