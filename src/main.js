@@ -836,6 +836,20 @@ let assistantAudioChunks = [];
 let assistantSpeechTimeout = null;
 let assistantRecognition = null;
 
+function updateVoiceColumnLayout() {
+  const voiceColumn = document.querySelector('.voice-column');
+  const voiceCard = document.getElementById('voice-card');
+  const assistantCard = document.getElementById('assistant-card');
+  if (voiceColumn && voiceCard && assistantCard) {
+    const bothCollapsed = voiceCard.classList.contains('collapsed') && assistantCard.classList.contains('collapsed');
+    if (bothCollapsed) {
+      voiceColumn.classList.add('both-collapsed');
+    } else {
+      voiceColumn.classList.remove('both-collapsed');
+    }
+  }
+}
+
 function initCaddieAssistant() {
   const askBtn = document.getElementById('btn-assistant-ask');
   const voiceBtn = document.getElementById('btn-assistant-voice');
@@ -874,12 +888,14 @@ function initCaddieAssistant() {
     if (isCollapsed) {
       assistantCard.classList.add('collapsed');
     }
+    updateVoiceColumnLayout();
 
     assistantHeader.addEventListener('click', (e) => {
       if (e.target.closest('#btn-assistant-collapse') || !e.target.closest('button')) {
         assistantCard.classList.toggle('collapsed');
         const nowCollapsed = assistantCard.classList.contains('collapsed');
         localStorage.setItem('assistantCardCollapsed', nowCollapsed ? 'true' : 'false');
+        updateVoiceColumnLayout();
       }
     });
   }
@@ -1530,12 +1546,14 @@ function initSpeechRecognition() {
     if (isCollapsed) {
       voiceCard.classList.add('collapsed');
     }
+    updateVoiceColumnLayout();
 
     voiceCardHeader.addEventListener('click', (e) => {
       if (e.target.closest('#btn-voice-collapse') || !e.target.closest('button')) {
         voiceCard.classList.toggle('collapsed');
         const nowCollapsed = voiceCard.classList.contains('collapsed');
         localStorage.setItem('voiceCardCollapsed', nowCollapsed ? 'true' : 'false');
+        updateVoiceColumnLayout();
       }
     });
   }

@@ -2056,14 +2056,16 @@ a:hover {
 
 /* Dual Collapsed Layout (Side-by-side) */
 @media (min-width: 360px) {
+  .voice-column.both-collapsed,
   .voice-column:has(.voice-card.collapsed):has(.assistant-card.collapsed) {
-    flex-direction: row;
-    align-items: stretch;
-    gap: 0.75rem;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
   }
+  .voice-column.both-collapsed > section,
   .voice-column:has(.voice-card.collapsed):has(.assistant-card.collapsed) > section {
-    flex: 1;
-    min-width: 0;
+    flex: 1 !important;
+    min-width: 0 !important;
   }
 }
 
