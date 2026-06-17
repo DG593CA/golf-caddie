@@ -106,27 +106,29 @@
               </div>
               
               <div class="assistant-body" id="assistant-body">
-                <p class="form-help-text" style="margin-bottom: 1rem;">Ask your caddie about golf rules, penalty area relief, or shot execution tips.</p>
-                
-                <div class="assistant-input-group">
-                  <div class="assistant-search-row">
-                    <input type="text" id="assistant-input" class="form-input" placeholder="e.g. ball out of bounds red stake...">
-                    <button type="button" id="btn-assistant-voice" class="assistant-voice-btn" aria-label="Ask via Voice">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
-                    </button>
-                    <button type="button" id="btn-assistant-ask" class="btn btn-primary btn-sm">Ask</button>
+                <div class="assistant-body-inner">
+                  <p class="form-help-text" style="margin-bottom: 1rem;">Ask your caddie about golf rules, penalty area relief, or shot execution tips.</p>
+                  
+                  <div class="assistant-input-group">
+                    <div class="assistant-search-row">
+                      <input type="text" id="assistant-input" class="form-input" placeholder="e.g. ball out of bounds red stake...">
+                      <button type="button" id="btn-assistant-voice" class="assistant-voice-btn" aria-label="Ask via Voice">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                      </button>
+                      <button type="button" id="btn-assistant-ask" class="btn btn-primary btn-sm">Ask</button>
+                    </div>
                   </div>
-                </div>
 
-                <!-- Live transcription status during voice prompt -->
-                <div id="assistant-status" class="assistant-status-text hidden">Listening...</div>
+                  <!-- Live transcription status during voice prompt -->
+                  <div id="assistant-status" class="assistant-status-text hidden">Listening...</div>
 
-                <div id="assistant-response-container" class="assistant-response-container hidden">
-                  <div class="assistant-response-header">
-                    <span>Caddie Answer</span>
-                    <button type="button" id="btn-assistant-speak" class="btn-icon" aria-label="Listen to Answer">🔊</button>
+                  <div id="assistant-response-container" class="assistant-response-container hidden">
+                    <div class="assistant-response-header">
+                      <span>Caddie Answer</span>
+                      <button type="button" id="btn-assistant-speak" class="btn-icon" aria-label="Listen to Answer">🔊</button>
+                    </div>
+                    <div id="assistant-response-text" class="assistant-response-text"></div>
                   </div>
-                  <div id="assistant-response-text" class="assistant-response-text"></div>
                 </div>
               </div>
             </section>
