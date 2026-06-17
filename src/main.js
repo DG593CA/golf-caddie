@@ -3,6 +3,17 @@ import './style.css';
 // Mock Golf Courses Database
 const MOCK_COURSES = [
   {
+    id: "mock_juandefuca",
+    name: "Juan de Fuca Golf Course",
+    city: "Victoria",
+    state: "BC",
+    rating: 27.0,
+    slope: 113,
+    holesCount: 9,
+    pars: [3, 3, 3, 3, 3, 3, 3, 3, 3],
+    coordinates: { lat: 48.4469, lng: -123.4648 }
+  },
+  {
     id: "mock_pebble",
     name: "Pebble Beach Golf Links",
     city: "Pebble Beach",
@@ -61,7 +72,7 @@ const MOCK_COURSES = [
 
 // Core State Definition
 let state = {
-  numHoles: 18,
+  numHoles: 9,
   currentHoleIndex: 0,
   apiKey: '',
   golfApiKey: '',
@@ -101,7 +112,9 @@ function loadState() {
       state.isListening = false;
       if (!state.history) state.history = [];
       if (state.golfApiKey === undefined) state.golfApiKey = '';
-      if (!state.selectedCourse) state.selectedCourse = MOCK_COURSES[0];
+      if (!state.selectedCourse || state.selectedCourse.id === 'mock_pebble') {
+        state.selectedCourse = MOCK_COURSES[0];
+      }
     } catch (e) {
       console.error('Failed to parse saved state, loading defaults', e);
       initDefaultState();
@@ -112,7 +125,7 @@ function loadState() {
 }
 
 function initDefaultState() {
-  state.numHoles = 18;
+  state.numHoles = 9;
   state.apiKey = '';
   state.golfApiKey = '';
   state.selectedCourse = MOCK_COURSES[0];
