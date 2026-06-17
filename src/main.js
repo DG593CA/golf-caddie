@@ -75,7 +75,7 @@ let state = {
   numHoles: 9,
   currentHoleIndex: 0,
   apiKey: '',
-  golfApiKey: '',
+  golfApiKey: 'JU7TE2S574463W653KOETCNKH4',
   openaiApiKey: '',
   selectedCourse: null,
   useSpeechSynthesis: true,
@@ -115,7 +115,7 @@ function loadState() {
       state = JSON.parse(savedState);
       state.isListening = false;
       if (!state.history) state.history = [];
-      if (state.golfApiKey === undefined) state.golfApiKey = '';
+      if (!state.golfApiKey) state.golfApiKey = 'JU7TE2S574463W653KOETCNKH4';
       if (state.openaiApiKey === undefined) state.openaiApiKey = '';
       if (!state.selectedCourse || state.selectedCourse.id === 'mock_pebble') {
         state.selectedCourse = MOCK_COURSES[0];
@@ -132,7 +132,7 @@ function loadState() {
 function initDefaultState() {
   state.numHoles = 9;
   state.apiKey = '';
-  state.golfApiKey = '';
+  state.golfApiKey = 'JU7TE2S574463W653KOETCNKH4';
   state.openaiApiKey = '';
   state.selectedCourse = MOCK_COURSES[0];
   state.useSpeechSynthesis = true;
