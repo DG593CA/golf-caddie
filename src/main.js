@@ -3078,7 +3078,14 @@ function updateGPSWidget() {
         document.getElementById('gps-dist-back').textContent = yards + 15;
       },
       (error) => {
-        statusLbl.textContent = "GPS Offline (Blocked)";
+        let msg = "GPS Offline (Unavailable)";
+        if (error.code === error.PERMISSION_DENIED) {
+          msg = "GPS Offline (Blocked by User)";
+        } else if (error.code === error.TIMEOUT) {
+          msg = "GPS Offline (Timeout)";
+        }
+        statusLbl.textContent = msg;
+        
         let standardDist = 380;
         if (parVal === 3) {
           standardDist = 145 + ((holeNum * 7) % 40);
