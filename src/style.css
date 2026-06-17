@@ -1929,4 +1929,46 @@ a:hover {
   transform: scale(1.15);
 }
 
+/* Collapsible Caddie AI Assistant */
+.assistant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.assistant-header h2 {
+  margin-bottom: 0 !important;
+}
+
+.assistant-body {
+  margin-top: 1rem;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out, margin-top 0.4s ease-in-out;
+  overflow: hidden;
+  max-height: 1000px;
+  opacity: 1;
+}
+
+.assistant-card.collapsed .assistant-body {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  pointer-events: none;
+}
+
+.collapse-chevron {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-muted);
+}
+
+.assistant-card.collapsed .collapse-chevron {
+  transform: rotate(-90deg);
+  color: var(--color-primary);
+}
+
+.assistant-header:hover .collapse-chevron {
+  color: var(--emerald-glow);
+}
+
 

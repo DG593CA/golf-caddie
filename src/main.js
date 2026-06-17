@@ -840,6 +840,8 @@ function initCaddieAssistant() {
   const askBtn = document.getElementById('btn-assistant-ask');
   const voiceBtn = document.getElementById('btn-assistant-voice');
   const inputEl = document.getElementById('assistant-input');
+  const assistantCard = document.getElementById('assistant-card');
+  const assistantHeader = document.getElementById('assistant-header');
   
   if (!askBtn || !voiceBtn || !inputEl) return;
   
@@ -866,6 +868,21 @@ function initCaddieAssistant() {
       window.speechSynthesis.speak(utterance);
     }
   });
+
+  if (assistantHeader && assistantCard) {
+    const isCollapsed = localStorage.getItem('assistantCardCollapsed') === 'true';
+    if (isCollapsed) {
+      assistantCard.classList.add('collapsed');
+    }
+
+    assistantHeader.addEventListener('click', (e) => {
+      if (e.target.closest('#btn-assistant-collapse') || !e.target.closest('button')) {
+        assistantCard.classList.toggle('collapsed');
+        const nowCollapsed = assistantCard.classList.contains('collapsed');
+        localStorage.setItem('assistantCardCollapsed', nowCollapsed ? 'true' : 'false');
+      }
+    });
+  }
 }
 
 async function askCaddieAssistant(question) {
@@ -1850,18 +1867,18 @@ function processFinalTranscript(transcript) {
     }
 
     // 4. GIR
-    const girYesMatch = clause.match(/\b(?:green\s+in\s+regulation|gir|hit\s+the\s+green|hit\s+green|on\s+the\s+green|in\s+regulation)\b/);
-    if (girYesMatch) {
-      activeHole.gir = "YES";
-      updates.gir = "YES";
-      clause = clause.replace(girYesMatch[0], '').trim();
+    const girNoMatch = clause.match(/\b(?:miss(?:ed)?\s+the\s+green|miss(?:ed)?\s+green|miss(?:ed)?\s+gir|not\s+on\s+the\s+green|not\s+on\s+green|gir\s+no|no\s+gir)\b/);
+    if (girNoMatch) {
+      activeHole.gir = "NO";
+      updates.gir = "NO";
+      clause = clause.replace(girNoMatch[0], '').trim();
       isStat = true;
     } else {
-      const girNoMatch = clause.match(/\b(?:miss(?:ed)?\s+the\s+green|miss(?:ed)?\s+green|miss(?:ed)?\s+gir|not\s+on\s+the\s+green)\b/);
-      if (girNoMatch) {
-        activeHole.gir = "NO";
-        updates.gir = "NO";
-        clause = clause.replace(girNoMatch[0], '').trim();
+      const girYesMatch = clause.match(/\b(?:green\s+in\s+regulation|gir|hit\s+the\s+green|hit\s+green|on\s+the\s+green|in\s+regulation|gir\s+yes|yes\s+gir)\b/);
+      if (girYesMatch) {
+        activeHole.gir = "YES";
+        updates.gir = "YES";
+        clause = clause.replace(girYesMatch[0], '').trim();
         isStat = true;
       }
     }
