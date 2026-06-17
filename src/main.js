@@ -834,6 +834,7 @@ let assistantMicIsRecording = false;
 let assistantMediaRecorder = null;
 let assistantAudioChunks = [];
 let assistantSpeechTimeout = null;
+let assistantRecognition = null;
 
 function initCaddieAssistant() {
   const askBtn = document.getElementById('btn-assistant-ask');
@@ -1047,38 +1048,42 @@ async function toggleAssistantVoice() {
       return;
     }
     
-    const rec = new SpeechRecognition();
-    rec.lang = 'en-US';
-    rec.continuous = false;
-    rec.interimResults = false;
+    assistantRecognition = new SpeechRecognition();
+    assistantRecognition.lang = 'en-US';
+    assistantRecognition.continuous = false;
+    assistantRecognition.interimResults = false;
     
-    rec.onstart = () => {
+    assistantRecognition.onstart = () => {
       assistantMicIsRecording = true;
     };
     
-    rec.onresult = (e) => {
+    assistantRecognition.onresult = (e) => {
       const transcript = e.results[0][0].transcript;
       document.getElementById('assistant-input').value = transcript;
       askCaddieAssistant(transcript);
     };
     
-    rec.onerror = (e) => {
+    assistantRecognition.onerror = (e) => {
       console.error(e);
       statusLbl.textContent = "Error: " + e.error;
       setTimeout(() => statusLbl.classList.add('hidden'), 2000);
     };
     
-    rec.onend = () => {
+    assistantRecognition.onend = () => {
       assistantMicIsRecording = false;
       voiceBtn.classList.remove('recording');
+      if (statusLbl.textContent.startsWith("Listening...")) {
+        statusLbl.classList.add('hidden');
+      }
+      assistantRecognition = null;
     };
     
-    rec.start();
+    assistantRecognition.start();
     
     if (assistantSpeechTimeout) clearTimeout(assistantSpeechTimeout);
     assistantSpeechTimeout = setTimeout(() => {
-      if (assistantMicIsRecording) {
-        rec.stop();
+      if (assistantMicIsRecording && assistantRecognition) {
+        assistantRecognition.stop();
       }
     }, 8000);
   }
@@ -1086,11 +1091,26 @@ async function toggleAssistantVoice() {
 
 function stopAssistantVoice() {
   const voiceBtn = document.getElementById('btn-assistant-voice');
+  const statusLbl = document.getElementById('assistant-status');
   if (assistantMediaRecorder && assistantMediaRecorder.state === 'recording') {
     assistantMediaRecorder.stop();
   }
+  if (assistantRecognition) {
+    try {
+      assistantRecognition.stop();
+    } catch (e) {
+      console.error("Error stopping assistant speech recognition:", e);
+    }
+    assistantRecognition = null;
+  }
   assistantMicIsRecording = false;
   voiceBtn.classList.remove('recording');
+  statusLbl.textContent = "Listening stopped.";
+  setTimeout(() => {
+    if (!assistantMicIsRecording) {
+      statusLbl.classList.add('hidden');
+    }
+  }, 2000);
 }
 
 // Generate pars inputs inside Course Settings dialog
