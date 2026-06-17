@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SofaScore Link Builder — Dynamic Attribution & Deep Link Generator</title>
+  <meta name="description" content="Generate and customize SofaScore campaign tracking URLs and deep links with custom publisher IDs, payouts, click lookback windows, and instant copy-to-clipboard functionality.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header Section -->
+    <header>
+      <div class="brand">
+        <div class="logo-icon">S</div>
+        <h1>SofaScore <span>Link Builder</span></h1>
+      </div>
+      <div class="theme-badge">
+        <span class="dot"></span>
+        <span>Online Generator</span>
+      </div>
+    </header>
+
+    <!-- App Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <span class="stat-label">Total Markets Selected</span>
+        <span class="stat-value" id="statTotalSelected">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Launch Markets</span>
+        <span class="stat-value"><span id="statLaunchSelected">0</span> / 10</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Attribution Engine</span>
+        <span class="stat-value" style="font-size: 1.1rem; font-weight: 600; color: var(--primary);">AppsFlyer SDK</span>
+      </div>
+    </div>
+
+    <!-- Warnings Bar -->
+    <div id="warningPubId" class="panel" style="margin-bottom: 1.5rem; border-color: rgba(255, 215, 0, 0.3); background: rgba(255, 215, 0, 0.05); display: none;">
+      <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" style="flex-shrink: 0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        <div>
+          <strong style="color: var(--info);">Publisher ID Empty:</strong>
+          <span style="color: var(--text-secondary); font-size: 0.9rem;">You haven't entered a Publisher ID yet. The links will use the placeholder <code style="background: rgba(0,0,0,0.3); padding: 0.1rem 0.3rem; border-radius: 4px; font-family: monospace;">PUBID</code> in the <code style="font-family: monospace;">af_channel</code> parameter.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid Workspace -->
+    <main class="grid-main">
+      <!-- Left Configuration Panel -->
+      <section class="panel">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Configuration
+        </h2>
+        
+        <div class="form-group">
+          <label for="pubId">Publisher ID (af_channel)</label>
+          <div class="input-wrapper">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <input type="text" id="pubId" class="form-control" placeholder="e.g. 43322" autofocus>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="mediaSource">Media Source (pid)</label>
+          <div class="input-wrapper">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <input type="text" id="mediaSource" class="form-control" value="qinyueblivz_int" placeholder="e.g. qinyueblivz_int">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="campaignTemplate">Campaign Naming Template (Locked)</label>
+          <div class="input-wrapper" style="opacity: 0.7;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <input type="text" id="campaignTemplate" class="form-control" value="CP_GWM_[MARKET]_15odds_impressions" disabled style="cursor: not-allowed; background: rgba(11, 15, 25, 0.5);">
+          </div>
+        </div>
+
+        <!-- Advanced Options Accordion -->
+        <div class="accordion">
+          <div class="accordion-header">
+            <span>Show Settings Info</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+          <div class="accordion-content">
+            <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.5rem;">
+              <strong>Payin/Payout rate</strong> matches each country automatically, but you can override specific rates directly inside the output table row.
+            </p>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">
+              <strong>Click lookback</strong> defaults to 100 days (100d) for the initial launch markets, and 7 days (7d) for other regions. Change lookbacks per-market using the dropdown selectors.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Workspace Section -->
+      <section style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Selection and Presets Grid -->
+        <div class="panel">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Market & Country Selector
+          </h2>
+
+          <div class="presets-container">
+            <span class="presets-label">Presets:</span>
+            <button class="btn btn-preset active" data-preset="launch" title="Launch default 10 markets">Launch Markets</button>
+            <button class="btn btn-preset" data-preset="all" title="Select all active standard markets">Select All</button>
+            <button class="btn btn-preset" data-preset="sensitive" style="border-color: var(--warning-glow);" title="Select US and BR sensitive markets only">Sensitive Only</button>
+          </div>
+
+          <div class="search-bar">
+            <div class="search-input-wrapper">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="searchInput" class="search-input" placeholder="Search countries or codes...">
+            </div>
+            <div class="toggle-control" style="margin-top: 0; padding: 0.45rem 0.75rem; min-height: 38px;">
+              <span class="toggle-label" style="font-size: 0.8rem; margin-right: 0.75rem; font-weight: 600; text-transform: uppercase;">Sensitive US/BR</span>
+              <label class="switch">
+                <input type="checkbox" id="sensitiveSwitch">
+                <span class="slider" style="background-color: var(--warning-glow);"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Market Selection Grid -->
+          <div class="market-selector-grid" id="marketSelectorGrid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Links Generator Panel -->
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+            <h2>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              Generated Deep Links
+            </h2>
+            
+            <div class="dashboard-actions">
+              <button class="btn btn-primary" id="btnCopyAll" title="Copy all currently generated URLs">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                Copy All Links
+              </button>
+              <button class="btn btn-accent" id="btnExport" title="Export generated records as CSV file">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+              <button class="btn" id="btnReset" title="Reset all custom fields and values">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                Reset Builder
+              </button>
+            </div>
+          </div>
+
+          <!-- View Tabs -->
+          <div class="tabs">
+            <div class="tab active" data-tab="table">Interactive Table</div>
+            <div class="tab" data-tab="card">Detailed Cards</div>
+            <div class="tab" data-tab="raw">Raw Text Area</div>
+          </div>
+
+          <!-- Tab Contents -->
+          <div id="tableView" class="view-content active">
+            <!-- Dynamically populated table -->
+          </div>
+          
+          <div id="cardView" class="view-content">
+            <!-- Dynamically populated cards -->
+          </div>
+
+          <div id="rawView" class="view-content">
+            <!-- Dynamically populated raw area -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer style="margin-top: 3rem; text-align: center; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+      <p>&copy; 2026 SofaScore Link Builder. Designed for high performance advertising campaigns.</p>
+    </footer>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- App Javascript -->
+  <script src="app.js"></script>
+</body>
+</html>
