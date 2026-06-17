@@ -956,31 +956,22 @@ function initSpeechRecognition() {
       state.isListening = false;
       stopListeningUI();
     } else if (event.error === 'no-speech') {
-      // Don't show scary error for just silence
-      if (!state.continuous) {
-        state.isListening = false;
-        stopListeningUI();
-        transcriptBox.innerHTML = '<p class="transcript-placeholder">Silence detected. Tap mic to try again.</p>';
-      }
+      // Silence detected: do not stop listening, keep session active
+      console.log('Silence detected, keeping mic active.');
     } else {
-      transcriptBox.innerHTML = `<p class="transcript-placeholder" style="color:var(--danger)">Error: ${event.error}</p>`;
-      if (!state.continuous) {
-        state.isListening = false;
-        stopListeningUI();
-      }
+      console.warn('Transient speech error:', event.error);
     }
   };
 
   recognition.onend = () => {
-    // If continuous mode is enabled and state still listening, restart it!
-    if (state.continuous && state.isListening) {
+    // Keep mic listening until user explicitly toggles it off
+    if (state.isListening) {
       try {
         recognition.start();
       } catch (e) {
         console.error('Failed to restart speech recognition', e);
       }
     } else {
-      state.isListening = false;
       stopListeningUI();
     }
   };
@@ -1096,13 +1087,13 @@ async function startWhisperRecording() {
       transcriptBox.innerHTML = '<p class="transcript-live-txt"><i>Recording audio for Whisper...</i></p>';
     }
     
-    // Auto stop after 8 seconds to prevent runaway recording
+    // Auto stop after 30 seconds to prevent runaway recording
     if (speechTimeout) clearTimeout(speechTimeout);
     speechTimeout = setTimeout(() => {
       if (whisperIsRecording && mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
-    }, 8000);
+    }, 30000);
     
   } catch (err) {
     console.error('Failed to start media recorder', err);
