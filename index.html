@@ -637,10 +637,22 @@
           <button id="btn-close-gps-help" class="btn-close-modal" aria-label="Close dialog">&times;</button>
         </div>
         <div class="modal-body" style="line-height: 1.6; font-size: 0.95rem; color: var(--color-primary);">
-          <p style="margin-bottom: 1rem; font-weight: 600; color: var(--color-primary);">To use the GPS rangefinder, you must allow browser location permissions. Follow these steps:</p>
+          <p style="margin-bottom: 1rem; font-weight: 600; color: var(--color-primary);">To use the GPS rangefinder, you must allow location permissions. Follow these steps:</p>
           
           <div style="margin-bottom: 1.25rem;">
-            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone (Safari)</h3>
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone Home Screen Bookmarks</h3>
+            <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
+              <li>Open your iPhone's main <strong>Settings</strong> app.</li>
+              <li>Go to <strong>Privacy & Security</strong> &gt; <strong>Location Services</strong>.</li>
+              <li>Find <strong>"GolfCaddie AI"</strong> (or the bookmark's title) or your browser (like <strong>Safari Websites</strong> or <strong>Chrome</strong>) in the list.</li>
+              <li>Ensure location access is set to <strong>While Using the App</strong> or <strong>Ask Next Time</strong>.</li>
+              <li>Force-close the Home Screen app (swipe it up/away), then re-open it.</li>
+              <li>Tap the red <strong>GPS Offline</strong> badge to trigger the permission prompt and sync location!</li>
+            </ol>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone (Safari Browser)</h3>
             <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
               <li>Tap the <strong>aA</strong> icon in the address bar search box.</li>
               <li>Select <strong>Website Settings</strong>.</li>
@@ -650,7 +662,7 @@
           </div>
           
           <div style="margin-bottom: 1.25rem;">
-            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone (Chrome)</h3>
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone (Chrome Browser)</h3>
             <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
               <li>Open your iPhone's main <strong>Settings</strong> app.</li>
               <li>Scroll down through your apps list and tap <strong>Chrome</strong>.</li>

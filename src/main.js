@@ -361,9 +361,30 @@ function initUI() {
 
   if (gpsStatusBadge && gpsHelpDialog) {
     gpsStatusBadge.addEventListener('click', () => {
-      // Only show help instructions if the GPS is actually offline/blocked
+      // Only request/show help if the GPS is actually offline
       if (gpsStatusBadge.classList.contains('offline')) {
-        gpsHelpDialog.showModal();
+        const statusLbl = document.getElementById('gps-status-lbl');
+        if (statusLbl) {
+          statusLbl.textContent = "Requesting location...";
+        }
+
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              gpsStatusBadge.classList.remove('offline');
+              updateGPSWidget();
+            },
+            (error) => {
+              updateGPSWidget();
+              if (error.code === error.PERMISSION_DENIED) {
+                gpsHelpDialog.showModal();
+              }
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+          );
+        } else {
+          gpsHelpDialog.showModal();
+        }
       }
     });
   }
