@@ -573,9 +573,18 @@ a:hover {
 }
 
 .scorecard-table th {
-  background-color: rgba(9, 12, 15, 0.8);
+  background-color: rgba(9, 12, 15, 0.85);
   font-weight: 700;
   color: var(--color-primary);
+}
+
+.scorecard-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background-color: var(--bg-dark);
+  width: 80px;
+  min-width: 80px;
 }
 
 .scorecard-table td {
@@ -585,12 +594,13 @@ a:hover {
 .scorecard-table .row-header {
   font-weight: 700;
   text-align: left;
-  background-color: rgba(9, 12, 15, 0.6);
+  background-color: var(--bg-dark);
   padding-left: 0.75rem;
   position: sticky;
   left: 0;
   z-index: 2;
   width: 80px;
+  min-width: 80px;
 }
 
 .scorecard-table .cell-val {
@@ -1752,6 +1762,12 @@ a:hover {
   .gps-sub-dists {
     justify-content: center;
     width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .pars-config-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
