@@ -2054,4 +2054,36 @@ a:hover {
   color: var(--emerald-glow);
 }
 
+/* Dual Collapsed Layout (Side-by-side) */
+@media (min-width: 360px) {
+  .voice-column:has(.voice-card.collapsed):has(.assistant-card.collapsed) {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .voice-column:has(.voice-card.collapsed):has(.assistant-card.collapsed) > section {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.voice-card.collapsed,
+.assistant-card.collapsed {
+  padding: 0.75rem 1rem !important;
+}
+
+.voice-card.collapsed .mic-glow-wrapper {
+  padding: 0.25rem 0 !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0 !important;
+}
+
+.assistant-card.collapsed .assistant-header h2 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 28px);
+  font-size: 0.95rem;
+}
+
 
