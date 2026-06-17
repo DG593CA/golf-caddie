@@ -4,7 +4,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api-golf': {
-        target: 'https://golfapi.io',
+        target: 'https://api.golfcourseapi.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api-golf/, '')
       }
@@ -14,7 +14,7 @@ export default defineConfig({
     allowedHosts: ['.up.railway.app'],
     proxy: {
       '/api-golf': {
-        target: 'https://golfapi.io',
+        target: 'https://api.golfcourseapi.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api-golf/, '')
       }

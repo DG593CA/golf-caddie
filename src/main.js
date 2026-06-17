@@ -1861,44 +1861,40 @@ function applySelectedCourse() {
   document.getElementById('save-course-slope').value = course.slope;
 }
 
-// Search endpoint client (GolfAPI.io REST API with mock fallback)
+// Search endpoint client (GolfCourseAPI.com REST API with mock fallback)
 async function searchGolfCourses(query) {
   const lowerQuery = query.toLowerCase();
   
-  // If user configured GolfAPI.io key, fetch from remote database!
+  // If user configured GolfCourseAPI.com key, fetch from remote database!
   if (state.golfApiKey) {
     try {
-      const url = `/api-golf/api/v1/clubs?name=${encodeURIComponent(query)}`;
+      const url = `/api-golf/v1/search?search_query=${encodeURIComponent(query)}`;
+      const authHeader = state.golfApiKey.startsWith('Key ') ? state.golfApiKey : `Key ${state.golfApiKey}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${state.golfApiKey}`,
+          'Authorization': authHeader,
           'Accept': 'application/json'
         }
       });
       if (response.ok) {
         const data = await response.json();
         // Parse and return structured clubs list
-        if (data && data.clubs) {
+        if (data && data.courses) {
           // Map response fields to standard structure
-          return data.clubs.map(c => {
-            const primaryCourse = c.courses && c.courses[0] ? c.courses[0] : {};
+          return data.courses.map(c => {
             return {
               id: c.id,
-              name: c.name,
-              city: c.city || '',
-              state: c.state || '',
-              rating: primaryCourse.rating || 72.0,
-              slope: primaryCourse.slope || 113,
-              holesCount: primaryCourse.holesCount || 18,
-              pars: primaryCourse.pars || [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
-              coordinates: c.coordinates || { lat: 36.5684, lng: -121.9507 }
+              name: c.course_name || c.club_name,
+              city: (c.location && c.location.city) || '',
+              state: (c.location && c.location.state) || '',
+              isRemote: true
             };
           });
         }
       }
     } catch (e) {
-      console.error('Remote GolfAPI search failed, falling back to local mocks', e);
+      console.error('Remote GolfCourseAPI search failed, falling back to local mocks', e);
     }
   }
 
@@ -1920,23 +1916,109 @@ function renderSearchResults(courses) {
   courses.forEach(course => {
     const item = document.createElement('div');
     item.className = 'search-result-item';
+    
+    let detailsText = '';
+    if (course.isRemote) {
+      detailsText = `${escapeHTML(course.city)}, ${escapeHTML(course.state)} (Remote Course)`;
+    } else {
+      detailsText = `${escapeHTML(course.city)}, ${escapeHTML(course.state)} &bull; ${course.holesCount} Holes &bull; Rating ${course.rating}`;
+    }
+
     item.innerHTML = `
       <span class="search-result-name">${escapeHTML(course.name)}</span>
-      <span class="search-result-details">${escapeHTML(course.city)}, ${escapeHTML(course.state)} &bull; ${course.holesCount} Holes &bull; Rating ${course.rating}</span>
+      <span class="search-result-details">${detailsText}</span>
     `;
     item.addEventListener('click', () => {
-      state.selectedCourse = course;
-      applySelectedCourse();
-      saveState();
-      updateUI();
-      updateGPSWidget();
-      renderParsConfig(); // re-draw Settings par inputs
-      dropdown.classList.add('hidden');
+      handleCourseSelection(course);
     });
     dropdown.appendChild(item);
   });
   
   dropdown.classList.remove('hidden');
+}
+
+// Unified course selection handler (fetches remote details if needed)
+async function handleCourseSelection(course) {
+  const dropdown = document.getElementById('course-search-results');
+  if (dropdown) dropdown.classList.add('hidden');
+
+  if (course.isRemote) {
+    try {
+      const detailUrl = `/api-golf/v1/courses/${course.id}`;
+      const authHeader = state.golfApiKey.startsWith('Key ') ? state.golfApiKey : `Key ${state.golfApiKey}`;
+      const response = await fetch(detailUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const details = await response.json();
+        
+        let rating = 72.0;
+        let slope = 113;
+        let holesCount = 18;
+        
+        const tees = details.tees || {};
+        const teeList = tees.male || tees.female || [];
+        if (teeList.length > 0) {
+          const tee = teeList[0];
+          rating = tee.course_rating || 72.0;
+          slope = tee.slope_rating || 113;
+          holesCount = tee.number_of_holes || 18;
+        }
+        
+        let coordinates = { lat: 36.5684, lng: -121.9507 };
+        if (details.location && details.location.latitude && details.location.longitude) {
+          coordinates = {
+            lat: parseFloat(details.location.latitude),
+            lng: parseFloat(details.location.longitude)
+          };
+        }
+        
+        const pars = Array(holesCount).fill(4);
+        
+        state.selectedCourse = {
+          id: details.id,
+          name: details.course_name || details.club_name,
+          city: (details.location && details.location.city) || '',
+          state: (details.location && details.location.state) || '',
+          rating: rating,
+          slope: slope,
+          holesCount: holesCount,
+          pars: pars,
+          coordinates: coordinates
+        };
+      } else {
+        throw new Error('Failed to fetch details response');
+      }
+    } catch (e) {
+      console.error('Failed to fetch remote course details, using basic info', e);
+      state.selectedCourse = {
+        id: course.id,
+        name: course.name,
+        city: course.city || '',
+        state: course.state || '',
+        rating: 72.0,
+        slope: 113,
+        holesCount: 18,
+        pars: Array(18).fill(4),
+        coordinates: { lat: 36.5684, lng: -121.9507 }
+      };
+    }
+  } else {
+    state.selectedCourse = course;
+  }
+  
+  applySelectedCourse();
+  saveState();
+  updateUI();
+  updateGPSWidget();
+  renderParsConfig(); // re-draw Settings par inputs
+  
+  const searchInput = document.getElementById('course-search-input');
+  if (searchInput) searchInput.value = state.selectedCourse.name;
 }
 
 // Show suggested nearest courses using geolocation
@@ -2026,16 +2108,7 @@ function renderNearestCourses(courses) {
       <span class="search-result-details">${escapeHTML(course.city)}, ${escapeHTML(course.state)} &bull; ${course.holesCount} Holes &bull; Rating ${course.rating}${distanceText}</span>
     `;
     item.addEventListener('click', () => {
-      state.selectedCourse = course;
-      applySelectedCourse();
-      saveState();
-      updateUI();
-      updateGPSWidget();
-      renderParsConfig(); // re-draw Settings par inputs
-      dropdown.classList.add('hidden');
-      
-      const searchInput = document.getElementById('course-search-input');
-      if (searchInput) searchInput.value = course.name;
+      handleCourseSelection(course);
     });
     dropdown.appendChild(item);
   });
