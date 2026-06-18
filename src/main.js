@@ -1002,6 +1002,8 @@ async function askCaddieAssistant(question) {
   try {
     if (state.apiKey) {
       answer = await queryGeminiAssistant(inputVal, state.apiKey);
+    } else if (state.openaiApiKey) {
+      answer = await queryOpenAIAssistant(inputVal, state.openaiApiKey);
     } else {
       const lower = inputVal.toLowerCase();
       if (lower.includes("out of bounds") || lower.includes("ob") || lower.includes("stake")) {
@@ -1087,6 +1089,41 @@ Provide your response in plain text without any markdown or formatting.
   
   const data = await response.json();
   return data.candidates[0].content.parts[0].text.trim();
+}
+
+async function queryOpenAIAssistant(question, apiKey) {
+  const url = 'https://api.openai.com/v1/chat/completions';
+  const promptText = `
+You are an expert PGA rules official and master golf caddie. Answer the golfer's question about golf rules, penalty area relief, shot execution techniques, club selection, or etiquette.
+Provide a concise, direct, and practical answer (max 3 sentences) suitable for reading or hearing on a mobile device while playing on a golf course.
+If the golfer is asking about a rule (e.g. "ball out of bounds red stake"), explain the exact USGA/R&A rule and relief options.
+If the golfer is asking for shot advice (e.g. "uphill lie 60 yards"), provide key setup and swing adjustments.
+
+Golfer's Question: "${question}"
+
+Provide your response in plain text without any markdown or formatting.
+`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'user', content: promptText }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('OpenAI API request failed');
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content.trim();
 }
 
 async function toggleAssistantVoice() {
@@ -2385,8 +2422,8 @@ async function generateCoachingAssessment(roundData, totalScore, totalPar, total
     return;
   }
 
-  // If Gemini API Key is configured, run AI summary!
-  if (state.apiKey) {
+  // If Gemini or OpenAI API Key is configured, run AI summary!
+  if (state.apiKey || state.openaiApiKey) {
     coachSpinner.classList.remove('hidden');
     
     // package round data structure
@@ -2420,12 +2457,17 @@ async function generateCoachingAssessment(roundData, totalScore, totalPar, total
     };
 
     try {
-      const aiResponse = await queryGeminiCoach(roundSummaryData, state.apiKey);
+      let aiResponse = "";
+      if (state.apiKey) {
+        aiResponse = await queryGeminiCoach(roundSummaryData, state.apiKey);
+      } else {
+        aiResponse = await queryOpenAICoach(roundSummaryData, state.openaiApiKey);
+      }
       coachResponse.innerHTML = aiResponse;
     } catch (err) {
       console.error(err);
       coachResponse.innerHTML = `
-        <p style="color:var(--danger)"><strong>Failed to connect with Gemini API.</strong> Please check your API Key in Settings.</p>
+        <p style="color:var(--danger)"><strong>Failed to connect with AI API.</strong> Please check your API Key in Settings.</p>
         <p>Here is your offline Coach Analysis instead:</p>
         <hr style="border:0; border-top:1px solid var(--border-light); margin:1rem 0;">
         ${generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts, fStats, girStats)}
@@ -2587,6 +2629,43 @@ Provide your response in clean HTML format. Use paragraph tags <p>, list items <
   
   const data = await response.json();
   return data.candidates[0].content.parts[0].text;
+}
+
+async function queryOpenAICoach(roundData, apiKey) {
+  const url = 'https://api.openai.com/v1/chat/completions';
+  const promptText = `
+You are an expert, friendly golf coach. Analyze this golf round performance and provide a professional coaching summary with:
+1. Overall summary of the round.
+2. Key strengths (what went well based on stats & notes).
+3. Areas for improvement (analyzing putts, fairway misses, GIR, and 3-putts).
+4. A customized practice plan.
+
+Here is the data for the round:
+${JSON.stringify(roundData, null, 2)}
+
+Provide your response in clean HTML format. Use paragraph tags <p>, list items <li>, bold text <strong>, etc. Do not include a markdown block wrapper (like \`\`\`html) - just output the raw HTML directly. Make the tone encouraging, expert, and constructive.
+`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'user', content: promptText }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('OpenAI API request failed');
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content.trim();
 }
 
 // Helper to escape HTML and prevent XSS injection
