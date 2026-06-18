@@ -13,7 +13,18 @@ const MOCK_COURSES = [
     slope: 113,
     holesCount: 9,
     pars: [3, 3, 3, 3, 3, 3, 3, 3, 3],
-    coordinates: { lat: 48.4469, lng: -123.4648 }
+    coordinates: { lat: 48.4469, lng: -123.4648 },
+    holeCoordinates: [
+      { lat: 48.4468, lng: -123.4624 }, // H1: 145 yd
+      { lat: 48.4456, lng: -123.4613 }, // H2: 97 yd
+      { lat: 48.4447, lng: -123.4620 }, // H3: 116 yd
+      { lat: 48.4445, lng: -123.4632 }, // H4: 135 yd
+      { lat: 48.4446, lng: -123.4640 }, // H5: 143 yd
+      { lat: 48.4452, lng: -123.4633 }, // H6: 79 yd
+      { lat: 48.4467, lng: -123.4637 }, // H7: 170 yd
+      { lat: 48.4465, lng: -123.4628 }, // H8: 106 yd
+      { lat: 48.4456, lng: -123.4643 }  // H9: 145 yd
+    ]
   },
   {
     id: "mock_pebble",
