@@ -54,6 +54,10 @@ service cloud.firestore {
       return syncId is string && syncId.size() >= 15 && syncId.size() <= 50;
     }
 
+    function isOwner(syncId) {
+      return syncId.matches("^caddie-.*") || (request.auth != null && request.auth.uid == syncId);
+    }
+
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
@@ -123,9 +127,9 @@ service cloud.firestore {
 
     // Rules matching
     match /users/{syncId} {
-      allow get: if isValidSyncId(syncId);
-      allow create: if isValidSyncId(syncId) && isValidUserDoc(request.resource.data, syncId);
-      allow update: if isValidSyncId(syncId) && 
+      allow get: if isValidSyncId(syncId) && isOwner(syncId);
+      allow create: if isValidSyncId(syncId) && isOwner(syncId) && isValidUserDoc(request.resource.data, syncId);
+      allow update: if isValidSyncId(syncId) && isOwner(syncId) && 
                      isValidUserDoc(request.resource.data, syncId) &&
                      request.resource.data.createdAt == resource.data.createdAt; // immutable createdAt
       allow delete: if false; // do not allow deletion via client
@@ -134,12 +138,13 @@ service cloud.firestore {
 
     match /rounds/{roundDocId} {
       allow get: if true; // Safe because they can't list, and doc ID is high-entropy (syncId_roundId)
-      allow create: if isValidRoundDoc(request.resource.data, roundDocId);
-      allow update: if isValidRoundDoc(request.resource.data, roundDocId) &&
+      allow create: if isOwner(request.resource.data.syncId) && isValidRoundDoc(request.resource.data, roundDocId);
+      allow update: if isOwner(request.resource.data.syncId) && 
+                     isValidRoundDoc(request.resource.data, roundDocId) &&
                      request.resource.data.syncId == resource.data.syncId &&
                      request.resource.data.id == resource.data.id &&
                      request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if true; // Safe because they must know the doc ID to delete it
+      allow delete: if isOwner(resource.data.syncId);
       allow list: if false; // prevent listing rounds globally!
     }
   }

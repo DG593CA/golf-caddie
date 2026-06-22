@@ -2110,4 +2110,29 @@ a:hover {
   font-size: 0.95rem;
 }
 
+/* User Authentication Styling */
+.auth-tabs button {
+  transition: all var(--transition-fast);
+}
+.auth-tabs button.active-tab {
+  color: var(--emerald-glow) !important;
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.1);
+}
+.auth-error-text {
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: #f87171 !important;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+.auth-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
+
 

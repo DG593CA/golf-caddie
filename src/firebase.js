@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   projectId: "golfcaddie-e3e0e",
@@ -17,5 +18,7 @@ const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager()
   })
 });
+const auth = getAuth(app);
 
-export { db };
+export { db, auth };
+

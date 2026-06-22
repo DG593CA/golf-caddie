@@ -1,6 +1,12 @@
 import './style.css';
-import { db } from './firebase.js';
+import { db, auth } from './firebase.js';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from 'firebase/auth';
 
 // Mock Golf Courses Database
 const MOCK_COURSES = [
@@ -119,7 +125,7 @@ function initApp() {
   updateGPSWidget();
   initRoundTimer(); // Initialize/resume stopwatch timer
   initCourseMapper(); // Bind mapping button events
-  syncFromCloud();
+  initAuth(); // Setup Firebase Authentication listeners
 
   // Register Service Worker for PWA support
   if ('serviceWorker' in navigator) {
@@ -354,6 +360,232 @@ async function connectExistingSyncId(newSyncId) {
     alert("Failed to connect. Please check your network connection.");
   }
 }
+// Authentication state tracking and handlers
+let currentAuthMode = 'login'; // 'login' or 'signup'
+let isMigrating = false;
+
+async function migrateUserData(uid, localHistory, localSettings) {
+  try {
+    const userDocRef = doc(db, 'users', uid);
+    let roundIds = [];
+    
+    // Save/migrate all local rounds to firestore under `${uid}_${round.id}`
+    if (localHistory && localHistory.length > 0) {
+      for (const round of localHistory) {
+        const docId = `${uid}_${round.id}`;
+        const roundDocRef = doc(db, 'rounds', docId);
+        
+        // Save the round document
+        await setDoc(roundDocRef, {
+          ...round,
+          syncId: uid,
+          createdAt: new Date()
+        });
+        
+        roundIds.push(docId);
+      }
+    }
+
+    // Set the user document
+    await setDoc(userDocRef, {
+      syncId: uid,
+      apiKey: localSettings.apiKey || '',
+      openaiApiKey: localSettings.openaiApiKey || '',
+      golfApiKey: localSettings.golfApiKey || 'JU7TE2S574463W653KOETCNKH4',
+      customCourseMappings: localSettings.customCourseMappings || '{}',
+      roundIds: roundIds,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    console.log("Migration complete for user UID:", uid);
+  } catch (error) {
+    console.error("Failed to migrate user data:", error);
+  }
+}
+
+function initAuth() {
+  const tabLogin = document.getElementById('tab-login');
+  const tabSignup = document.getElementById('tab-signup');
+  const btnAuthSubmit = document.getElementById('btn-auth-submit');
+  const btnAuthLogout = document.getElementById('btn-auth-logout');
+  const authEmail = document.getElementById('auth-email');
+  const authPassword = document.getElementById('auth-password');
+  const authErrorMsg = document.getElementById('auth-error-msg');
+  const authLoggedOut = document.getElementById('auth-logged-out');
+  const authLoggedIn = document.getElementById('auth-logged-in');
+  const authUserEmail = document.getElementById('auth-user-email');
+  const authUidInput = document.getElementById('auth-uid-input');
+  const btnCopyUid = document.getElementById('btn-copy-uid');
+
+  // Tab switching
+  tabLogin.addEventListener('click', () => {
+    currentAuthMode = 'login';
+    tabLogin.classList.add('active-tab');
+    tabSignup.classList.remove('active-tab');
+    btnAuthSubmit.textContent = 'Log In';
+    authErrorMsg.style.display = 'none';
+  });
+
+  tabSignup.addEventListener('click', () => {
+    currentAuthMode = 'signup';
+    tabSignup.classList.add('active-tab');
+    tabLogin.classList.remove('active-tab');
+    btnAuthSubmit.textContent = 'Create Account';
+    authErrorMsg.style.display = 'none';
+  });
+
+  // Submit action (Log In or Sign Up)
+  btnAuthSubmit.addEventListener('click', async () => {
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+
+    if (!email || !password) {
+      showAuthError("Please fill in both email and password.");
+      return;
+    }
+
+    authErrorMsg.style.display = 'none';
+    btnAuthSubmit.disabled = true;
+    const originalText = btnAuthSubmit.textContent;
+    btnAuthSubmit.textContent = currentAuthMode === 'login' ? 'Logging in...' : 'Creating account...';
+
+    try {
+      if (currentAuthMode === 'login') {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Logged in successfully!");
+      } else {
+        // Sign Up
+        // Capture existing local state before signing up for migration
+        const existingLocalHistory = [...(state.history || [])];
+        const existingSettings = {
+          apiKey: state.apiKey,
+          openaiApiKey: state.openaiApiKey,
+          golfApiKey: state.golfApiKey,
+          customCourseMappings: state.customCourseMappings
+        };
+        
+        isMigrating = true;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Perform migration of local rounds and settings to Firestore under new User UID
+        await migrateUserData(user.uid, existingLocalHistory, existingSettings);
+        isMigrating = false;
+        
+        // Refresh local data from newly migrated cloud profile
+        await syncFromCloud();
+        alert("Account created and local data migrated successfully!");
+      }
+      // Clear forms
+      authEmail.value = '';
+      authPassword.value = '';
+    } catch (error) {
+      console.error("Authentication error:", error);
+      let friendlyMessage = error.message;
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        friendlyMessage = "Incorrect email address or password. Please try again.";
+      } else if (error.code === 'auth/email-already-in-use') {
+        friendlyMessage = "This email is already in use. Please log in instead.";
+      } else if (error.code === 'auth/weak-password') {
+        friendlyMessage = "Password is too weak. Must be at least 6 characters.";
+      } else if (error.code === 'auth/invalid-email') {
+        friendlyMessage = "Please enter a valid email address.";
+      }
+      showAuthError(friendlyMessage);
+      isMigrating = false;
+    } finally {
+      btnAuthSubmit.disabled = false;
+      btnAuthSubmit.textContent = originalText;
+    }
+  });
+
+  // Logout action
+  btnAuthLogout.addEventListener('click', async () => {
+    if (confirm("Are you sure you want to log out? This will switch you back to a local guest session.")) {
+      try {
+        await signOut(auth);
+        alert("Logged out successfully!");
+      } catch (error) {
+        console.error("Sign out error:", error);
+      }
+    }
+  });
+
+  // Copy UID button
+  if (btnCopyUid) {
+    btnCopyUid.addEventListener('click', () => {
+      const syncId = state.syncId;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(syncId).then(() => {
+          alert("Sync ID copied to clipboard!");
+        }).catch(err => {
+          console.error("Failed to copy Sync ID:", err);
+        });
+      } else {
+        authUidInput.select();
+        document.execCommand('copy');
+        alert("Sync ID copied to clipboard!");
+      }
+    });
+  }
+
+  function showAuthError(msg) {
+    authErrorMsg.textContent = msg;
+    authErrorMsg.style.display = 'block';
+  }
+
+  // Set up Firebase Auth State Listener
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // User is logged in
+      console.log("Auth State: User is logged in", user.email);
+      state.syncId = user.uid;
+
+      // Update UI elements for logged-in view
+      authLoggedOut.style.display = 'none';
+      authLoggedIn.style.display = 'block';
+      authUserEmail.textContent = `Logged in as: ${user.email}`;
+      authUidInput.value = user.uid;
+
+      // Ensure sync-id-input in legacy toggle matches
+      const legacySyncInput = document.getElementById('sync-id-input');
+      if (legacySyncInput) legacySyncInput.value = user.uid;
+
+      // Pull settings and history from Cloud Firestore
+      if (!isMigrating) {
+        await syncFromCloud();
+      }
+    } else {
+      // User is logged out / guest mode
+      console.log("Auth State: User is logged out");
+      
+      // Update UI elements for logged-out view
+      authLoggedOut.style.display = 'block';
+      authLoggedIn.style.display = 'none';
+      authUserEmail.textContent = '';
+      authUidInput.value = '';
+
+      // If state.syncId is a Firebase UID (length 28), we reset it to a guest caddie ID
+      // To ensure we don't leak or reuse user UID when logged out
+      if (!state.syncId || state.syncId.length === 28 || !state.syncId.startsWith('caddie-')) {
+        state.syncId = generateSyncId();
+        // Reset local history to protect credentials when logging out
+        state.history = [];
+        state.apiKey = '';
+        state.openaiApiKey = '';
+        state.customCourseMappings = '{}';
+        
+        saveState();
+        updateUI();
+      }
+      
+      const legacySyncInput = document.getElementById('sync-id-input');
+      if (legacySyncInput) legacySyncInput.value = state.syncId;
+    }
+  });
+}
+
 
 function initActiveRound() {
   state.currentHoleIndex = 0;
