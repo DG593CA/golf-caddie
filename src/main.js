@@ -206,10 +206,10 @@ async function syncFromCloud() {
       const userData = userDocSnap.data();
       
       // Update local keys if they match
-      if (userData.apiKey) state.apiKey = userData.apiKey;
-      if (userData.openaiApiKey) state.openaiApiKey = userData.openaiApiKey;
-      if (userData.golfApiKey) state.golfApiKey = userData.golfApiKey;
-      if (userData.customCourseMappings) state.customCourseMappings = userData.customCourseMappings;
+      if (userData.apiKey !== undefined) state.apiKey = userData.apiKey;
+      if (userData.openaiApiKey !== undefined) state.openaiApiKey = userData.openaiApiKey;
+      if (userData.golfApiKey !== undefined) state.golfApiKey = userData.golfApiKey;
+      if (userData.customCourseMappings !== undefined) state.customCourseMappings = userData.customCourseMappings;
       
       // Fetch completed rounds from roundIds
       if (userData.roundIds && userData.roundIds.length > 0) {
@@ -304,6 +304,7 @@ async function saveRoundToCloud(archivedRound) {
       apiKey: state.apiKey || '',
       openaiApiKey: state.openaiApiKey || '',
       golfApiKey: state.golfApiKey || '',
+      customCourseMappings: state.customCourseMappings || '{}',
       roundIds: roundIds,
       createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
       updatedAt: new Date()
