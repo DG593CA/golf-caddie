@@ -87,8 +87,7 @@ service cloud.firestore {
              isValidOptionalString(data, 'golfApiKey', 100) &&
              isValidOptionalString(data, 'customCourseMappings', 100000) &&
              data.roundIds is list &&
-             data.roundIds.size() <= 500 &&
-             isRecent(data.createdAt);
+             data.roundIds.size() <= 500;
     }
 
     function isValidRoundDoc(data, docId) {
@@ -121,24 +120,24 @@ service cloud.firestore {
              (data.girPercent is number || data.girPercent is float) &&
              data.holes is list && data.holes.size() <= 18 &&
              isValidOptionalString(data, 'duration', 20) &&
-             (!('durationSeconds' in data) || data.durationSeconds is number) &&
-             isRecent(data.createdAt);
+             (!('durationSeconds' in data) || data.durationSeconds is number);
     }
 
     // Rules matching
     match /users/{syncId} {
       allow get: if isValidSyncId(syncId) && isOwner(syncId);
-      allow create: if isValidSyncId(syncId) && isOwner(syncId) && isValidUserDoc(request.resource.data, syncId);
+      allow create: if isValidSyncId(syncId) && isOwner(syncId) && isValidUserDoc(request.resource.data, syncId) && isRecent(request.resource.data.createdAt);
       allow update: if isValidSyncId(syncId) && isOwner(syncId) && 
                      isValidUserDoc(request.resource.data, syncId) &&
-                     request.resource.data.createdAt == resource.data.createdAt; // immutable createdAt
+                     request.resource.data.createdAt == resource.data.createdAt &&
+                     isRecent(request.resource.data.updatedAt); // updatedAt must be recent
       allow delete: if false; // do not allow deletion via client
       allow list: if false; // prevent listing users!
     }
 
     match /rounds/{roundDocId} {
       allow get: if true; // Safe because they can't list, and doc ID is high-entropy (syncId_roundId)
-      allow create: if isOwner(request.resource.data.syncId) && isValidRoundDoc(request.resource.data, roundDocId);
+      allow create: if isOwner(request.resource.data.syncId) && isValidRoundDoc(request.resource.data, roundDocId) && isRecent(request.resource.data.createdAt);
       allow update: if isOwner(request.resource.data.syncId) && 
                      isValidRoundDoc(request.resource.data, roundDocId) &&
                      request.resource.data.syncId == resource.data.syncId &&

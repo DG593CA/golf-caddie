@@ -769,6 +769,12 @@ function initUI() {
   document.getElementById('btn-settings').addEventListener('click', () => {
     renderParsConfig();
     document.getElementById('sync-id-input').value = state.syncId || '';
+    const authUidInput = document.getElementById('auth-uid-input');
+    if (authUidInput) authUidInput.value = state.syncId || '';
+    const authUserEmail = document.getElementById('auth-user-email');
+    if (authUserEmail && auth.currentUser) {
+      authUserEmail.textContent = `Logged in as: ${auth.currentUser.email}`;
+    }
     document.getElementById('gemini-api-key').value = state.apiKey || '';
     document.getElementById('openai-api-key').value = state.openaiApiKey || '';
     document.getElementById('golfapi-key').value = state.golfApiKey || '';
