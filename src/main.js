@@ -966,6 +966,14 @@ function initUI() {
     });
   }
 
+  const btnManualTimerToggle = document.getElementById('btn-manual-timer-toggle');
+  if (btnManualTimerToggle) {
+    btnManualTimerToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleRoundTimer();
+    });
+  }
+
   // Caddie Assistant Initialization
   initCaddieAssistant();
 }
@@ -3541,6 +3549,19 @@ function updateTimerDisplay() {
     } else {
       // Show Play Icon
       toggleSvg.innerHTML = `<polygon points="8 5 19 12 8 19 8 5"></polygon>`;
+    }
+  }
+
+  const manualToggleBtn = document.getElementById('btn-manual-timer-toggle');
+  if (manualToggleBtn) {
+    if (state.isTimerRunning) {
+      manualToggleBtn.textContent = '⏸️ Pause';
+    } else {
+      if (state.roundElapsedTime > 0) {
+        manualToggleBtn.textContent = '▶️ Resume';
+      } else {
+        manualToggleBtn.textContent = '⏱️ Start';
+      }
     }
   }
 }
