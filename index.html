@@ -184,9 +184,18 @@
                   <span id="gps-course-name" class="gps-course-name">Pebble Beach Golf Links</span>
                   <span id="gps-course-details" class="gps-course-details">Rating: 75.5 &bull; Slope: 145</span>
                 </div>
-                <div class="gps-status-badge">
-                  <span class="gps-pulse"></span>
-                  <span id="gps-status-lbl">GPS Active</span>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+                  <div class="gps-status-badge" id="round-timer-badge" style="background: rgba(255, 255, 255, 0.05); color: var(--color-primary); display: flex; align-items: center; gap: 0.25rem;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8; color: var(--emerald-glow);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span id="gps-timer-val">00:00</span>
+                    <button type="button" id="btn-timer-toggle" class="btn-icon" style="padding: 0; background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; margin-left: 2px;" aria-label="Pause or resume round timer">
+                      <svg id="timer-toggle-svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                    </button>
+                  </div>
+                  <div class="gps-status-badge">
+                    <span class="gps-pulse"></span>
+                    <span id="gps-status-lbl">GPS Active</span>
+                  </div>
                 </div>
               </div>
               <div class="gps-distance-display">
@@ -214,6 +223,33 @@
                 <button type="button" id="btn-gps-simulate" class="btn btn-secondary btn-xs">Simulate Approach Walk</button>
                 <button type="button" id="btn-gps-refresh" class="btn btn-primary btn-xs">Sync Geolocation</button>
               </div>
+
+              <!-- Course Mapper Panel -->
+              <details class="helper-accordion" id="mapper-accordion" style="margin-top: 1rem; border-top: 1px solid var(--border-light); padding-top: 0.75rem;">
+                <summary class="accordion-header" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-secondary); cursor: pointer; padding: 0.25rem 0;">
+                  <span>🗺️ Course Mapper</span>
+                  <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </summary>
+                <div class="accordion-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0;">
+                  <div class="mapper-status-row" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-primary); flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                      <strong>Tee Box:</strong> <span id="map-tee-coords" class="text-muted">Not Pinned</span>
+                    </div>
+                    <div>
+                      <strong>Green Center:</strong> <span id="map-green-coords" class="text-muted">Not Pinned</span>
+                    </div>
+                  </div>
+                  
+                  <div class="mapper-actions-row" style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                    <button type="button" id="btn-map-pin-tee" class="btn btn-secondary btn-xs" style="flex: 1; padding: 0.4rem 0.25rem;">📍 Pin Tee Box</button>
+                    <button type="button" id="btn-map-pin-green" class="btn btn-primary btn-xs" style="flex: 1; padding: 0.4rem 0.25rem;">📍 Pin Green</button>
+                  </div>
+                  
+                  <div id="mapper-distance-info" class="text-emerald" style="font-size: 0.75rem; font-weight: 600; text-align: center; display: none; margin-top: 0.25rem;">
+                    Hole Pinned Distance: <span id="map-pinned-dist">-</span> Yds
+                  </div>
+                </div>
+              </details>
             </section>
 
             <!-- Active Hole Detail Card -->
@@ -627,16 +663,6 @@
             <div class="form-group-block">
               <label for="save-round-date" class="form-section-title">Date of Play</label>
               <input type="date" id="save-round-date" class="form-input" required>
-            </div>
-            <div class="form-group-block" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-              <div>
-                <label for="save-course-rating" class="form-section-title">Course Rating</label>
-                <input type="number" id="save-course-rating" class="form-input" value="72.0" step="0.1" min="50" max="90" required>
-              </div>
-              <div>
-                <label for="save-course-slope" class="form-section-title">Slope Rating</label>
-                <input type="number" id="save-course-slope" class="form-input" value="113" min="55" max="155" required>
-              </div>
             </div>
             <div class="modal-footer-actions">
               <button type="submit" class="btn btn-success btn-block btn-lg">Save Round &amp; View Analysis</button>

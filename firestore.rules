@@ -75,12 +75,13 @@ service cloud.firestore {
     // Domain validation functions
     function isValidUserDoc(data, syncId) {
       return hasRequiredFields(['syncId', 'roundIds', 'createdAt', 'updatedAt']) &&
-             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'createdAt', 'updatedAt']) &&
+             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'createdAt', 'updatedAt']) &&
              data.syncId == syncId &&
              isValidSyncId(data.syncId) &&
              isValidOptionalString(data, 'apiKey', 100) &&
              isValidOptionalString(data, 'openaiApiKey', 100) &&
              isValidOptionalString(data, 'golfApiKey', 100) &&
+             isValidOptionalString(data, 'customCourseMappings', 100000) &&
              data.roundIds is list &&
              data.roundIds.size() <= 500 &&
              isRecent(data.createdAt);
@@ -95,7 +96,8 @@ service cloud.firestore {
              hasOnlyAllowedFields([
                'id', 'syncId', 'courseName', 'date', 'rating', 'slope', 'numHoles',
                'totalScore', 'totalPar', 'totalPutts', 'avgPutts', 'threePutts',
-               'onePutts', 'fairwayPercent', 'girPercent', 'holes', 'createdAt'
+               'onePutts', 'fairwayPercent', 'girPercent', 'holes', 'createdAt',
+               'duration', 'durationSeconds'
              ]) &&
              docId == data.syncId + "_" + string(data.id) &&
              data.id is number && data.id > 0 &&
@@ -114,6 +116,8 @@ service cloud.firestore {
              (data.fairwayPercent is number || data.fairwayPercent is float) &&
              (data.girPercent is number || data.girPercent is float) &&
              data.holes is list && data.holes.size() <= 18 &&
+             isValidOptionalString(data, 'duration', 20) &&
+             (!('durationSeconds' in data) || data.durationSeconds is number) &&
              isRecent(data.createdAt);
     }
 

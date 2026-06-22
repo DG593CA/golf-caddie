@@ -95,7 +95,11 @@ let state = {
   isListening: false,
   continuous: false,
   holes: [],
-  history: []
+  history: [],
+  roundStartTime: null,
+  roundElapsedTime: 0,
+  isTimerRunning: false,
+  customCourseMappings: '{}'
 };
 
 // Speech Recognition Variables
@@ -113,6 +117,8 @@ function initApp() {
   applySelectedCourse();
   updateUI();
   updateGPSWidget();
+  initRoundTimer(); // Initialize/resume stopwatch timer
+  initCourseMapper(); // Bind mapping button events
   syncFromCloud();
 
   // Register Service Worker for PWA support
@@ -143,6 +149,10 @@ function loadState() {
       if (!state.selectedCourse || state.selectedCourse.id === 'mock_pebble') {
         state.selectedCourse = MOCK_COURSES[0];
       }
+      if (state.roundStartTime === undefined) state.roundStartTime = null;
+      if (state.roundElapsedTime === undefined) state.roundElapsedTime = 0;
+      if (state.isTimerRunning === undefined) state.isTimerRunning = false;
+      if (!state.customCourseMappings) state.customCourseMappings = '{}';
     } catch (e) {
       console.error('Failed to parse saved state, loading defaults', e);
       initDefaultState();
@@ -163,6 +173,10 @@ function initDefaultState() {
   state.isListening = false;
   state.continuous = false;
   state.history = [];
+  state.roundStartTime = null;
+  state.roundElapsedTime = 0;
+  state.isTimerRunning = false;
+  state.customCourseMappings = '{}';
   initActiveRound();
 }
 
@@ -188,6 +202,7 @@ async function syncFromCloud() {
       if (userData.apiKey) state.apiKey = userData.apiKey;
       if (userData.openaiApiKey) state.openaiApiKey = userData.openaiApiKey;
       if (userData.golfApiKey) state.golfApiKey = userData.golfApiKey;
+      if (userData.customCourseMappings) state.customCourseMappings = userData.customCourseMappings;
       
       // Fetch completed rounds from roundIds
       if (userData.roundIds && userData.roundIds.length > 0) {
@@ -244,6 +259,7 @@ async function saveSettingsToCloud() {
       apiKey: state.apiKey || '',
       openaiApiKey: state.openaiApiKey || '',
       golfApiKey: state.golfApiKey || '',
+      customCourseMappings: state.customCourseMappings || '{}',
       roundIds: roundIds,
       createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
       updatedAt: new Date()
@@ -356,6 +372,15 @@ function initActiveRound() {
       conceded: false,
       notes: []
     });
+  }
+  
+  // Reset stopwatch timer state
+  state.roundStartTime = null;
+  state.roundElapsedTime = 0;
+  state.isTimerRunning = false;
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
   }
 }
 
@@ -548,7 +573,14 @@ function initUI() {
       }
     }
     initActiveRound();
+    
+    // Initialize and start the stopwatch timer
+    state.roundStartTime = Date.now();
+    state.roundElapsedTime = 0;
+    state.isTimerRunning = true;
+    
     saveState();
+    initRoundTimer();
     updateUI();
     updateGPSWidget();
 
@@ -827,8 +859,11 @@ function initUI() {
     e.preventDefault();
     const courseName = document.getElementById('save-course-name').value.trim();
     const dateVal = document.getElementById('save-round-date').value;
-    const ratingVal = parseFloat(document.getElementById('save-course-rating').value) || 72.0;
-    const slopeVal = parseInt(document.getElementById('save-course-slope').value) || 113;
+    
+    // Retrieve rating/slope from active selectedCourse, or default to standard values
+    const course = state.selectedCourse || MOCK_COURSES[0];
+    const ratingVal = course ? (parseFloat(course.rating) || 72.0) : 72.0;
+    const slopeVal = course ? (parseInt(course.slope) || 113) : 113;
 
     // Package the completed round
     const totalScoreVal = calculateTotalScore();
@@ -851,6 +886,17 @@ function initUI() {
     const fStats = calculateFairwayStats();
     const girStats = calculateGIRStats();
 
+    // Calculate elapsed time
+    let elapsedSeconds = state.roundElapsedTime || 0;
+    if (state.isTimerRunning && state.roundStartTime) {
+      elapsedSeconds += Math.floor((Date.now() - state.roundStartTime) / 1000);
+    }
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+    const pad = (num) => String(num).padStart(2, '0');
+    const durationStr = hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+
     const archivedRound = {
       id: Date.now(),
       courseName: courseName,
@@ -866,6 +912,8 @@ function initUI() {
       onePutts: onePutts,
       fairwayPercent: fStats.totalHolesWithFairway > 0 ? fStats.hitPercent : 0,
       girPercent: girStats.totalHolesWithGIR > 0 ? girStats.girPercent : 0,
+      duration: durationStr,
+      durationSeconds: elapsedSeconds,
       holes: JSON.parse(JSON.stringify(state.holes)) // deep copy
     };
 
@@ -908,6 +956,15 @@ function initUI() {
   // Sync controls in DOM with state loaded
   document.getElementById('switch-continuous').checked = state.continuous;
   document.getElementById('switch-audio-feedback').checked = state.useSpeechSynthesis;
+
+  // Round Timer Pause/Resume control
+  const btnTimerToggle = document.getElementById('btn-timer-toggle');
+  if (btnTimerToggle) {
+    btnTimerToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleRoundTimer();
+    });
+  }
 
   // Caddie Assistant Initialization
   initCaddieAssistant();
@@ -2452,6 +2509,7 @@ async function generateCoachingAssessment(roundData, totalScore, totalPar, total
 
     const roundSummaryData = {
       courseHolesCount: roundData ? roundData.numHoles : state.numHoles,
+      duration: roundData ? (roundData.duration || null) : null,
       summaryStats: {
         totalScore,
         totalPar,
@@ -2481,19 +2539,19 @@ async function generateCoachingAssessment(roundData, totalScore, totalPar, total
         <p style="color:var(--danger)"><strong>Failed to connect with AI API.</strong> Please check your API Key in Settings.</p>
         <p>Here is your offline Coach Analysis instead:</p>
         <hr style="border:0; border-top:1px solid var(--border-light); margin:1rem 0;">
-        ${generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts, fStats, girStats)}
+        ${generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts, fStats, girStats, roundData ? roundData.numHoles : state.numHoles)}
       `;
     } finally {
       coachSpinner.classList.add('hidden');
     }
   } else {
     // Show local offline coaching assessment
-    coachResponse.innerHTML = generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts, fStats, girStats);
+    coachResponse.innerHTML = generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts, fStats, girStats, roundData ? roundData.numHoles : state.numHoles);
   }
 }
 
 // Client-Side offline golf coaching engine
-function generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts, fStats, girStats) {
+function generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts, fStats, girStats, numHoles = 9) {
   const scoreDiff = totalScore - totalPar;
   let intro = '';
   let puttingAdvice = '';
@@ -2501,17 +2559,19 @@ function generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts,
   let girAdvice = '';
   let practiceRoutine = '';
 
+  const formatText = `${numHoles}-hole round`;
+
   // 1. Evaluate Overall Score
   if (scoreDiff < 0) {
-    intro = `<p><strong>Sensational round!</strong> You finished at ${scoreDiff} under par. You are playing high-level golf. Your decisions on the course paid off beautifully.</p>`;
+    intro = `<p><strong>Sensational round!</strong> You finished your ${formatText} at ${Math.abs(scoreDiff)} under par. You are playing high-level golf. Your decisions on the course paid off beautifully.</p>`;
   } else if (scoreDiff === 0) {
-    intro = '<p><strong>Superb performance!</strong> Finishing even par is a huge milestone. Your consistency kept you focused on making pars and handling course elements well.</p>';
+    intro = `<p><strong>Superb performance!</strong> Finishing even par over a ${formatText} is a huge milestone. Your consistency kept you focused on making pars and handling course elements well.</p>`;
   } else if (scoreDiff < 10) {
-    intro = `<p><strong>Solid effort!</strong> Finishing +${scoreDiff} over par means you kept big mistakes off your scorecard. With some minor short-game refinements, you can drop this lower.</p>`;
+    intro = `<p><strong>Solid effort!</strong> Finishing your ${formatText} at +${scoreDiff} over par means you kept big mistakes off your scorecard. With some minor short-game refinements, you can drop this lower.</p>`;
   } else if (scoreDiff < 20) {
-    intro = `<p><strong>Good hustle!</strong> You completed the round at +${scoreDiff} over par. You had some great highlights, but a few holes inflated the total. Focus on minimizing damage on par-fours.</p>`;
+    intro = `<p><strong>Good hustle!</strong> You completed the ${formatText} at +${scoreDiff} over par. You had some great highlights, but a few holes inflated the total. Focus on minimizing damage on par-fours.</p>`;
   } else {
-    intro = `<p><strong>Round complete!</strong> You finished at +${scoreDiff} over par. Golf is a game of recovery. Focus on target alignment and club select and we will get this down.</p>`;
+    intro = `<p><strong>Round complete!</strong> You finished the ${formatText} at +${scoreDiff} over par. Golf is a game of recovery. Focus on target alignment and club selection and we will get this down.</p>`;
   }
 
   // 2. Evaluate Putting (putts/hole, 3-putts)
@@ -2619,6 +2679,8 @@ You are an expert, friendly golf coach. Analyze this golf round performance and 
 Here is the data for the round:
 ${JSON.stringify(roundData, null, 2)}
 
+The golfer played a ${roundData.courseHolesCount}-hole round${roundData.duration ? ` which took a duration of ${roundData.duration}` : ''}.
+Ensure the analysis (especially references to total score, total putts, and pacing/stamina) is contextually appropriate for a ${roundData.courseHolesCount}-hole round (for example, do not treat a 9-hole score of 45 or 15 putts as an 18-hole score).
 Provide your response in clean HTML format. Use paragraph tags <p>, list items <li>, bold text <strong>, etc. Do not include a markdown block wrapper (like \`\`\`html) - just output the raw HTML directly. Make the tone encouraging, expert, and constructive.
 `;
 
@@ -2654,6 +2716,8 @@ You are an expert, friendly golf coach. Analyze this golf round performance and 
 Here is the data for the round:
 ${JSON.stringify(roundData, null, 2)}
 
+The golfer played a ${roundData.courseHolesCount}-hole round${roundData.duration ? ` which took a duration of ${roundData.duration}` : ''}.
+Ensure the analysis (especially references to total score, total putts, and pacing/stamina) is contextually appropriate for a ${roundData.courseHolesCount}-hole round (for example, do not treat a 9-hole score of 45 or 15 putts as an 18-hole score).
 Provide your response in clean HTML format. Use paragraph tags <p>, list items <li>, bold text <strong>, etc. Do not include a markdown block wrapper (like \`\`\`html) - just output the raw HTML directly. Make the tone encouraging, expert, and constructive.
 `;
 
@@ -2804,7 +2868,7 @@ function renderHistoryTab() {
     card.innerHTML = `
       <div class="history-card-main">
         <span class="history-card-course">${escapeHTML(round.courseName)}</span>
-        <span class="history-card-date">${escapeHTML(round.date)} &bull; ${round.numHoles} Holes</span>
+        <span class="history-card-date">${escapeHTML(round.date)} &bull; ${round.numHoles} Holes${round.duration ? ` &bull; ⏱️ ${escapeHTML(round.duration)}` : ''}</span>
       </div>
       <div class="history-card-stats">
         <div class="history-card-stat-box">
@@ -2893,8 +2957,6 @@ function applySelectedCourse() {
 
   // Pre-fill complete round saving fields
   document.getElementById('save-course-name').value = course.name;
-  document.getElementById('save-course-rating').value = course.rating;
-  document.getElementById('save-course-slope').value = course.slope;
 }
 
 // Search endpoint client (GolfCourseAPI.com REST API with mock fallback)
@@ -3203,6 +3265,19 @@ function renderNearestCourses(courses) {
 // GPS coordinates helper offset
 function getHoleGreenCoordinates(holeNumber) {
   const course = state.selectedCourse || MOCK_COURSES[0];
+  const courseId = course.id;
+  
+  // 1. Check custom pinned green center
+  try {
+    const mappings = JSON.parse(state.customCourseMappings || '{}');
+    if (mappings[courseId] && mappings[courseId][holeNumber] && mappings[courseId][holeNumber].greenCenter) {
+      return mappings[courseId][holeNumber].greenCenter;
+    }
+  } catch (e) {
+    console.error("Error reading customCourseMappings", e);
+  }
+
+  // 2. Check course-defined coordinates
   if (course.holeCoordinates && course.holeCoordinates[holeNumber - 1]) {
     return course.holeCoordinates[holeNumber - 1];
   }
@@ -3329,6 +3404,68 @@ function updateGPSWidget() {
     document.getElementById('gps-dist-front').textContent = Math.max(0, standardDist - 15);
     document.getElementById('gps-dist-back').textContent = standardDist + 15;
   }
+
+  // Update Course Mapper UI elements for current hole
+  const courseId = course.id;
+  let teeCoordsText = 'Not Pinned';
+  let greenCoordsText = 'Not Pinned';
+  let hasTee = false;
+  let hasGreen = false;
+  let tLat, tLng, gLat, gLng;
+  
+  try {
+    const mappings = JSON.parse(state.customCourseMappings || '{}');
+    if (mappings[courseId] && mappings[courseId][holeNum]) {
+      const holeMap = mappings[courseId][holeNum];
+      if (holeMap.teeBox) {
+        tLat = holeMap.teeBox.lat;
+        tLng = holeMap.teeBox.lng;
+        teeCoordsText = `${tLat.toFixed(5)}, ${tLng.toFixed(5)}`;
+        hasTee = true;
+      }
+      if (holeMap.greenCenter) {
+        gLat = holeMap.greenCenter.lat;
+        gLng = holeMap.greenCenter.lng;
+        greenCoordsText = `${gLat.toFixed(5)}, ${gLng.toFixed(5)}`;
+        hasGreen = true;
+      }
+    }
+  } catch (e) {
+    console.error("Error reading custom mappings for UI", e);
+  }
+  
+  const teeEl = document.getElementById('map-tee-coords');
+  const greenEl = document.getElementById('map-green-coords');
+  if (teeEl) {
+    teeEl.textContent = teeCoordsText;
+    if (hasTee) {
+      teeEl.classList.remove('text-muted');
+      teeEl.classList.add('text-emerald');
+    } else {
+      teeEl.classList.remove('text-emerald');
+      teeEl.classList.add('text-muted');
+    }
+  }
+  if (greenEl) {
+    greenEl.textContent = greenCoordsText;
+    if (hasGreen) {
+      greenEl.classList.remove('text-muted');
+      greenEl.classList.add('text-emerald');
+    } else {
+      greenEl.classList.remove('text-emerald');
+      greenEl.classList.add('text-muted');
+    }
+  }
+  
+  const distInfo = document.getElementById('mapper-distance-info');
+  const pinnedDistEl = document.getElementById('map-pinned-dist');
+  if (hasTee && hasGreen) {
+    const pinnedYards = calculateHaversineDistanceYards(tLat, tLng, gLat, gLng);
+    if (pinnedDistEl) pinnedDistEl.textContent = pinnedYards;
+    if (distInfo) distInfo.style.display = 'block';
+  } else {
+    if (distInfo) distInfo.style.display = 'none';
+  }
 }
 
 // Dynamic walk approach simulator
@@ -3362,4 +3499,135 @@ function startWalkSimulation() {
       }
     }
   }, 1000);
+}
+
+// Active Round Timer / Stopwatch Logic
+let timerInterval = null;
+
+function initRoundTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  if (state.isTimerRunning && state.roundStartTime) {
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+    updateTimerDisplay();
+  } else {
+    updateTimerDisplay();
+  }
+}
+
+function updateTimerDisplay() {
+  let elapsedSeconds = state.roundElapsedTime || 0;
+  if (state.isTimerRunning && state.roundStartTime) {
+    elapsedSeconds += Math.floor((Date.now() - state.roundStartTime) / 1000);
+  }
+  
+  const hours = Math.floor(elapsedSeconds / 3600);
+  const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+  const seconds = elapsedSeconds % 60;
+  
+  const pad = (num) => String(num).padStart(2, '0');
+  let displayStr = `${pad(minutes)}:${pad(seconds)}`;
+  if (hours > 0) {
+    displayStr = `${hours}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  
+  const timerEl = document.getElementById('gps-timer-val');
+  if (timerEl) timerEl.textContent = displayStr;
+  
+  const toggleSvg = document.getElementById('timer-toggle-svg');
+  if (toggleSvg) {
+    if (state.isTimerRunning) {
+      // Show Pause Icon
+      toggleSvg.innerHTML = `<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>`;
+    } else {
+      // Show Play Icon
+      toggleSvg.innerHTML = `<polygon points="8 5 19 12 8 19 8 5"></polygon>`;
+    }
+  }
+}
+
+function toggleRoundTimer() {
+  if (state.isTimerRunning) {
+    // Pause
+    state.roundElapsedTime += Math.floor((Date.now() - state.roundStartTime) / 1000);
+    state.roundStartTime = null;
+    state.isTimerRunning = false;
+  } else {
+    // Resume
+    state.roundStartTime = Date.now();
+    state.isTimerRunning = true;
+  }
+  saveState();
+  initRoundTimer();
+}
+
+// Course Mapping & Pinning Logic
+function initCourseMapper() {
+  const btnPinTee = document.getElementById('btn-map-pin-tee');
+  const btnPinGreen = document.getElementById('btn-map-pin-green');
+  
+  if (btnPinTee) {
+    btnPinTee.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pinLocation('teeBox');
+    });
+  }
+  if (btnPinGreen) {
+    btnPinGreen.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pinLocation('greenCenter');
+    });
+  }
+}
+
+async function pinLocation(type) {
+  const course = state.selectedCourse || MOCK_COURSES[0];
+  const holeNum = state.currentHoleIndex + 1;
+  const courseId = course.id;
+  
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by your browser.");
+    return;
+  }
+  
+  const statusLbl = document.getElementById('gps-status-lbl');
+  const badge = statusLbl ? statusLbl.parentElement : null;
+  
+  if (badge) badge.classList.remove('offline');
+  if (statusLbl) statusLbl.textContent = "Pinning Location...";
+  
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const uLat = position.coords.latitude;
+      const uLng = position.coords.longitude;
+      
+      let mappings = {};
+      try {
+        mappings = JSON.parse(state.customCourseMappings || '{}');
+      } catch (e) {
+        console.error("Failed to parse customCourseMappings", e);
+      }
+      
+      if (!mappings[courseId]) {
+        mappings[courseId] = {};
+      }
+      if (!mappings[courseId][holeNum]) {
+        mappings[courseId][holeNum] = {};
+      }
+      
+      mappings[courseId][holeNum][type] = { lat: uLat, lng: uLng };
+      state.customCourseMappings = JSON.stringify(mappings);
+      
+      saveState();
+      await saveSettingsToCloud();
+      
+      if (statusLbl) statusLbl.textContent = "Pinned Successfully!";
+      setTimeout(updateGPSWidget, 1500);
+    },
+    (error) => {
+      if (statusLbl) statusLbl.textContent = "Pinning Failed";
+      alert("Failed to pin location: " + error.message);
+      updateGPSWidget();
+    },
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+  );
 }
