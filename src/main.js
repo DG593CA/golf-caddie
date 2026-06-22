@@ -768,7 +768,8 @@ function initUI() {
   const settingsDialog = document.getElementById('settings-dialog');
   document.getElementById('btn-settings').addEventListener('click', () => {
     renderParsConfig();
-    document.getElementById('sync-id-input').value = state.syncId || '';
+    const syncInput = document.getElementById('sync-id-input');
+    if (syncInput) syncInput.value = state.syncId || '';
     const authUidInput = document.getElementById('auth-uid-input');
     if (authUidInput) authUidInput.value = state.syncId || '';
     const authUserEmail = document.getElementById('auth-user-email');
@@ -787,34 +788,7 @@ function initUI() {
     settingsDialog.showModal();
   });
 
-  // Copy sync ID button
-  document.getElementById('btn-copy-sync-id').addEventListener('click', () => {
-    const syncId = document.getElementById('sync-id-input').value;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(syncId).then(() => {
-        alert("Sync ID copied to clipboard!");
-      }).catch(err => {
-        console.error("Failed to copy Sync ID:", err);
-      });
-    } else {
-      const syncInput = document.getElementById('sync-id-input');
-      syncInput.select();
-      document.execCommand('copy');
-      alert("Sync ID copied to clipboard!");
-    }
-  });
 
-  // Connect to existing sync ID
-  document.getElementById('btn-connect-sync').addEventListener('click', () => {
-    const syncId = document.getElementById('sync-id-input').value.trim();
-    if (syncId === state.syncId) {
-      alert("Already syncing with this ID.");
-      return;
-    }
-    if (confirm("Connecting to another Sync ID will overwrite your current settings and history. Are you sure you want to proceed?")) {
-      connectExistingSyncId(syncId);
-    }
-  });
 
   document.getElementById('btn-close-settings').addEventListener('click', () => {
     settingsDialog.close();
