@@ -1,11 +1,12 @@
 import './style.css';
 import { db, auth } from './firebase.js';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   onAuthStateChanged,
-  signOut
+  signOut,
+  deleteUser
 } from 'firebase/auth';
 
 // Mock Golf Courses Database
@@ -364,6 +365,53 @@ async function connectExistingSyncId(newSyncId) {
 let currentAuthMode = 'login'; // 'login' or 'signup'
 let isMigrating = false;
 
+async function deleteUserAccount() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  if (confirm("⚠️ WARNING: Are you sure you want to permanently delete your account? This will delete your profile settings and ALL completed rounds. This action is permanent and cannot be undone.")) {
+    try {
+      const uid = user.uid;
+
+      // 1. Delete all rounds from Firestore
+      const userDocRef = doc(db, 'users', uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.roundIds && userData.roundIds.length > 0) {
+          for (const roundDocId of userData.roundIds) {
+            try {
+              const roundDocRef = doc(db, 'rounds', roundDocId);
+              await deleteDoc(roundDocRef);
+            } catch (err) {
+              console.error("Failed to delete round doc:", roundDocId, err);
+            }
+          }
+        }
+      }
+
+      // 2. Delete the user document in Firestore
+      try {
+        await deleteDoc(userDocRef);
+      } catch (err) {
+        console.error("Failed to delete user document:", err);
+      }
+
+      // 3. Delete the user from Firebase Auth
+      await deleteUser(user);
+      
+      alert("Your account has been deleted successfully.");
+    } catch (error) {
+      console.error("Account deletion failed:", error);
+      if (error.code === 'auth/requires-recent-login') {
+        alert("For security reasons, this operation requires a recent login. Please log out, log back in, and try again immediately.");
+      } else {
+        alert("Failed to delete account: " + error.message);
+      }
+    }
+  }
+}
+
 async function migrateUserData(uid, localHistory, localSettings) {
   try {
     const userDocRef = doc(db, 'users', uid);
@@ -405,55 +453,59 @@ async function migrateUserData(uid, localHistory, localSettings) {
 }
 
 function initAuth() {
-  const tabLogin = document.getElementById('tab-login');
-  const tabSignup = document.getElementById('tab-signup');
-  const btnAuthSubmit = document.getElementById('btn-auth-submit');
+  // Gate overlay elements
+  const authGateOverlay = document.getElementById('auth-gate-overlay');
+  const gateTabLogin = document.getElementById('gate-tab-login');
+  const gateTabSignup = document.getElementById('gate-tab-signup');
+  const btnGateAuthSubmit = document.getElementById('btn-gate-auth-submit');
+  const gateAuthEmail = document.getElementById('gate-auth-email');
+  const gateAuthPassword = document.getElementById('gate-auth-password');
+  const gateAuthErrorMsg = document.getElementById('gate-auth-error-msg');
+  const gateSyncIdInput = document.getElementById('gate-sync-id-input');
+  const btnGateConnectSync = document.getElementById('btn-gate-connect-sync');
+
+  // Settings modal active auth elements
   const btnAuthLogout = document.getElementById('btn-auth-logout');
-  const authEmail = document.getElementById('auth-email');
-  const authPassword = document.getElementById('auth-password');
-  const authErrorMsg = document.getElementById('auth-error-msg');
-  const authLoggedOut = document.getElementById('auth-logged-out');
-  const authLoggedIn = document.getElementById('auth-logged-in');
+  const btnAuthDeleteAccount = document.getElementById('btn-auth-delete-account');
   const authUserEmail = document.getElementById('auth-user-email');
   const authUidInput = document.getElementById('auth-uid-input');
   const btnCopyUid = document.getElementById('btn-copy-uid');
 
-  // Tab switching
-  tabLogin.addEventListener('click', () => {
+  // Tab switching on login gate
+  gateTabLogin.addEventListener('click', () => {
     currentAuthMode = 'login';
-    tabLogin.classList.add('active-tab');
-    tabSignup.classList.remove('active-tab');
-    btnAuthSubmit.textContent = 'Log In';
-    authErrorMsg.style.display = 'none';
+    gateTabLogin.classList.add('active-tab');
+    gateTabSignup.classList.remove('active-tab');
+    btnGateAuthSubmit.textContent = 'Log In';
+    gateAuthErrorMsg.style.display = 'none';
   });
 
-  tabSignup.addEventListener('click', () => {
+  gateTabSignup.addEventListener('click', () => {
     currentAuthMode = 'signup';
-    tabSignup.classList.add('active-tab');
-    tabLogin.classList.remove('active-tab');
-    btnAuthSubmit.textContent = 'Create Account';
-    authErrorMsg.style.display = 'none';
+    gateTabSignup.classList.add('active-tab');
+    gateTabLogin.classList.remove('active-tab');
+    btnGateAuthSubmit.textContent = 'Create Account';
+    gateAuthErrorMsg.style.display = 'none';
   });
 
-  // Submit action (Log In or Sign Up)
-  btnAuthSubmit.addEventListener('click', async () => {
-    const email = authEmail.value.trim();
-    const password = authPassword.value;
+  // Submit action on login gate (Log In or Sign Up)
+  btnGateAuthSubmit.addEventListener('click', async () => {
+    const email = gateAuthEmail.value.trim();
+    const password = gateAuthPassword.value;
 
     if (!email || !password) {
-      showAuthError("Please fill in both email and password.");
+      showGateAuthError("Please fill in both email and password.");
       return;
     }
 
-    authErrorMsg.style.display = 'none';
-    btnAuthSubmit.disabled = true;
-    const originalText = btnAuthSubmit.textContent;
-    btnAuthSubmit.textContent = currentAuthMode === 'login' ? 'Logging in...' : 'Creating account...';
+    gateAuthErrorMsg.style.display = 'none';
+    btnGateAuthSubmit.disabled = true;
+    const originalText = btnGateAuthSubmit.textContent;
+    btnGateAuthSubmit.textContent = currentAuthMode === 'login' ? 'Logging in...' : 'Creating account...';
 
     try {
       if (currentAuthMode === 'login') {
         await signInWithEmailAndPassword(auth, email, password);
-        alert("Logged in successfully!");
       } else {
         // Sign Up
         // Capture existing local state before signing up for migration
@@ -475,11 +527,10 @@ function initAuth() {
         
         // Refresh local data from newly migrated cloud profile
         await syncFromCloud();
-        alert("Account created and local data migrated successfully!");
       }
       // Clear forms
-      authEmail.value = '';
-      authPassword.value = '';
+      gateAuthEmail.value = '';
+      gateAuthPassword.value = '';
     } catch (error) {
       console.error("Authentication error:", error);
       let friendlyMessage = error.message;
@@ -492,24 +543,32 @@ function initAuth() {
       } else if (error.code === 'auth/invalid-email') {
         friendlyMessage = "Please enter a valid email address.";
       }
-      showAuthError(friendlyMessage);
+      showGateAuthError(friendlyMessage);
       isMigrating = false;
     } finally {
-      btnAuthSubmit.disabled = false;
-      btnAuthSubmit.textContent = originalText;
+      btnGateAuthSubmit.disabled = false;
+      btnGateAuthSubmit.textContent = originalText;
     }
   });
 
-  // Logout action
+  // Logout action in Settings modal
   btnAuthLogout.addEventListener('click', async () => {
-    if (confirm("Are you sure you want to log out? This will switch you back to a local guest session.")) {
+    if (confirm("Are you sure you want to log out? This will lock the app and switch you to a clean guest session.")) {
       try {
         await signOut(auth);
-        alert("Logged out successfully!");
+        const settingsDialog = document.getElementById('settings-dialog');
+        if (settingsDialog && settingsDialog.open) settingsDialog.close();
       } catch (error) {
         console.error("Sign out error:", error);
       }
     }
+  });
+
+  // Delete Account action in Settings modal
+  btnAuthDeleteAccount.addEventListener('click', async () => {
+    await deleteUserAccount();
+    const settingsDialog = document.getElementById('settings-dialog');
+    if (settingsDialog && settingsDialog.open) settingsDialog.close();
   });
 
   // Copy UID button
@@ -530,9 +589,51 @@ function initAuth() {
     });
   }
 
-  function showAuthError(msg) {
-    authErrorMsg.textContent = msg;
-    authErrorMsg.style.display = 'block';
+  // Connect to legacy Sync ID from gate
+  btnGateConnectSync.addEventListener('click', async () => {
+    const syncId = gateSyncIdInput.value.trim();
+    if (!syncId || syncId.length < 15 || syncId.length > 50) {
+      alert("Invalid Sync ID. Must be between 15 and 50 characters.");
+      return;
+    }
+    
+    try {
+      const userDocRef = doc(db, 'users', syncId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        state.syncId = syncId;
+        state.apiKey = userData.apiKey || '';
+        state.openaiApiKey = userData.openaiApiKey || '';
+        state.golfApiKey = userData.golfApiKey || '';
+        state.customCourseMappings = userData.customCourseMappings || '{}';
+        
+        state.history = [];
+        if (userData.roundIds && userData.roundIds.length > 0) {
+          for (const roundDocId of userData.roundIds) {
+            const roundDocRef = doc(db, 'rounds', roundDocId);
+            const roundSnap = await getDoc(roundDocRef);
+            if (roundSnap.exists()) {
+              state.history.push(roundSnap.data());
+            }
+          }
+          state.history.sort((a, b) => b.id - a.id);
+        }
+        saveState();
+        updateUI();
+        alert(`Legacy Sync ID loaded successfully! Loaded settings and ${state.history.length} round records. You can now Create an Account to save them under your permanent email.`);
+      } else {
+        alert("Legacy Sync ID does not exist in the database.");
+      }
+    } catch (error) {
+      console.error("Failed to load legacy Sync ID:", error);
+      alert("Error loading legacy Sync ID. Please check your connection.");
+    }
+  });
+
+  function showGateAuthError(msg) {
+    gateAuthErrorMsg.textContent = msg;
+    gateAuthErrorMsg.style.display = 'block';
   }
 
   // Set up Firebase Auth State Listener
@@ -542,15 +643,12 @@ function initAuth() {
       console.log("Auth State: User is logged in", user.email);
       state.syncId = user.uid;
 
-      // Update UI elements for logged-in view
-      authLoggedOut.style.display = 'none';
-      authLoggedIn.style.display = 'block';
+      // Hide login gate and show app
+      authGateOverlay.style.display = 'none';
+
+      // Update UI elements for logged-in view inside settings
       authUserEmail.textContent = `Logged in as: ${user.email}`;
       authUidInput.value = user.uid;
-
-      // Ensure sync-id-input in legacy toggle matches
-      const legacySyncInput = document.getElementById('sync-id-input');
-      if (legacySyncInput) legacySyncInput.value = user.uid;
 
       // Pull settings and history from Cloud Firestore
       if (!isMigrating) {
@@ -560,31 +658,27 @@ function initAuth() {
       // User is logged out / guest mode
       console.log("Auth State: User is logged out");
       
-      // Update UI elements for logged-out view
-      authLoggedOut.style.display = 'block';
-      authLoggedIn.style.display = 'none';
+      // Show login gate and block app
+      authGateOverlay.style.display = 'flex';
+
       authUserEmail.textContent = '';
       authUidInput.value = '';
 
-      // If state.syncId is a Firebase UID (length 28), we reset it to a guest caddie ID
-      // To ensure we don't leak or reuse user UID when logged out
-      if (!state.syncId || state.syncId.length === 28 || !state.syncId.startsWith('caddie-')) {
-        state.syncId = generateSyncId();
-        // Reset local history to protect credentials when logging out
-        state.history = [];
-        state.apiKey = '';
-        state.openaiApiKey = '';
-        state.customCourseMappings = '{}';
-        
-        saveState();
-        updateUI();
-      }
+      // Reset to a clean guest state to prevent leaking previous user details
+      state.syncId = generateSyncId();
+      state.history = [];
+      state.apiKey = '';
+      state.openaiApiKey = '';
+      state.customCourseMappings = '{}';
       
-      const legacySyncInput = document.getElementById('sync-id-input');
-      if (legacySyncInput) legacySyncInput.value = state.syncId;
+      saveState();
+      updateUI();
+      
+      gateSyncIdInput.value = '';
     }
   });
 }
+
 
 
 function initActiveRound() {
