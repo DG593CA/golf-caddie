@@ -284,6 +284,7 @@ async function saveSettingsToCloud() {
   } catch (error) {
     console.error("Failed to save settings to Cloud:", error);
     alert("Failed to save settings to cloud: " + error.message);
+    throw error;
   }
 }
 
@@ -817,58 +818,75 @@ function initUI() {
     }
   });
 
-  document.getElementById('settings-form').addEventListener('submit', (e) => {
+  document.getElementById('settings-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const numHolesVal = parseInt(document.querySelector('input[name="course-holes"]:checked').value);
-    const apiVal = document.getElementById('gemini-api-key').value.trim();
-    const openaiApiVal = document.getElementById('openai-api-key').value.trim();
-    const golfApiVal = document.getElementById('golfapi-key').value.trim();
-    
-    // Save settings
-    state.apiKey = apiVal;
-    state.openaiApiKey = openaiApiVal;
-    state.golfApiKey = golfApiVal;
-    
-    if (state.numHoles !== numHolesVal) {
-      // Re-initialize holes array, preserving existing scores where possible
-      const oldHoles = [...state.holes];
-      state.numHoles = numHolesVal;
-      state.holes = [];
-      for (let i = 1; i <= state.numHoles; i++) {
-        const existing = oldHoles.find(h => h.number === i);
-        if (existing) {
-          state.holes.push(existing);
-        } else {
-          state.holes.push({
-            number: i,
-            par: 4,
-            score: 0,
-            putts: 0,
-            fairway: 'NA',
-            gir: 'NA',
-            conceded: false,
-            notes: []
-          });
-        }
-      }
-      if (state.currentHoleIndex >= state.numHoles) {
-        state.currentHoleIndex = state.numHoles - 1;
-      }
-    }
-    
-    // Save customized pars
-    for (let i = 1; i <= state.numHoles; i++) {
-      const parInput = document.getElementById(`config-par-h${i}`);
-      if (parInput && state.holes[i-1]) {
-        state.holes[i-1].par = parseInt(parInput.value) || 4;
-      }
+    const saveButton = document.getElementById('btn-save-settings');
+    const originalText = saveButton ? saveButton.textContent : 'Save Course Settings';
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving to Cloud...';
     }
 
-    saveState();
-    saveSettingsToCloud();
-    updateUI();
-    updateGPSWidget();
-    settingsDialog.close();
+    try {
+      const numHolesVal = parseInt(document.querySelector('input[name="course-holes"]:checked').value);
+      const apiVal = document.getElementById('gemini-api-key').value.trim();
+      const openaiApiVal = document.getElementById('openai-api-key').value.trim();
+      const golfApiVal = document.getElementById('golfapi-key').value.trim();
+      
+      // Save settings
+      state.apiKey = apiVal;
+      state.openaiApiKey = openaiApiVal;
+      state.golfApiKey = golfApiVal;
+      
+      if (state.numHoles !== numHolesVal) {
+        // Re-initialize holes array, preserving existing scores where possible
+        const oldHoles = [...state.holes];
+        state.numHoles = numHolesVal;
+        state.holes = [];
+        for (let i = 1; i <= state.numHoles; i++) {
+          const existing = oldHoles.find(h => h.number === i);
+          if (existing) {
+            state.holes.push(existing);
+          } else {
+            state.holes.push({
+              number: i,
+              par: 4,
+              score: 0,
+              putts: 0,
+              fairway: 'NA',
+              gir: 'NA',
+              conceded: false,
+              notes: []
+            });
+          }
+        }
+        if (state.currentHoleIndex >= state.numHoles) {
+          state.currentHoleIndex = state.numHoles - 1;
+        }
+      }
+      
+      // Save customized pars
+      for (let i = 1; i <= state.numHoles; i++) {
+        const parInput = document.getElementById(`config-par-h${i}`);
+        if (parInput && state.holes[i-1]) {
+          state.holes[i-1].par = parseInt(parInput.value) || 4;
+        }
+      }
+
+      saveState();
+      await saveSettingsToCloud();
+      updateUI();
+      updateGPSWidget();
+      settingsDialog.close();
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+      alert("Failed to save settings: " + err.message);
+    } finally {
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = originalText;
+      }
+    }
   });
 
   // Reset round
