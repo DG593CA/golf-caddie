@@ -245,12 +245,21 @@ async function syncFromCloud() {
       // Populate inputs in modal if currently open
       const syncInput = document.getElementById('sync-id-input');
       if (syncInput) syncInput.value = state.syncId;
+      const authUidInput = document.getElementById('auth-uid-input');
+      if (authUidInput) authUidInput.value = state.syncId;
+      const geminiInput = document.getElementById('gemini-api-key');
+      if (geminiInput) geminiInput.value = state.apiKey || '';
+      const openaiInput = document.getElementById('openai-api-key');
+      if (openaiInput) openaiInput.value = state.openaiApiKey || '';
+      const golfapiInput = document.getElementById('golfapi-key');
+      if (golfapiInput) golfapiInput.value = state.golfApiKey || '';
     } else {
       // First time user registration in Cloud database
       await saveSettingsToCloud();
     }
   } catch (error) {
     console.error("Failed to sync from Cloud Firestore:", error);
+    alert("Failed to sync settings from cloud: " + error.message);
   }
 }
 
@@ -274,6 +283,7 @@ async function saveSettingsToCloud() {
     console.log("Settings successfully synced to Cloud.");
   } catch (error) {
     console.error("Failed to save settings to Cloud:", error);
+    alert("Failed to save settings to cloud: " + error.message);
   }
 }
 
@@ -312,6 +322,7 @@ async function saveRoundToCloud(archivedRound) {
     console.log("Round successfully archived in the Cloud database:", docId);
   } catch (error) {
     console.error("Failed to save round to Cloud:", error);
+    alert("Failed to save round to cloud: " + error.message);
   }
 }
 
@@ -450,6 +461,7 @@ async function migrateUserData(uid, localHistory, localSettings) {
     console.log("Migration complete for user UID:", uid);
   } catch (error) {
     console.error("Failed to migrate user data:", error);
+    alert("Failed to migrate user data to cloud: " + error.message);
   }
 }
 
@@ -847,7 +859,7 @@ function initUI() {
     // Save customized pars
     for (let i = 1; i <= state.numHoles; i++) {
       const parInput = document.getElementById(`config-par-h${i}`);
-      if (parInput) {
+      if (parInput && state.holes[i-1]) {
         state.holes[i-1].par = parseInt(parInput.value) || 4;
       }
     }
