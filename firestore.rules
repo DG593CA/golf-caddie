@@ -78,12 +78,12 @@ service cloud.firestore {
              hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'createdAt', 'updatedAt']) &&
              data.syncId == syncId &&
              isValidSyncId(data.syncId) &&
-             isValidOptionalString(data, 'apiKey', 100) &&
-             isValidOptionalString(data, 'openaiApiKey', 100) &&
-             isValidOptionalString(data, 'golfApiKey', 100) &&
+             isValidOptionalString(data, 'apiKey', 1000) &&
+             isValidOptionalString(data, 'openaiApiKey', 1000) &&
+             isValidOptionalString(data, 'golfApiKey', 1000) &&
              isValidOptionalString(data, 'customCourseMappings', 100000) &&
              data.roundIds is list &&
-             data.roundIds.size() <= 500;
+             data.roundIds.size() <= 5000;
     }
 
     function isValidRoundDoc(data, docId) {
@@ -123,9 +123,7 @@ service cloud.firestore {
     match /users/{syncId} {
       allow get: if isValidSyncId(syncId) && isOwner(syncId);
       allow create: if isValidSyncId(syncId) && isOwner(syncId) && isValidUserDoc(request.resource.data, syncId);
-      allow update: if isValidSyncId(syncId) && isOwner(syncId) && 
-                     isValidUserDoc(request.resource.data, syncId) &&
-                     request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if isValidSyncId(syncId) && isOwner(syncId);
       allow delete: if false; // do not allow deletion via client
       allow list: if false; // prevent listing users!
     }
