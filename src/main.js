@@ -3014,6 +3014,12 @@ function generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts,
 async function queryGeminiCoach(roundData, apiKey) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
   
+  const scoreDiffText = roundData.summaryStats.scoreDiff > 0 
+    ? `${roundData.summaryStats.scoreDiff} over par (+${roundData.summaryStats.scoreDiff})` 
+    : roundData.summaryStats.scoreDiff < 0 
+      ? `${Math.abs(roundData.summaryStats.scoreDiff)} under par (${roundData.summaryStats.scoreDiff})` 
+      : 'even par (E)';
+
   const promptText = `
 You are an expert, friendly golf coach. Analyze this golf round performance and provide a professional coaching summary with:
 1. Overall summary of the round.
@@ -3025,7 +3031,9 @@ Here is the data for the round:
 ${JSON.stringify(roundData, null, 2)}
 
 The golfer played a ${roundData.courseHolesCount}-hole round${roundData.duration ? ` which took a duration of ${roundData.duration}` : ''}.
-Ensure the analysis (especially references to total score, total putts, and pacing/stamina) is contextually appropriate for a ${roundData.courseHolesCount}-hole round (for example, do not treat a 9-hole score of 45 or 15 putts as an 18-hole score).
+The golfer's total score was ${roundData.summaryStats.totalScore} on a course with a total par of ${roundData.summaryStats.totalPar}. This is ${scoreDiffText}.
+Do NOT assume standard course pars (such as par 36 for 9 holes or par 72 for 18 holes). Rely strictly on the actual total par of ${roundData.summaryStats.totalPar} and the score difference of ${scoreDiffText} provided. For example, if a golfer scores 33 on a Par 27 course, they are 6 over par (+6), NOT under par.
+Ensure the analysis (especially references to total score, total putts, and pacing/stamina) is contextually appropriate for a ${roundData.courseHolesCount}-hole round.
 Provide your response in clean HTML format. Use paragraph tags <p>, list items <li>, bold text <strong>, etc. Do not include a markdown block wrapper (like \`\`\`html) - just output the raw HTML directly. Make the tone encouraging, expert, and constructive.
 `;
 
@@ -3051,6 +3059,13 @@ Provide your response in clean HTML format. Use paragraph tags <p>, list items <
 
 async function queryOpenAICoach(roundData, apiKey) {
   const url = 'https://api.openai.com/v1/chat/completions';
+  
+  const scoreDiffText = roundData.summaryStats.scoreDiff > 0 
+    ? `${roundData.summaryStats.scoreDiff} over par (+${roundData.summaryStats.scoreDiff})` 
+    : roundData.summaryStats.scoreDiff < 0 
+      ? `${Math.abs(roundData.summaryStats.scoreDiff)} under par (${roundData.summaryStats.scoreDiff})` 
+      : 'even par (E)';
+
   const promptText = `
 You are an expert, friendly golf coach. Analyze this golf round performance and provide a professional coaching summary with:
 1. Overall summary of the round.
@@ -3062,7 +3077,9 @@ Here is the data for the round:
 ${JSON.stringify(roundData, null, 2)}
 
 The golfer played a ${roundData.courseHolesCount}-hole round${roundData.duration ? ` which took a duration of ${roundData.duration}` : ''}.
-Ensure the analysis (especially references to total score, total putts, and pacing/stamina) is contextually appropriate for a ${roundData.courseHolesCount}-hole round (for example, do not treat a 9-hole score of 45 or 15 putts as an 18-hole score).
+The golfer's total score was ${roundData.summaryStats.totalScore} on a course with a total par of ${roundData.summaryStats.totalPar}. This is ${scoreDiffText}.
+Do NOT assume standard course pars (such as par 36 for 9 holes or par 72 for 18 holes). Rely strictly on the actual total par of ${roundData.summaryStats.totalPar} and the score difference of ${scoreDiffText} provided. For example, if a golfer scores 33 on a Par 27 course, they are 6 over par (+6), NOT under par.
+Ensure the analysis (especially references to total score, total putts, and pacing/stamina) is contextually appropriate for a ${roundData.courseHolesCount}-hole round.
 Provide your response in clean HTML format. Use paragraph tags <p>, list items <li>, bold text <strong>, etc. Do not include a markdown block wrapper (like \`\`\`html) - just output the raw HTML directly. Make the tone encouraging, expert, and constructive.
 `;
 
