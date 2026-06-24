@@ -746,6 +746,17 @@
               </div>
             </div>
 
+            <!-- Replay Guided Tour Option -->
+            <div class="form-group-block" style="border-top: 1px solid var(--border-light); padding-top: 1rem;">
+              <div class="settings-row flex-between" style="border-top: none; padding: 0.25rem 0;">
+                <div class="switch-label">
+                  <span>Replay Guided Tour</span>
+                  <small class="switch-subtext">Restart the interactive walkthrough of the app's features</small>
+                </div>
+                <button type="button" id="btn-replay-tutorial" class="btn btn-secondary btn-xs" style="padding: 0.4rem 0.75rem;">Start Tour</button>
+              </div>
+            </div>
+
             <div class="modal-footer-actions">
               <button type="submit" id="btn-save-settings" class="btn btn-primary btn-block">Save Course Settings</button>
             </div>
@@ -895,6 +906,26 @@
               </div>
             </div>
           </details>
+        </div>
+      </div>
+    </div>
+
+    <!-- Guided Onboarding Tutorial Overlay -->
+    <div id="tutorial-overlay" class="tutorial-overlay hidden">
+      <div id="tutorial-card" class="tutorial-card glass-card">
+        <div class="tutorial-card-body">
+          <h3 id="tutorial-step-title" class="tutorial-step-title">Welcome to GolfCaddie AI! ⛳</h3>
+          <p id="tutorial-step-text" class="tutorial-step-text">Let’s take a quick 1-minute tour of your new AI-powered golf caddie.</p>
+        </div>
+        <div class="tutorial-card-footer">
+          <button type="button" id="btn-tutorial-skip" class="btn btn-secondary btn-xs" style="padding: 0.4rem 0.65rem;">Skip Tour</button>
+          <div class="tutorial-stepper" id="tutorial-stepper">
+            <!-- Stepper dots filled dynamically -->
+          </div>
+          <div style="display: flex; gap: 0.25rem;">
+            <button type="button" id="btn-tutorial-prev" class="btn btn-secondary btn-xs hidden" style="padding: 0.4rem 0.65rem;">Back</button>
+            <button type="button" id="btn-tutorial-next" class="btn btn-primary btn-xs" style="padding: 0.4rem 0.65rem;">Next</button>
+          </div>
         </div>
       </div>
     </div>

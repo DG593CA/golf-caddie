@@ -120,7 +120,8 @@ let state = {
   roundElapsedTime: 0,
   isTimerRunning: false,
   customCourseMappings: '{}',
-  customCourses: []
+  customCourses: [],
+  hasCompletedTutorial: false
 };
 
 // Speech Recognition Variables
@@ -140,6 +141,7 @@ function initApp() {
   updateGPSWidget();
   initRoundTimer(); // Initialize/resume stopwatch timer
   initCourseMapper(); // Bind mapping button events
+  initTutorial(); // Bind onboarding tutorial buttons
   initAuth(); // Setup Firebase Authentication listeners
   setupActiveRoundSubscription();
 
@@ -176,6 +178,7 @@ function loadState() {
       if (state.isTimerRunning === undefined) state.isTimerRunning = false;
       if (!state.customCourseMappings) state.customCourseMappings = '{}';
       if (!state.customCourses) state.customCourses = [];
+      if (state.hasCompletedTutorial === undefined) state.hasCompletedTutorial = false;
       if (state.mode === undefined) state.mode = 'individual';
       if (state.matchType === undefined) state.matchType = 'leaderboard';
       if (!state.players || !state.players.length) state.players = ['You'];
@@ -205,6 +208,7 @@ function initDefaultState() {
   state.isTimerRunning = false;
   state.customCourseMappings = '{}';
   state.customCourses = [];
+  state.hasCompletedTutorial = false;
   state.mode = 'individual';
   state.matchType = 'leaderboard';
   state.players = ['You'];
@@ -236,6 +240,7 @@ async function syncFromCloud() {
       if (userData.golfApiKey !== undefined) state.golfApiKey = userData.golfApiKey;
       if (userData.customCourseMappings !== undefined) state.customCourseMappings = userData.customCourseMappings;
       if (userData.customCourses !== undefined) state.customCourses = userData.customCourses;
+      if (userData.hasCompletedTutorial !== undefined) state.hasCompletedTutorial = userData.hasCompletedTutorial;
       if (userData.playerAliases !== undefined) state.playerAliases = userData.playerAliases;
       
       // Fetch completed rounds from roundIds
@@ -304,6 +309,7 @@ async function saveSettingsToCloud() {
       golfApiKey: state.golfApiKey || '',
       customCourseMappings: state.customCourseMappings || '{}',
       customCourses: state.customCourses || [],
+      hasCompletedTutorial: !!state.hasCompletedTutorial,
       playerAliases: state.playerAliases || [],
       roundIds: roundIds,
       createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
@@ -759,6 +765,12 @@ function initAuth() {
         await syncFromCloud();
       }
       setupActiveRoundSubscription();
+
+      if (!state.hasCompletedTutorial) {
+        setTimeout(() => {
+          startOnboardingTutorial();
+        }, 500);
+      }
     } else {
       // User is logged out / guest mode
       console.log("Auth State: User is logged out");
@@ -5475,4 +5487,234 @@ async function pinLocation(type) {
     },
     { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
   );
+}
+
+// Onboarding Guided Tutorial Logic
+const ONBOARDING_STEPS = [
+  {
+    title: "Welcome to GolfCaddie AI! ⛳",
+    text: "Let’s take a quick 1-minute tour of your new AI-powered golf caddie. We’ll show you how to log scores, get GPS coordinates, and speak commands to the AI.",
+    target: null
+  },
+  {
+    title: "Voice Caddie Assistant 🎙️",
+    text: "This is the microphone button. Tap it and speak naturally to command the caddie: e.g. <em>\"Hole 1, score 4, 2 putts\"</em> or <em>\"put me down for a par on hole 2\"</em>. You can also ask <em>\"how far is it?\"</em>.",
+    target: "#btn-voice-toggle"
+  },
+  {
+    title: "GPS Rangefinder 🗺️",
+    text: "This card shows active GPS distances (Front, Center, Back of green) in real-time. You can also open the 'Course Mapper' details here to manually pin green locations.",
+    target: "#gps-rangefinder-card"
+  },
+  {
+    title: "Hole Inputs ✍️",
+    text: "You can also manually track scores, putts, fairway hits, and green-in-regulation (GIR) for the active hole here. Tap the notes field to type observations for the AI caddie.",
+    target: ".active-hole-section"
+  },
+  {
+    title: "Detailed Scorecard 📊",
+    text: "Here is your running scorecard grid. You can tap on any cell (like a specific hole number) to jump straight to that hole and make quick edits.",
+    target: ".scorecard-section"
+  },
+  {
+    title: "Settings & Options ⚙️",
+    text: "Tap Settings to search/load courses from our database, change game mode to Match Play, configure custom pars, or enable the continuous microphone listening feature.",
+    target: "#btn-settings"
+  },
+  {
+    title: "Finish Round 🏆",
+    text: "When you finish your round, tap here to save it. The AI caddie will analyze your game and generate a complete performance report with coaching insights!",
+    target: ".finish-round-card"
+  }
+];
+
+let currentTutorialStep = 0;
+
+function startOnboardingTutorial() {
+  const overlay = document.getElementById('tutorial-overlay');
+  if (!overlay) return;
+  
+  // Close settings dialog if open
+  const settingsDialog = document.getElementById('settings-dialog');
+  if (settingsDialog && settingsDialog.open) {
+    settingsDialog.close();
+  }
+
+  currentTutorialStep = 0;
+  overlay.classList.remove('hidden');
+  showTutorialStep(currentTutorialStep);
+}
+
+function showTutorialStep(stepIndex) {
+  // Clear any existing highlighted element
+  document.querySelectorAll('.tutorial-highlight').forEach(el => {
+    el.classList.remove('tutorial-highlight');
+  });
+
+  const step = ONBOARDING_STEPS[stepIndex];
+  if (!step) {
+    stopOnboardingTutorial();
+    return;
+  }
+
+  const titleEl = document.getElementById('tutorial-step-title');
+  const textEl = document.getElementById('tutorial-step-text');
+  const prevBtn = document.getElementById('btn-tutorial-prev');
+  const nextBtn = document.getElementById('btn-tutorial-next');
+  const card = document.getElementById('tutorial-card');
+
+  if (titleEl) titleEl.innerHTML = step.title;
+  if (textEl) textEl.innerHTML = step.text;
+
+  // Toggle prev button visibility
+  if (stepIndex === 0) {
+    if (prevBtn) prevBtn.classList.add('hidden');
+  } else {
+    if (prevBtn) prevBtn.classList.remove('hidden');
+  }
+
+  // Update next button text
+  if (nextBtn) {
+    if (stepIndex === ONBOARDING_STEPS.length - 1) {
+      nextBtn.textContent = "Finish";
+    } else {
+      nextBtn.textContent = "Next";
+    }
+  }
+
+  // Draw stepper dots
+  const stepper = document.getElementById('tutorial-stepper');
+  if (stepper) {
+    stepper.innerHTML = '';
+    ONBOARDING_STEPS.forEach((_, idx) => {
+      const dot = document.createElement('span');
+      dot.className = `stepper-dot ${idx === stepIndex ? 'active' : ''}`;
+      stepper.appendChild(dot);
+    });
+  }
+
+  if (step.target) {
+    const targetEl = document.querySelector(step.target);
+    if (targetEl) {
+      targetEl.classList.add('tutorial-highlight');
+      
+      // Scroll target element into view smoothly
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // Wait for scroll to complete, then position card
+      setTimeout(() => {
+        positionTutorialCard(targetEl, card);
+      }, 350);
+    } else {
+      centerTutorialCard(card);
+    }
+  } else {
+    centerTutorialCard(card);
+  }
+}
+
+function centerTutorialCard(card) {
+  if (!card) return;
+  card.style.top = '50%';
+  card.style.left = '50%';
+  card.style.transform = 'translate(-50%, -50%)';
+  card.style.bottom = 'auto';
+  card.className = 'tutorial-card glass-card';
+}
+
+function positionTutorialCard(targetEl, card) {
+  if (!card || !targetEl) return;
+  const rect = targetEl.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  
+  card.style.left = '50%';
+  card.style.transform = 'translateX(-50%)';
+  card.style.width = '90%';
+  card.className = 'tutorial-card glass-card';
+  
+  if (rect.top + rect.height / 2 < viewportHeight / 2) {
+    let topPos = rect.bottom + 16;
+    if (topPos + 180 > viewportHeight) {
+      topPos = viewportHeight - 190;
+    }
+    card.style.top = `${topPos}px`;
+    card.style.bottom = 'auto';
+    card.classList.add('tip-bottom');
+  } else {
+    let bottomPos = viewportHeight - rect.top + 16;
+    if (bottomPos + 180 > viewportHeight) {
+      bottomPos = viewportHeight - 190;
+    }
+    card.style.bottom = `${bottomPos}px`;
+    card.style.top = 'auto';
+    card.classList.add('tip-top');
+  }
+}
+
+function stopOnboardingTutorial() {
+  const overlay = document.getElementById('tutorial-overlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+  }
+
+  document.querySelectorAll('.tutorial-highlight').forEach(el => {
+    el.classList.remove('tutorial-highlight');
+  });
+
+  state.hasCompletedTutorial = true;
+  saveState();
+  saveSettingsToCloud().catch(err => console.error("Failed to sync tutorial state to Cloud:", err));
+}
+
+function initTutorial() {
+  const btnNext = document.getElementById('btn-tutorial-next');
+  const btnPrev = document.getElementById('btn-tutorial-prev');
+  const btnSkip = document.getElementById('btn-tutorial-skip');
+  const btnReplay = document.getElementById('btn-replay-tutorial');
+
+  if (btnNext) {
+    btnNext.addEventListener('click', () => {
+      currentTutorialStep++;
+      if (currentTutorialStep >= ONBOARDING_STEPS.length) {
+        stopOnboardingTutorial();
+      } else {
+        showTutorialStep(currentTutorialStep);
+      }
+    });
+  }
+
+  if (btnPrev) {
+    btnPrev.addEventListener('click', () => {
+      if (currentTutorialStep > 0) {
+        currentTutorialStep--;
+        showTutorialStep(currentTutorialStep);
+      }
+    });
+  }
+
+  if (btnSkip) {
+    btnSkip.addEventListener('click', () => {
+      stopOnboardingTutorial();
+    });
+  }
+
+  if (btnReplay) {
+    btnReplay.addEventListener('click', () => {
+      startOnboardingTutorial();
+    });
+  }
+
+  window.addEventListener('resize', () => {
+    const overlay = document.getElementById('tutorial-overlay');
+    if (overlay && !overlay.classList.contains('hidden')) {
+      const step = ONBOARDING_STEPS[currentTutorialStep];
+      if (step && step.target) {
+        const targetEl = document.querySelector(step.target);
+        const card = document.getElementById('tutorial-card');
+        if (targetEl && card) {
+          positionTutorialCard(targetEl, card);
+        }
+      }
+    }
+  });
 }
