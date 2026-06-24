@@ -55,6 +55,86 @@
 
         <!-- Active Round Tab Content -->
         <div id="active-round-tab-content" class="tab-content">
+          <!-- GPS Rangefinder Card (Dynamic Yardages relative to course rating & coordinates) -->
+          <section id="gps-rangefinder-card" class="gps-rangefinder-card glass-card">
+            <div class="gps-header">
+              <div class="gps-course-info">
+                <span id="gps-course-name" class="gps-course-name">Pebble Beach Golf Links</span>
+                <span id="gps-course-details" class="gps-course-details">Rating: 75.5 &bull; Slope: 145</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+                <div class="gps-status-badge" id="round-timer-badge" style="background: rgba(255, 255, 255, 0.05); color: var(--color-primary); display: flex; align-items: center; gap: 0.25rem;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8; color: var(--emerald-glow);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  <span id="gps-timer-val">00:00</span>
+                  <button type="button" id="btn-timer-toggle" class="btn-icon" style="padding: 0; background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; margin-left: 2px;" aria-label="Pause or resume round timer">
+                    <svg id="timer-toggle-svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                  </button>
+                </div>
+                <div class="gps-status-badge">
+                  <span class="gps-pulse"></span>
+                  <span id="gps-status-lbl">GPS Active</span>
+                </div>
+                <div class="gps-status-badge hidden" id="spectator-mode-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; display: flex; align-items: center; gap: 0.25rem;">
+                  <span class="gps-pulse" style="background: #3b82f6; box-shadow: 0 0 0 rgba(59, 130, 246, 0.7);"></span>
+                  <span id="spectator-badge-text">Spectating Live</span>
+                </div>
+              </div>
+            </div>
+            <div class="gps-distance-display">
+              <div class="gps-main-dist">
+                <span id="gps-dist-val">150</span>
+                <span class="gps-dist-unit">Yds</span>
+              </div>
+              <div class="gps-sub-dists">
+                <div class="sub-dist-box">
+                  <span class="sub-dist-lbl">Front</span>
+                  <span id="gps-dist-front">135</span>
+                </div>
+                <div class="sub-dist-box" style="border-left: 1px solid var(--border-light); border-right: 1px solid var(--border-light);">
+                  <span class="sub-dist-lbl">Center</span>
+                  <span id="gps-dist-center" class="text-emerald">150</span>
+                </div>
+                <div class="sub-dist-box">
+                  <span class="sub-dist-lbl">Back</span>
+                  <span id="gps-dist-back">165</span>
+                </div>
+              </div>
+            </div>
+            <div class="gps-actions" style="flex-wrap: wrap; justify-content: flex-end; gap: 0.35rem;">
+              <button type="button" id="btn-gps-change-course" class="btn btn-secondary btn-xs">🗺️ Course</button>
+              <button type="button" id="btn-manual-timer-toggle" class="btn btn-secondary btn-xs">⏱️ Start Timer</button>
+              <button type="button" id="btn-gps-simulate" class="btn btn-secondary btn-xs">Simulate Walk</button>
+              <button type="button" id="btn-gps-refresh" class="btn btn-primary btn-xs">Sync GPS</button>
+            </div>
+
+            <!-- Course Mapper Panel -->
+            <details class="helper-accordion" id="mapper-accordion" style="margin-top: 1rem; border-top: 1px solid var(--border-light); padding-top: 0.75rem;">
+              <summary class="accordion-header" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-secondary); cursor: pointer; padding: 0.25rem 0;">
+                <span>🗺️ Course Mapper</span>
+                <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </summary>
+              <div class="accordion-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0;">
+                <div class="mapper-status-row" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-primary); flex-wrap: wrap; gap: 0.5rem;">
+                  <div>
+                    <strong>Tee Box:</strong> <span id="map-tee-coords" class="text-muted">Not Pinned</span>
+                  </div>
+                  <div>
+                    <strong>Green Center:</strong> <span id="map-green-coords" class="text-muted">Not Pinned</span>
+                  </div>
+                </div>
+                
+                <div class="mapper-actions-row" style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                  <button type="button" id="btn-map-pin-tee" class="btn btn-secondary btn-xs" style="flex: 1; padding: 0.4rem 0.25rem;">📍 Pin Tee Box</button>
+                  <button type="button" id="btn-map-pin-green" class="btn btn-primary btn-xs" style="flex: 1; padding: 0.4rem 0.25rem;">📍 Pin Green</button>
+                </div>
+                
+                <div id="mapper-distance-info" class="text-emerald" style="font-size: 0.75rem; font-weight: 600; text-align: center; display: none; margin-top: 0.25rem;">
+                  Hole Pinned Distance: <span id="map-pinned-dist">-</span> Yds
+                </div>
+              </div>
+            </details>
+          </section>
+
           <!-- Main Dashboard View -->
           <div id="dashboard-view" class="dashboard-grid">
           
@@ -188,85 +268,7 @@
               </div>
             </section>
 
-            <!-- GPS Rangefinder Card (Dynamic Yardages relative to course rating & coordinates) -->
-            <section id="gps-rangefinder-card" class="gps-rangefinder-card glass-card">
-              <div class="gps-header">
-                <div class="gps-course-info">
-                  <span id="gps-course-name" class="gps-course-name">Pebble Beach Golf Links</span>
-                  <span id="gps-course-details" class="gps-course-details">Rating: 75.5 &bull; Slope: 145</span>
-                </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
-                  <div class="gps-status-badge" id="round-timer-badge" style="background: rgba(255, 255, 255, 0.05); color: var(--color-primary); display: flex; align-items: center; gap: 0.25rem;">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8; color: var(--emerald-glow);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    <span id="gps-timer-val">00:00</span>
-                    <button type="button" id="btn-timer-toggle" class="btn-icon" style="padding: 0; background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; margin-left: 2px;" aria-label="Pause or resume round timer">
-                      <svg id="timer-toggle-svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-                    </button>
-                  </div>
-                  <div class="gps-status-badge">
-                    <span class="gps-pulse"></span>
-                    <span id="gps-status-lbl">GPS Active</span>
-                  </div>
-                  <div class="gps-status-badge hidden" id="spectator-mode-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; display: flex; align-items: center; gap: 0.25rem;">
-                    <span class="gps-pulse" style="background: #3b82f6; box-shadow: 0 0 0 rgba(59, 130, 246, 0.7);"></span>
-                    <span id="spectator-badge-text">Spectating Live</span>
-                  </div>
-                </div>
-              </div>
-              <div class="gps-distance-display">
-                <div class="gps-main-dist">
-                  <span id="gps-dist-val">150</span>
-                  <span class="gps-dist-unit">Yds</span>
-                </div>
-                <div class="gps-sub-dists">
-                  <div class="sub-dist-box">
-                    <span class="sub-dist-lbl">Front</span>
-                    <span id="gps-dist-front">135</span>
-                  </div>
-                  <div class="sub-dist-box" style="border-left: 1px solid var(--border-light); border-right: 1px solid var(--border-light);">
-                    <span class="sub-dist-lbl">Center</span>
-                    <span id="gps-dist-center" class="text-emerald">150</span>
-                  </div>
-                  <div class="sub-dist-box">
-                    <span class="sub-dist-lbl">Back</span>
-                    <span id="gps-dist-back">165</span>
-                  </div>
-                </div>
-              </div>
-              <div class="gps-actions" style="flex-wrap: wrap; justify-content: flex-end; gap: 0.35rem;">
-                <button type="button" id="btn-gps-change-course" class="btn btn-secondary btn-xs">🗺️ Course</button>
-                <button type="button" id="btn-manual-timer-toggle" class="btn btn-secondary btn-xs">⏱️ Start Timer</button>
-                <button type="button" id="btn-gps-simulate" class="btn btn-secondary btn-xs">Simulate Walk</button>
-                <button type="button" id="btn-gps-refresh" class="btn btn-primary btn-xs">Sync GPS</button>
-              </div>
 
-              <!-- Course Mapper Panel -->
-              <details class="helper-accordion" id="mapper-accordion" style="margin-top: 1rem; border-top: 1px solid var(--border-light); padding-top: 0.75rem;">
-                <summary class="accordion-header" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-secondary); cursor: pointer; padding: 0.25rem 0;">
-                  <span>🗺️ Course Mapper</span>
-                  <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </summary>
-                <div class="accordion-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0;">
-                  <div class="mapper-status-row" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-primary); flex-wrap: wrap; gap: 0.5rem;">
-                    <div>
-                      <strong>Tee Box:</strong> <span id="map-tee-coords" class="text-muted">Not Pinned</span>
-                    </div>
-                    <div>
-                      <strong>Green Center:</strong> <span id="map-green-coords" class="text-muted">Not Pinned</span>
-                    </div>
-                  </div>
-                  
-                  <div class="mapper-actions-row" style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
-                    <button type="button" id="btn-map-pin-tee" class="btn btn-secondary btn-xs" style="flex: 1; padding: 0.4rem 0.25rem;">📍 Pin Tee Box</button>
-                    <button type="button" id="btn-map-pin-green" class="btn btn-primary btn-xs" style="flex: 1; padding: 0.4rem 0.25rem;">📍 Pin Green</button>
-                  </div>
-                  
-                  <div id="mapper-distance-info" class="text-emerald" style="font-size: 0.75rem; font-weight: 600; text-align: center; display: none; margin-top: 0.25rem;">
-                    Hole Pinned Distance: <span id="map-pinned-dist">-</span> Yds
-                  </div>
-                </div>
-              </details>
-            </section>
 
             <!-- Active Hole Detail Card -->
             <section class="active-hole-section glass-card" aria-labelledby="active-hole-title">
