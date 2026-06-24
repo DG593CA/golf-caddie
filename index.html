@@ -177,6 +177,17 @@
               </div>
             </section>
 
+            <!-- Match Play Standings Widget -->
+            <section id="match-play-card" class="glass-card hidden" style="margin-bottom: 1.5rem;">
+              <div class="card-header-simple" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+                <h3 class="section-title" style="margin: 0; font-size: 1.1rem; color: var(--emerald-glow);">🏆 Match Play Standings</h3>
+                <span id="match-play-status-pill" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald-glow); font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm);">All Square</span>
+              </div>
+              <div id="match-play-standings-body">
+                <!-- Dynamically populated standings -->
+              </div>
+            </section>
+
             <!-- GPS Rangefinder Card (Dynamic Yardages relative to course rating & coordinates) -->
             <section id="gps-rangefinder-card" class="gps-rangefinder-card glass-card">
               <div class="gps-header">
@@ -564,6 +575,43 @@
                 <input type="radio" id="holes-18" name="course-holes" value="18">
                 <label for="holes-18">18 Holes</label>
               </div>
+            </div>
+
+            <!-- Game Mode -->
+            <div class="form-group-block">
+              <label class="form-section-title">Game Mode</label>
+              <div class="segmented-control" role="radiogroup" aria-label="Game Mode">
+                <input type="radio" id="mode-individual" name="game-mode" value="individual" checked>
+                <label for="mode-individual">Individual</label>
+                
+                <input type="radio" id="mode-match" name="game-mode" value="match">
+                <label for="mode-match">Match Play</label>
+              </div>
+            </div>
+
+            <!-- Match Play Players Configuration -->
+            <div id="match-play-setup-section" class="form-group-block hidden">
+              <label class="form-section-title">Match Play Players (Up to 4)</label>
+              <p class="form-help-text">Enter up to 4 player names. Player 1 is always you. Leaving names blank will exclude them.</p>
+              <div class="match-players-inputs">
+                <div class="player-input-row">
+                  <span class="player-label">Player 1:</span>
+                  <input type="text" id="player-1-name" class="form-input" value="You" readonly>
+                </div>
+                <div class="player-input-row">
+                  <span class="player-label">Player 2:</span>
+                  <input type="text" id="player-2-name" class="form-input" placeholder="Enter Player 2 name/alias..." list="player-aliases-list">
+                </div>
+                <div class="player-input-row">
+                  <span class="player-label">Player 3:</span>
+                  <input type="text" id="player-3-name" class="form-input" placeholder="Enter Player 3 name/alias..." list="player-aliases-list">
+                </div>
+                <div class="player-input-row">
+                  <span class="player-label">Player 4:</span>
+                  <input type="text" id="player-4-name" class="form-input" placeholder="Enter Player 4 name/alias..." list="player-aliases-list">
+                </div>
+              </div>
+              <datalist id="player-aliases-list"></datalist>
             </div>
 
             <!-- Cloud Database Sync (Firebase Auth status) -->

@@ -75,7 +75,7 @@ service cloud.firestore {
     // Domain validation functions
     function isValidUserDoc(data, syncId) {
       return hasRequiredFields(['syncId', 'roundIds', 'createdAt', 'updatedAt']) &&
-             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'createdAt', 'updatedAt']) &&
+             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'playerAliases', 'createdAt', 'updatedAt']) &&
              data.syncId == syncId &&
              isValidSyncId(data.syncId) &&
              isValidOptionalString(data, 'apiKey', 1000) &&
@@ -83,7 +83,8 @@ service cloud.firestore {
              isValidOptionalString(data, 'golfApiKey', 1000) &&
              isValidOptionalString(data, 'customCourseMappings', 100000) &&
              data.roundIds is list &&
-             data.roundIds.size() <= 5000;
+             data.roundIds.size() <= 5000 &&
+             (!('playerAliases' in data) || (data.playerAliases is list && data.playerAliases.size() <= 1000));
     }
 
     function isValidRoundDoc(data, docId) {
@@ -96,7 +97,7 @@ service cloud.firestore {
                'id', 'syncId', 'courseName', 'date', 'rating', 'slope', 'numHoles',
                'totalScore', 'totalPar', 'totalPutts', 'avgPutts', 'threePutts',
                'onePutts', 'fairwayPercent', 'girPercent', 'holes', 'createdAt',
-               'duration', 'durationSeconds'
+               'duration', 'durationSeconds', 'mode', 'players'
              ]) &&
              docId == data.syncId + "_" + string(data.id) &&
              data.id is number && data.id > 0 &&
@@ -116,7 +117,9 @@ service cloud.firestore {
              (data.girPercent is number || data.girPercent is float) &&
              data.holes is list && data.holes.size() <= 18 &&
              isValidOptionalString(data, 'duration', 20) &&
-             (!('durationSeconds' in data) || data.durationSeconds is number);
+             (!('durationSeconds' in data) || data.durationSeconds is number) &&
+             isValidOptionalString(data, 'mode', 20) &&
+             (!('players' in data) || (data.players is list && data.players.size() <= 4));
     }
 
     // Rules matching

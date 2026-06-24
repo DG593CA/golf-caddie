@@ -160,6 +160,9 @@ function loadState() {
       if (state.roundElapsedTime === undefined) state.roundElapsedTime = 0;
       if (state.isTimerRunning === undefined) state.isTimerRunning = false;
       if (!state.customCourseMappings) state.customCourseMappings = '{}';
+      if (state.mode === undefined) state.mode = 'individual';
+      if (!state.players || !state.players.length) state.players = ['You'];
+      if (!state.playerAliases) state.playerAliases = [];
     } catch (e) {
       console.error('Failed to parse saved state, loading defaults', e);
       initDefaultState();
@@ -184,6 +187,9 @@ function initDefaultState() {
   state.roundElapsedTime = 0;
   state.isTimerRunning = false;
   state.customCourseMappings = '{}';
+  state.mode = 'individual';
+  state.players = ['You'];
+  state.playerAliases = [];
   initActiveRound();
 }
 
@@ -210,6 +216,7 @@ async function syncFromCloud() {
       if (userData.openaiApiKey !== undefined) state.openaiApiKey = userData.openaiApiKey;
       if (userData.golfApiKey !== undefined) state.golfApiKey = userData.golfApiKey;
       if (userData.customCourseMappings !== undefined) state.customCourseMappings = userData.customCourseMappings;
+      if (userData.playerAliases !== undefined) state.playerAliases = userData.playerAliases;
       
       // Fetch completed rounds from roundIds
       if (userData.roundIds && userData.roundIds.length > 0) {
@@ -276,6 +283,7 @@ async function saveSettingsToCloud() {
       openaiApiKey: state.openaiApiKey || '',
       golfApiKey: state.golfApiKey || '',
       customCourseMappings: state.customCourseMappings || '{}',
+      playerAliases: state.playerAliases || [],
       roundIds: roundIds,
       createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
       updatedAt: new Date()
@@ -700,9 +708,14 @@ function initActiveRound() {
   state.holes = [];
   const course = state.selectedCourse || MOCK_COURSES[0];
   state.numHoles = course.holesCount || 18;
+
+  if (!state.mode) state.mode = 'individual';
+  if (!state.players || !state.players.length) state.players = ['You'];
+  if (!state.playerAliases) state.playerAliases = [];
+
   for (let i = 1; i <= state.numHoles; i++) {
     const defaultPar = (course.pars && course.pars[i - 1]) || 4;
-    state.holes.push({
+    const holeObj = {
       number: i,
       par: defaultPar, // Loaded from course pars
       score: 0,
@@ -710,8 +723,18 @@ function initActiveRound() {
       fairway: 'NA', // NA, HIT, LEFT, RIGHT, OB
       gir: 'NA', // NA, YES, NO
       conceded: false,
-      notes: []
+      notes: [],
+      playerScores: {},
+      playerConceded: {}
+    };
+
+    // Initialize scores & concessions for all active players
+    state.players.forEach(p => {
+      holeObj.playerScores[p] = 0;
+      holeObj.playerConceded[p] = false;
     });
+
+    state.holes.push(holeObj);
   }
   
   // Reset stopwatch timer state
@@ -780,6 +803,23 @@ function initUI() {
 
   // Settings elements
   const settingsDialog = document.getElementById('settings-dialog');
+  
+  // Game Mode Change Listeners
+  const modeIndiv = document.getElementById('mode-individual');
+  const modeMatch = document.getElementById('mode-match');
+  const matchSetupSec = document.getElementById('match-play-setup-section');
+  if (modeIndiv && modeMatch && matchSetupSec) {
+    const updateVisibility = () => {
+      if (modeMatch.checked) {
+        matchSetupSec.classList.remove('hidden');
+      } else {
+        matchSetupSec.classList.add('hidden');
+      }
+    };
+    modeIndiv.addEventListener('change', updateVisibility);
+    modeMatch.addEventListener('change', updateVisibility);
+  }
+
   document.getElementById('btn-settings').addEventListener('click', () => {
     renderParsConfig();
     const syncInput = document.getElementById('sync-id-input');
@@ -799,6 +839,36 @@ function initUI() {
     } else {
       document.getElementById('holes-18').checked = true;
     }
+
+    // Set game mode radios
+    if (state.mode === 'match') {
+      if (modeMatch) modeMatch.checked = true;
+    } else {
+      if (modeIndiv) modeIndiv.checked = true;
+    }
+    
+    // Toggle setup visibility
+    if (matchSetupSec) {
+      if (state.mode === 'match') {
+        matchSetupSec.classList.remove('hidden');
+      } else {
+        matchSetupSec.classList.add('hidden');
+      }
+    }
+    
+    // Populate players' names
+    const p1 = document.getElementById('player-1-name');
+    const p2 = document.getElementById('player-2-name');
+    const p3 = document.getElementById('player-3-name');
+    const p4 = document.getElementById('player-4-name');
+    
+    if (p1) p1.value = state.players && state.players[0] ? state.players[0] : 'You';
+    if (p2) p2.value = state.players && state.players[1] ? state.players[1] : '';
+    if (p3) p3.value = state.players && state.players[2] ? state.players[2] : '';
+    if (p4) p4.value = state.players && state.players[3] ? state.players[3] : '';
+    
+    updatePlayerAliasesDatalist();
+
     settingsDialog.showModal();
   });
 
@@ -837,6 +907,41 @@ function initUI() {
       state.apiKey = apiVal;
       state.openaiApiKey = openaiApiVal;
       state.golfApiKey = golfApiVal;
+
+      const modeVal = document.querySelector('input[name="game-mode"]:checked').value;
+      state.mode = modeVal;
+      
+      if (modeVal === 'match') {
+        const players = ['You'];
+        const p2 = document.getElementById('player-2-name').value.trim();
+        const p3 = document.getElementById('player-3-name').value.trim();
+        const p4 = document.getElementById('player-4-name').value.trim();
+        
+        if (p2) players.push(p2);
+        if (p3) players.push(p3);
+        if (p4) players.push(p4);
+        
+        // Ensure uniqueness and non-empty names
+        const uniquePlayers = [];
+        players.forEach(p => {
+          if (p && !uniquePlayers.some(up => up.toLowerCase() === p.toLowerCase())) {
+            uniquePlayers.push(p);
+          }
+        });
+        state.players = uniquePlayers;
+        
+        // Auto-save aliases (excluding Player 1 "You" or existing ones)
+        if (!state.playerAliases) state.playerAliases = [];
+        uniquePlayers.forEach(p => {
+          const lowerP = p.toLowerCase();
+          if (lowerP !== 'you' && !state.playerAliases.some(alias => alias.toLowerCase() === lowerP)) {
+            state.playerAliases.push(p);
+          }
+        });
+      } else {
+        state.mode = 'individual';
+        state.players = ['You'];
+      }
       
       if (state.numHoles !== numHolesVal) {
         // Re-initialize holes array, preserving existing scores where possible
@@ -856,7 +961,9 @@ function initUI() {
               fairway: 'NA',
               gir: 'NA',
               conceded: false,
-              notes: []
+              notes: [],
+              playerScores: {},
+              playerConceded: {}
             });
           }
         }
@@ -864,6 +971,24 @@ function initUI() {
           state.currentHoleIndex = state.numHoles - 1;
         }
       }
+
+      // Keep playerScores and playerConceded updated for active round holes
+      state.holes.forEach(hole => {
+        if (!hole.playerScores) hole.playerScores = {};
+        if (!hole.playerConceded) hole.playerConceded = {};
+        state.players.forEach(p => {
+          if (hole.playerScores[p] === undefined) {
+            // For Player 1 (user), default to their individual score
+            if (p === 'You' || p === 'you') {
+              hole.playerScores[p] = hole.score || 0;
+              hole.playerConceded[p] = hole.conceded || false;
+            } else {
+              hole.playerScores[p] = 0;
+              hole.playerConceded[p] = false;
+            }
+          }
+        });
+      });
       
       // Save customized pars
       for (let i = 1; i <= state.numHoles; i++) {
@@ -1251,6 +1376,8 @@ function initUI() {
       girPercent: girStats.totalHolesWithGIR > 0 ? girStats.girPercent : 0,
       duration: durationStr,
       durationSeconds: elapsedSeconds,
+      mode: state.mode || 'individual',
+      players: state.players || ['You'],
       holes: JSON.parse(JSON.stringify(state.holes)) // deep copy
     };
 
@@ -1778,6 +1905,243 @@ function updateUI() {
 
   // Scorecard table
   renderScorecard();
+
+  // Standings Widget
+  updateMatchPlayStandings();
+}
+
+function calculateMatchPlayStandings() {
+  const players = state.players || ['You'];
+  const numPlayers = players.length;
+  
+  // Tally of holes won for each player
+  const holesWon = {};
+  players.forEach(p => {
+    holesWon[p] = 0;
+  });
+  
+  let lastPlayedHole = 0;
+  
+  state.holes.forEach(hole => {
+    // Check if anyone played the hole
+    const played = {};
+    let anyPlayed = false;
+    
+    players.forEach(p => {
+      const score = (hole.playerScores && hole.playerScores[p]) || 0;
+      const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
+      if (score > 0 || conceded) {
+        played[p] = { score, conceded };
+        anyPlayed = true;
+      }
+    });
+    
+    if (anyPlayed) {
+      lastPlayedHole = Math.max(lastPlayedHole, hole.number);
+      
+      // Determine the winner of this hole
+      let bestScore = Infinity;
+      let winners = [];
+      
+      players.forEach(p => {
+        if (played[p]) {
+          if (played[p].conceded) {
+            // Conceded means lost or didn't finish
+          } else {
+            const s = played[p].score;
+            if (s < bestScore) {
+              bestScore = s;
+              winners = [p];
+            } else if (s === bestScore) {
+              winners.push(p);
+            }
+          }
+        }
+      });
+      
+      // If only one player has the lowest score, they win the hole
+      if (winners.length === 1) {
+        holesWon[winners[0]]++;
+      }
+    }
+  });
+  
+  const holesRemaining = state.numHoles - lastPlayedHole;
+  
+  if (numPlayers === 2) {
+    const p1 = players[0]; // You
+    const p2 = players[1]; // Opponent
+    
+    // Traditional Match Play calculates holes won relative to each other
+    // Let's count holes won by p1 and p2 again specifically using match play rules (tied holes are halved)
+    let p1Won = 0;
+    let p2Won = 0;
+    state.holes.forEach(hole => {
+      const s1 = (hole.playerScores && hole.playerScores[p1]) || 0;
+      const c1 = (hole.playerConceded && hole.playerConceded[p1]) || false;
+      const s2 = (hole.playerScores && hole.playerScores[p2]) || 0;
+      const c2 = (hole.playerConceded && hole.playerConceded[p2]) || false;
+      
+      const p1Played = s1 > 0 || c1;
+      const p2Played = s2 > 0 || c2;
+      
+      if (p1Played && p2Played) {
+        if (c1 && c2) {
+          // both conceded, halved
+        } else if (c1) {
+          p2Won++;
+        } else if (c2) {
+          p1Won++;
+        } else {
+          if (s1 < s2) p1Won++;
+          if (s2 < s1) p2Won++;
+        }
+      }
+    });
+
+    const diff = p1Won - p2Won;
+    let statusText = 'All Square';
+    let matchFinished = false;
+    let winner = null;
+    let margin = '';
+    
+    const lead = Math.abs(diff);
+    
+    if (lead > holesRemaining) {
+      matchFinished = true;
+      winner = diff > 0 ? p1 : p2;
+      margin = `${lead} & ${holesRemaining}`;
+      statusText = `${winner} won ${margin}`;
+    } else if (lead === holesRemaining && holesRemaining > 0) {
+      statusText = diff > 0 ? `${p1} Dormie ${lead}` : `${p2} Dormie ${lead}`;
+    } else if (diff > 0) {
+      statusText = `${p1} ${lead} Up`;
+    } else if (diff < 0) {
+      statusText = `${p2} ${lead} Up`;
+    }
+    
+    return {
+      mode: '2player',
+      p1, p2,
+      p1Won, p2Won,
+      diff,
+      lead,
+      statusText,
+      matchFinished,
+      winner,
+      margin,
+      holesRemaining
+    };
+  }
+  
+  // 3 or 4 players
+  const leaderboard = players.map(p => ({
+    name: p,
+    won: holesWon[p] || 0
+  })).sort((a, b) => b.won - a.won);
+  
+  return {
+    mode: 'multiplayer',
+    leaderboard,
+    holesRemaining,
+    statusText: `${leaderboard[0].name} leads (${leaderboard[0].won} holes)`
+  };
+}
+
+function updateMatchPlayStandings() {
+  const card = document.getElementById('match-play-card');
+  if (!card) return;
+  
+  if (state.mode !== 'match') {
+    card.classList.add('hidden');
+    return;
+  }
+  
+  card.classList.remove('hidden');
+  
+  const standings = calculateMatchPlayStandings();
+  const statusPill = document.getElementById('match-play-status-pill');
+  if (statusPill) {
+    statusPill.textContent = standings.statusText;
+  }
+  
+  const body = document.getElementById('match-play-standings-body');
+  if (!body) return;
+  
+  if (standings.mode === '2player') {
+    body.innerHTML = `
+      <table class="standings-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th style="text-align: right;">Holes Won</th>
+            <th style="text-align: right;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="standings-player-name">${standings.p1} (You)</td>
+            <td style="text-align: right;">${standings.p1Won}</td>
+            <td style="text-align: right;" class="${standings.diff > 0 ? 'standings-status-up' : standings.diff < 0 ? 'standings-status-down' : 'standings-status-square'}">
+              ${standings.diff > 0 ? `${standings.diff} Up` : standings.diff < 0 ? `${Math.abs(standings.diff)} Down` : 'AS'}
+            </td>
+          </tr>
+          <tr>
+            <td class="standings-player-name">${standings.p2}</td>
+            <td style="text-align: right;">${standings.p2Won}</td>
+            <td style="text-align: right;" class="${standings.diff < 0 ? 'standings-status-up' : standings.diff > 0 ? 'standings-status-down' : 'standings-status-square'}">
+              ${standings.diff < 0 ? `${Math.abs(standings.diff)} Up` : standings.diff > 0 ? `${standings.diff} Down` : 'AS'}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size: 0.8rem; color: var(--color-secondary); margin-top: 0.5rem; text-align: center;">
+        ${standings.holesRemaining} holes remaining
+      </p>
+    `;
+  } else {
+    let tbodyRows = '';
+    standings.leaderboard.forEach((item, index) => {
+      tbodyRows += `
+        <tr>
+          <td>${index + 1}</td>
+          <td class="standings-player-name">${item.name} ${item.name === 'You' ? '(You)' : ''}</td>
+          <td style="text-align: right; font-weight: bold; color: var(--emerald-glow);">${item.won}</td>
+        </tr>
+      `;
+    });
+    
+    body.innerHTML = `
+      <table class="standings-table">
+        <thead>
+          <tr>
+            <th style="width: 40px;">Pos</th>
+            <th>Player</th>
+            <th style="text-align: right;">Holes Won</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tbodyRows}
+        </tbody>
+      </table>
+      <p style="font-size: 0.8rem; color: var(--color-secondary); margin-top: 0.5rem; text-align: center;">
+        ${standings.holesRemaining} holes remaining
+      </p>
+    `;
+  }
+}
+
+function updatePlayerAliasesDatalist() {
+  const datalist = document.getElementById('player-aliases-list');
+  if (datalist) {
+    datalist.innerHTML = '';
+    const aliases = state.playerAliases || [];
+    aliases.forEach(alias => {
+      const option = document.createElement('option');
+      option.value = alias;
+      datalist.appendChild(option);
+    });
+  }
 }
 
 function renderNotesList(activeHole) {
@@ -1814,6 +2178,7 @@ function renderScorecard() {
   const puttsRow = document.getElementById('scorecard-putts-row');
   const fairwayRow = document.getElementById('scorecard-fairway-row');
   const girRow = document.getElementById('scorecard-gir-row');
+  const tbody = scoreRow.parentElement;
 
   // Clear previous columns except header row first cell
   headerRow.innerHTML = '<th>Hole</th>';
@@ -1822,6 +2187,28 @@ function renderScorecard() {
   puttsRow.innerHTML = '<td class="row-header">Putts</td>';
   fairwayRow.innerHTML = '<td class="row-header">Fairway</td>';
   girRow.innerHTML = '<td class="row-header">GIR</td>';
+
+  // Remove existing dynamic player score rows
+  if (tbody) {
+    tbody.querySelectorAll('.player-score-row').forEach(row => row.remove());
+  }
+
+  const isMatchMode = state.mode === 'match';
+  const playerRows = {};
+
+  if (isMatchMode) {
+    scoreRow.style.display = 'none';
+    const players = state.players || ['You'];
+    players.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.className = 'player-score-row';
+      tr.innerHTML = `<td class="row-header">${p}</td>`;
+      tbody.insertBefore(tr, puttsRow);
+      playerRows[p] = tr;
+    });
+  } else {
+    scoreRow.style.display = '';
+  }
 
   state.holes.forEach((hole, index) => {
     const isCurrent = index === state.currentHoleIndex;
@@ -1840,18 +2227,85 @@ function renderScorecard() {
     tdPar.textContent = hole.par;
     parRow.appendChild(tdPar);
 
-    // Score
-    const tdScore = document.createElement('td');
-    if (isCurrent) tdScore.className = 'active-col';
-    if (hole.conceded) {
-      tdScore.className += ' cell-val cell-conceded';
-      tdScore.textContent = 'C';
+    // If Match Mode, determine the hole winner
+    let holeWinner = null;
+    if (isMatchMode) {
+      const players = state.players || ['You'];
+      let bestScore = Infinity;
+      let winners = [];
+      let activeCount = 0;
+
+      players.forEach(p => {
+        const score = (hole.playerScores && hole.playerScores[p]) || 0;
+        const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
+
+        if (score > 0 || conceded) {
+          activeCount++;
+          if (!conceded) {
+            if (score < bestScore) {
+              bestScore = score;
+              winners = [p];
+            } else if (score === bestScore) {
+              winners.push(p);
+            }
+          }
+        }
+      });
+
+      // A hole has a winner only if at least two players recorded a score/concession and one player has the unique best score
+      if (activeCount >= 2 && winners.length === 1) {
+        holeWinner = winners[0];
+      }
+
+      // Populate each player's row cell
+      players.forEach(p => {
+        const td = document.createElement('td');
+        if (isCurrent) td.className = 'active-col';
+        td.className += ' cell-val';
+
+        const score = (hole.playerScores && hole.playerScores[p]) || 0;
+        const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
+
+        if (conceded) {
+          td.className += ' cell-conceded';
+          td.textContent = 'C';
+        } else {
+          // Calculate score class relative to par
+          if (score > 0) {
+            const diff = score - hole.par;
+            if (diff === 0) td.className += ' cell-par';
+            else if (diff === -1) td.className += ' cell-birdie';
+            else if (diff <= -2) td.className += ' cell-eagle';
+            else if (diff === 1) td.className += ' cell-bogey';
+            else td.className += ' cell-double';
+            
+            td.textContent = score;
+          } else {
+            td.textContent = '-';
+          }
+        }
+
+        if (p === holeWinner) {
+          td.classList.add('cell-won-hole');
+        }
+
+        td.addEventListener('click', () => navigateHole(index));
+        playerRows[p].appendChild(td);
+      });
     } else {
-      tdScore.className += ` cell-val ${getScoreClass(hole)}`;
-      tdScore.textContent = hole.score > 0 ? hole.score : '-';
+      // Individual Score
+      const tdScore = document.createElement('td');
+      if (isCurrent) tdScore.className = 'active-col';
+      if (hole.conceded) {
+        tdScore.className += ' cell-val cell-conceded';
+        tdScore.textContent = 'C';
+      } else {
+        tdScore.className += ` cell-val ${getScoreClass(hole)}`;
+        tdScore.textContent = hole.score > 0 ? hole.score : '-';
+      }
+      tdScore.addEventListener('click', () => navigateHole(index));
+      scoreRow.appendChild(tdScore);
     }
-    tdScore.addEventListener('click', () => navigateHole(index));
-    scoreRow.appendChild(tdScore);
 
     // Putts
     const tdPutts = document.createElement('td');
@@ -1902,6 +2356,17 @@ function updateHoleMetric(key, val) {
   const activeHole = state.holes[state.currentHoleIndex];
   if (activeHole) {
     activeHole[key] = val;
+    
+    // Keep playerScores and playerConceded in sync for Player 1 ("You")
+    if (!activeHole.playerScores) activeHole.playerScores = {};
+    if (!activeHole.playerConceded) activeHole.playerConceded = {};
+    
+    if (key === 'score') {
+      activeHole.playerScores['You'] = val;
+    } else if (key === 'conceded') {
+      activeHole.playerConceded['You'] = !!val;
+    }
+    
     saveState();
     updateUI();
   }
@@ -2390,186 +2855,325 @@ function processFinalTranscript(transcript) {
   const activeHole = state.holes[state.currentHoleIndex];
   if (!activeHole) return;
 
+  // Ensure playerScores and playerConceded are initialized
+  if (!activeHole.playerScores) activeHole.playerScores = {};
+  if (!activeHole.playerConceded) activeHole.playerConceded = {};
+  if (activeHole.playerScores['You'] === undefined) activeHole.playerScores['You'] = activeHole.score || 0;
+  if (activeHole.playerConceded['You'] === undefined) activeHole.playerConceded['You'] = !!activeHole.conceded;
+
+  updates.playerUpdates = [];
+
   // Phase 2: Process stats commands and extract custom notes
   for (let i = 0; i < clauses.length; i++) {
     let clause = clauses[i].trim();
     if (!clause) continue;
 
     let isStat = false;
+    let matchedPlayer = null;
 
-    // 1. Par setting: "par 4", "par 3", "par 5"
-    const parMatch = clause.match(/\bpar\s*([345])\b/);
-    if (parMatch) {
-      const parVal = parseInt(parMatch[1]);
-      activeHole.par = parVal;
-      clause = clause.replace(parMatch[0], '').trim();
-      isStat = true;
-    }
-
-    // 2. Putts: "2 putt", "putt 2"
-    const puttMatch = clause.match(/\b(\d+)\s*putts?\b/) || clause.match(/\bputts?\s*(\d+)\b/);
-    if (puttMatch) {
-      const puttVal = parseInt(puttMatch[1]);
-      activeHole.putts = puttVal;
-      updates.putts = puttVal;
-      clause = clause.replace(puttMatch[0], '').trim();
-      isStat = true;
-    } else {
-      if (clause.includes("putted once") || clause.includes("single putt")) {
-        activeHole.putts = 1;
-        updates.putts = 1;
-        clause = clause.replace(/putted once|single putt/g, '').trim();
-        isStat = true;
-      } else if (clause.includes("putted twice") || clause.includes("two putt") || clause.includes("two-putt")) {
-        activeHole.putts = 2;
-        updates.putts = 2;
-        clause = clause.replace(/putted twice/g, '').trim();
-        isStat = true;
+    if (state.mode === 'match' && state.players) {
+      for (const p of state.players) {
+        if (p.toLowerCase() === 'you') continue;
+        const pRegex = new RegExp(`\\b${p}\\b`, 'i');
+        if (pRegex.test(clause)) {
+          matchedPlayer = p;
+          clause = clause.replace(pRegex, '').trim();
+          break;
+        }
       }
-    }
-
-    // 3. Fairway
-    const obMatch = clause.match(/\b(?:ob|out\s+of\s+bounds)\b/);
-    if (obMatch) {
-      activeHole.fairway = "OB";
-      updates.fairway = "OB";
-      clause = clause.replace(obMatch[0], '').trim();
-      isStat = true;
-    } else {
-      const hitMatch = clause.match(/\b(?:fairway\s+hit|hit\s+fairway|hit\s+the\s+fairway|in\s+the\s+fairway)\b/);
-      if (hitMatch) {
-        activeHole.fairway = "HIT";
-        updates.fairway = "HIT";
-        clause = clause.replace(hitMatch[0], '').trim();
-        isStat = true;
-      } else {
-        const leftMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+left|miss(?:ed)?\s+left|fairway\s+left|miss\s+left|miss(?:ed)?\s+the\s+fairway\s+left)\b/);
-        if (leftMatch) {
-          activeHole.fairway = "LEFT";
-          updates.fairway = "LEFT";
-          clause = clause.replace(leftMatch[0], '').trim();
-          isStat = true;
-        } else {
-          const rightMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+right|miss(?:ed)?\s+right|fairway\s+right|miss\s+right|miss(?:ed)?\s+the\s+fairway\s+right)\b/);
-          if (rightMatch) {
-            activeHole.fairway = "RIGHT";
-            updates.fairway = "RIGHT";
-            clause = clause.replace(rightMatch[0], '').trim();
-            isStat = true;
-          } else {
-            const missMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway|miss(?:ed)?\s+the\s+fairway|fairway\s+miss)\b/);
-            if (missMatch) {
-              activeHole.fairway = "LEFT"; // Default miss direction
-              updates.fairway = "LEFT";
-              clause = clause.replace(missMatch[0], '').trim();
-              isStat = true;
-            }
-          }
+      
+      if (!matchedPlayer) {
+        const youRegex = /\b(?:you|me|i|myself)\b/i;
+        if (youRegex.test(clause)) {
+          matchedPlayer = 'You';
+          clause = clause.replace(/\b(?:you)\b/i, '').trim();
         }
       }
     }
 
-    // 4. GIR
-    const girNoMatch = clause.match(/\b(?:miss(?:ed)?\s+the\s+green|miss(?:ed)?\s+green|miss(?:ed)?\s+gir|not\s+on\s+the\s+green|not\s+on\s+green|gir\s+no|no\s+gir)\b/);
-    if (girNoMatch) {
-      activeHole.gir = "NO";
-      updates.gir = "NO";
-      clause = clause.replace(girNoMatch[0], '').trim();
-      isStat = true;
-    } else {
-      const girYesMatch = clause.match(/\b(?:green\s+in\s+regulation|gir|hit\s+the\s+green|hit\s+green|on\s+the\s+green|in\s+regulation|gir\s+yes|yes\s+gir)\b/);
-      if (girYesMatch) {
-        activeHole.gir = "YES";
-        updates.gir = "YES";
-        clause = clause.replace(girYesMatch[0], '').trim();
+    if (matchedPlayer) {
+      // Parse stats for matched player
+      const concededMatch = clause.match(/\b(?:concede(?:d)?(?:\s+hole)?|hole\s+concede(?:d)?)\b/i);
+      if (concededMatch) {
+        activeHole.playerConceded[matchedPlayer] = true;
+        
+        let scoreVal = activeHole.playerScores[matchedPlayer] || 0;
+        if (scoreVal === 0) {
+          scoreVal = activeHole.par;
+          activeHole.playerScores[matchedPlayer] = scoreVal;
+        }
+        
+        updates.playerUpdates.push({ name: matchedPlayer, conceded: true, score: scoreVal });
+        
+        if (matchedPlayer === 'You') {
+          activeHole.conceded = true;
+          activeHole.score = scoreVal;
+          updates.score = scoreVal;
+        }
+        
+        clause = clause.replace(concededMatch[0], '').trim();
         isStat = true;
       }
-    }
-
-    // 4b. Conceded Hole
-    const concededMatch = clause.match(/\b(?:concede(?:d)?(?:\s+hole)?|hole\s+concede(?:d)?)\b/);
-    if (concededMatch) {
-      activeHole.conceded = true;
-      updates.conceded = true;
       
-      // Default to par if score is 0
-      if (activeHole.score === 0) {
-        activeHole.score = activeHole.par;
-        updates.score = activeHole.par;
-      }
-      
-      clause = clause.replace(concededMatch[0], '').trim();
-      isStat = true;
-    }
-
-    // 5. Score
-    const explicitScoreMatch = clause.match(/\b(?:score(?:\s+of)?|shot(?:\s+a)?|got(?:\s+a)?|made(?:\s+a)?|took)\s*(\d+)\b/) ||
-                                clause.match(/\b(\d+)\s*(?:shots?|strokes?)\b/);
-    if (explicitScoreMatch) {
-      const scoreVal = parseInt(explicitScoreMatch[1]);
-      activeHole.score = scoreVal;
-      updates.score = scoreVal;
-      clause = clause.replace(explicitScoreMatch[0], '').trim();
-      isStat = true;
-    } else {
-      let scoreVal = null;
-      let matchedTerm = null;
-
-      const albatrossMatch = clause.match(/\b(?:double\s+eagle|albatross)\b/);
-      if (albatrossMatch) {
-        scoreVal = activeHole.par - 3;
-        matchedTerm = albatrossMatch[0];
-      } else {
-        const eagleMatch = clause.match(/\beagle\b/);
-        if (eagleMatch) {
-          scoreVal = activeHole.par - 2;
-          matchedTerm = eagleMatch[0];
+      if (!isStat) {
+        const explicitScoreMatch = clause.match(/\b(?:score(?:\s+of)?|shot(?:\s+a)?|got(?:\s+a)?|made(?:\s+a)?|took)\s*(\d+)\b/i) ||
+                                    clause.match(/\b(\d+)\s*(?:shots?|strokes?)\b/i);
+        let scoreVal = null;
+        let matchedTerm = null;
+        
+        if (explicitScoreMatch) {
+          scoreVal = parseInt(explicitScoreMatch[1]);
+          matchedTerm = explicitScoreMatch[0];
         } else {
-          const birdieMatch = clause.match(/\bbirdie\b/);
-          if (birdieMatch) {
-            scoreVal = activeHole.par - 1;
-            matchedTerm = birdieMatch[0];
+          const albatrossMatch = clause.match(/\b(?:double\s+eagle|albatross)\b/i);
+          if (albatrossMatch) {
+            scoreVal = activeHole.par - 3;
+            matchedTerm = albatrossMatch[0];
           } else {
-            const doubleBogeyMatch = clause.match(/\bdouble\s+bogey\b/);
-            if (doubleBogeyMatch) {
-              scoreVal = activeHole.par + 2;
-              matchedTerm = doubleBogeyMatch[0];
+            const eagleMatch = clause.match(/\beagle\b/i);
+            if (eagleMatch) {
+              scoreVal = activeHole.par - 2;
+              matchedTerm = eagleMatch[0];
             } else {
-              const tripleBogeyMatch = clause.match(/\btriple\s+bogey\b/);
-              if (tripleBogeyMatch) {
-                scoreVal = activeHole.par + 3;
-                matchedTerm = tripleBogeyMatch[0];
+              const birdieMatch = clause.match(/\bbirdie\b/i);
+              if (birdieMatch) {
+                scoreVal = activeHole.par - 1;
+                matchedTerm = birdieMatch[0];
               } else {
-                const bogeyMatch = clause.match(/\bbogey\b/);
-                if (bogeyMatch) {
-                  scoreVal = activeHole.par + 1;
-                  matchedTerm = bogeyMatch[0];
+                const doubleBogeyMatch = clause.match(/\bdouble\s+bogey\b/i);
+                if (doubleBogeyMatch) {
+                  scoreVal = activeHole.par + 2;
+                  matchedTerm = doubleBogeyMatch[0];
                 } else {
-                  const parScoreMatch = clause.match(/\b(?:got|made|shot|had)?\s*a?\s*par(?:red)?\b/);
-                  if (parScoreMatch) {
-                    scoreVal = activeHole.par;
-                    matchedTerm = parScoreMatch[0];
+                  const tripleBogeyMatch = clause.match(/\btriple\s+bogey\b/i);
+                  if (tripleBogeyMatch) {
+                    scoreVal = activeHole.par + 3;
+                    matchedTerm = tripleBogeyMatch[0];
+                  } else {
+                    const bogeyMatch = clause.match(/\bbogey\b/i);
+                    if (bogeyMatch) {
+                      scoreVal = activeHole.par + 1;
+                      matchedTerm = bogeyMatch[0];
+                    } else {
+                      const parScoreMatch = clause.match(/\b(?:got|made|shot|had)?\s*a?\s*par(?:red)?\b/i);
+                      if (parScoreMatch) {
+                        scoreVal = activeHole.par;
+                        matchedTerm = parScoreMatch[0];
+                      }
+                    }
                   }
                 }
+              }
+            }
+          }
+          
+          if (scoreVal === null) {
+            const standaloneDigitMatch = clause.match(/\b(\d+)\b/);
+            if (standaloneDigitMatch) {
+              scoreVal = parseInt(standaloneDigitMatch[1]);
+              matchedTerm = standaloneDigitMatch[0];
+            }
+          }
+        }
+        
+        if (scoreVal !== null) {
+          activeHole.playerScores[matchedPlayer] = scoreVal;
+          activeHole.playerConceded[matchedPlayer] = false;
+          updates.playerUpdates.push({ name: matchedPlayer, score: scoreVal });
+          
+          if (matchedPlayer === 'You') {
+            activeHole.score = scoreVal;
+            activeHole.conceded = false;
+            updates.score = scoreVal;
+          }
+          
+          clause = clause.replace(matchedTerm, '').trim();
+          isStat = true;
+        }
+      }
+    } else {
+      // 1. Par setting: "par 4", "par 3", "par 5"
+      const parMatch = clause.match(/\bpar\s*([345])\b/i);
+      if (parMatch) {
+        const parVal = parseInt(parMatch[1]);
+        activeHole.par = parVal;
+        clause = clause.replace(parMatch[0], '').trim();
+        isStat = true;
+      }
+
+      // 2. Putts: "2 putt", "putt 2"
+      const puttMatch = clause.match(/\b(\d+)\s*putts?\b/i) || clause.match(/\bputts?\s*(\d+)\b/i);
+      if (puttMatch) {
+        const puttVal = parseInt(puttMatch[1]);
+        activeHole.putts = puttVal;
+        updates.putts = puttVal;
+        clause = clause.replace(puttMatch[0], '').trim();
+        isStat = true;
+      } else {
+        if (clause.includes("putted once") || clause.includes("single putt")) {
+          activeHole.putts = 1;
+          updates.putts = 1;
+          clause = clause.replace(/putted once|single putt/g, '').trim();
+          isStat = true;
+        } else if (clause.includes("putted twice") || clause.includes("two putt") || clause.includes("two-putt")) {
+          activeHole.putts = 2;
+          updates.putts = 2;
+          clause = clause.replace(/putted twice/g, '').trim();
+          isStat = true;
+        }
+      }
+
+      // 3. Fairway
+      const obMatch = clause.match(/\b(?:ob|out\s+of\s+bounds)\b/i);
+      if (obMatch) {
+        activeHole.fairway = "OB";
+        updates.fairway = "OB";
+        clause = clause.replace(obMatch[0], '').trim();
+        isStat = true;
+      } else {
+        const hitMatch = clause.match(/\b(?:fairway\s+hit|hit\s+fairway|hit\s+the\s+fairway|in\s+the\s+fairway)\b/i);
+        if (hitMatch) {
+          activeHole.fairway = "HIT";
+          updates.fairway = "HIT";
+          clause = clause.replace(hitMatch[0], '').trim();
+          isStat = true;
+        } else {
+          const leftMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+left|miss(?:ed)?\s+left|fairway\s+left|miss\s+left|miss(?:ed)?\s+the\s+fairway\s+left)\b/i);
+          if (leftMatch) {
+            activeHole.fairway = "LEFT";
+            updates.fairway = "LEFT";
+            clause = clause.replace(leftMatch[0], '').trim();
+            isStat = true;
+          } else {
+            const rightMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+right|miss(?:ed)?\s+right|fairway\s+right|miss\s+right|miss(?:ed)?\s+the\s+fairway\s+right)\b/i);
+            if (rightMatch) {
+              activeHole.fairway = "RIGHT";
+              updates.fairway = "RIGHT";
+              clause = clause.replace(rightMatch[0], '').trim();
+              isStat = true;
+            } else {
+              const missMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway|miss(?:ed)?\s+the\s+fairway|fairway\s+miss)\b/i);
+              if (missMatch) {
+                activeHole.fairway = "LEFT"; // Default miss direction
+                updates.fairway = "LEFT";
+                clause = clause.replace(missMatch[0], '').trim();
+                isStat = true;
               }
             }
           }
         }
       }
 
-      if (scoreVal !== null) {
-        activeHole.score = scoreVal;
-        updates.score = scoreVal;
-        clause = clause.replace(matchedTerm, '').trim();
+      // 4. GIR
+      const girNoMatch = clause.match(/\b(?:miss(?:ed)?\s+the\s+green|miss(?:ed)?\s+green|miss(?:ed)?\s+gir|not\s+on\s+the\s+green|not\s+on\s+green|gir\s+no|no\s+gir)\b/i);
+      if (girNoMatch) {
+        activeHole.gir = "NO";
+        updates.gir = "NO";
+        clause = clause.replace(girNoMatch[0], '').trim();
         isStat = true;
       } else {
-        // Fallback: standalone remaining digit
-        const standaloneDigitMatch = clause.match(/\b(\d+)\b/);
-        if (standaloneDigitMatch) {
-          const scoreVal = parseInt(standaloneDigitMatch[1]);
+        const girYesMatch = clause.match(/\b(?:green\s+in\s+regulation|gir|hit\s+the\s+green|hit\s+green|on\s+the\s+green|in\s+regulation|gir\s+yes|yes\s+gir)\b/i);
+        if (girYesMatch) {
+          activeHole.gir = "YES";
+          updates.gir = "YES";
+          clause = clause.replace(girYesMatch[0], '').trim();
+          isStat = true;
+        }
+      }
+
+      // 4b. Conceded Hole
+      const concededMatch = clause.match(/\b(?:concede(?:d)?(?:\s+hole)?|hole\s+concede(?:d)?)\b/i);
+      if (concededMatch) {
+        activeHole.conceded = true;
+        updates.conceded = true;
+        
+        let scoreVal = activeHole.score || 0;
+        if (scoreVal === 0) {
+          scoreVal = activeHole.par;
           activeHole.score = scoreVal;
+        }
+        updates.score = scoreVal;
+
+        activeHole.playerConceded['You'] = true;
+        activeHole.playerScores['You'] = scoreVal;
+        updates.playerUpdates.push({ name: 'You', conceded: true, score: scoreVal });
+        
+        clause = clause.replace(concededMatch[0], '').trim();
+        isStat = true;
+      }
+
+      // 5. Score
+      if (!isStat) {
+        const explicitScoreMatch = clause.match(/\b(?:score(?:\s+of)?|shot(?:\s+a)?|got(?:\s+a)?|made(?:\s+a)?|took)\s*(\d+)\b/i) ||
+                                    clause.match(/\b(\d+)\s*(?:shots?|strokes?)\b/i);
+        let scoreVal = null;
+        let matchedTerm = null;
+
+        if (explicitScoreMatch) {
+          scoreVal = parseInt(explicitScoreMatch[1]);
+          matchedTerm = explicitScoreMatch[0];
+        } else {
+          const albatrossMatch = clause.match(/\b(?:double\s+eagle|albatross)\b/i);
+          if (albatrossMatch) {
+            scoreVal = activeHole.par - 3;
+            matchedTerm = albatrossMatch[0];
+          } else {
+            const eagleMatch = clause.match(/\beagle\b/i);
+            if (eagleMatch) {
+              scoreVal = activeHole.par - 2;
+              matchedTerm = eagleMatch[0];
+            } else {
+              const birdieMatch = clause.match(/\bbirdie\b/i);
+              if (birdieMatch) {
+                scoreVal = activeHole.par - 1;
+                matchedTerm = birdieMatch[0];
+              } else {
+                const doubleBogeyMatch = clause.match(/\bdouble\s+bogey\b/i);
+                if (doubleBogeyMatch) {
+                  scoreVal = activeHole.par + 2;
+                  matchedTerm = doubleBogeyMatch[0];
+                } else {
+                  const tripleBogeyMatch = clause.match(/\btriple\s+bogey\b/i);
+                  if (tripleBogeyMatch) {
+                    scoreVal = activeHole.par + 3;
+                    matchedTerm = tripleBogeyMatch[0];
+                  } else {
+                    const bogeyMatch = clause.match(/\bbogey\b/i);
+                    if (bogeyMatch) {
+                      scoreVal = activeHole.par + 1;
+                      matchedTerm = bogeyMatch[0];
+                    } else {
+                      const parScoreMatch = clause.match(/\b(?:got|made|shot|had)?\s*a?\s*par(?:red)?\b/i);
+                      if (parScoreMatch) {
+                        scoreVal = activeHole.par;
+                        matchedTerm = parScoreMatch[0];
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (scoreVal === null) {
+            const standaloneDigitMatch = clause.match(/\b(\d+)\b/);
+            if (standaloneDigitMatch) {
+              scoreVal = parseInt(standaloneDigitMatch[1]);
+              matchedTerm = standaloneDigitMatch[0];
+            }
+          }
+        }
+
+        if (scoreVal !== null) {
+          activeHole.score = scoreVal;
+          activeHole.conceded = false;
           updates.score = scoreVal;
-          clause = clause.replace(standaloneDigitMatch[0], '').trim();
+
+          activeHole.playerScores['You'] = scoreVal;
+          activeHole.playerConceded['You'] = false;
+          updates.playerUpdates.push({ name: 'You', score: scoreVal });
+
+          clause = clause.replace(matchedTerm, '').trim();
           isStat = true;
         }
       }
@@ -2642,25 +3246,71 @@ function triggerVoiceConfirmation(updates, activeHoleNum) {
     message += `Hole ${updates.newHoleNum}. `;
   }
 
-  let statUpdates = [];
-  if (updates.score !== null) statUpdates.push(`Score ${updates.score}`);
-  if (updates.putts !== null) statUpdates.push(`${updates.putts} putt${updates.putts !== 1 ? 's' : ''}`);
-  
-  if (updates.fairway !== null) {
-    if (updates.fairway === 'HIT') statUpdates.push('Fairway hit');
-    else if (updates.fairway === 'OB') statUpdates.push('Out of bounds off the tee');
-    else statUpdates.push(`Missed fairway ${updates.fairway.toLowerCase()}`);
-  }
-  if (updates.gir !== null) {
-    if (updates.gir === 'YES') statUpdates.push('Green hit');
-    else statUpdates.push('Missed green');
-  }
-
-  if (statUpdates.length > 0) {
-    if (!updates.holeChanged) {
+  if (updates.playerUpdates && updates.playerUpdates.length > 0) {
+    if (!updates.holeChanged && !message.includes('updated')) {
       message += `Hole ${activeHoleNum} updated: `;
     }
-    message += statUpdates.join(', ') + '. ';
+    const playerMsgs = [];
+    updates.playerUpdates.forEach(pu => {
+      if (pu.name === 'You') {
+        let youMsg = '';
+        if (pu.conceded) {
+          youMsg = 'You conceded';
+        } else {
+          youMsg = `You ${pu.score}`;
+        }
+        
+        let extra = [];
+        if (updates.putts !== null) extra.push(`${updates.putts} putt${updates.putts !== 1 ? 's' : ''}`);
+        if (updates.fairway !== null) {
+          if (updates.fairway === 'HIT') extra.push('fairway hit');
+          else if (updates.fairway === 'OB') extra.push('out of bounds');
+          else extra.push(`missed fairway ${updates.fairway.toLowerCase()}`);
+        }
+        if (updates.gir !== null) {
+          if (updates.gir === 'YES') extra.push('green hit');
+          else extra.push('missed green');
+        }
+        if (extra.length > 0) {
+          youMsg += ` with ${extra.join(', ')}`;
+        }
+        playerMsgs.push(youMsg);
+      } else {
+        if (pu.conceded) {
+          playerMsgs.push(`${pu.name} conceded`);
+        } else {
+          playerMsgs.push(`${pu.name} ${pu.score}`);
+        }
+      }
+    });
+    message += playerMsgs.join('. ') + '. ';
+  } else {
+    let statUpdates = [];
+    if (updates.score !== null) {
+      if (updates.conceded) {
+        statUpdates.push('Hole conceded');
+      } else {
+        statUpdates.push(`Score ${updates.score}`);
+      }
+    }
+    if (updates.putts !== null) statUpdates.push(`${updates.putts} putt${updates.putts !== 1 ? 's' : ''}`);
+    
+    if (updates.fairway !== null) {
+      if (updates.fairway === 'HIT') statUpdates.push('Fairway hit');
+      else if (updates.fairway === 'OB') statUpdates.push('Out of bounds off the tee');
+      else statUpdates.push(`Missed fairway ${updates.fairway.toLowerCase()}`);
+    }
+    if (updates.gir !== null) {
+      if (updates.gir === 'YES') statUpdates.push('Green hit');
+      else statUpdates.push('Missed green');
+    }
+
+    if (statUpdates.length > 0) {
+      if (!updates.holeChanged) {
+        message += `Hole ${activeHoleNum} updated: `;
+      }
+      message += statUpdates.join(', ') + '. ';
+    }
   }
 
   if (updates.notesCount > 0) {
@@ -3230,7 +3880,7 @@ function renderHistoryTab() {
     card.innerHTML = `
       <div class="history-card-main">
         <span class="history-card-course">${escapeHTML(round.courseName)}</span>
-        <span class="history-card-date">${escapeHTML(round.date)} &bull; ${round.numHoles} Holes${round.duration ? ` &bull; ⏱️ ${escapeHTML(round.duration)}` : ''}</span>
+        <span class="history-card-date">${escapeHTML(round.date)} &bull; ${round.numHoles} Holes${round.mode === 'match' ? `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald-glow); font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: var(--radius-sm); margin-left: 0.5rem;">Match Play</span>` : ''}${round.duration ? ` &bull; ⏱️ ${escapeHTML(round.duration)}` : ''}</span>
       </div>
       <div class="history-card-stats">
         <div class="history-card-stat-box">
