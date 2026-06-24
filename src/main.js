@@ -119,7 +119,8 @@ let state = {
   roundStartTime: null,
   roundElapsedTime: 0,
   isTimerRunning: false,
-  customCourseMappings: '{}'
+  customCourseMappings: '{}',
+  customCourses: []
 };
 
 // Speech Recognition Variables
@@ -174,6 +175,7 @@ function loadState() {
       if (state.roundElapsedTime === undefined) state.roundElapsedTime = 0;
       if (state.isTimerRunning === undefined) state.isTimerRunning = false;
       if (!state.customCourseMappings) state.customCourseMappings = '{}';
+      if (!state.customCourses) state.customCourses = [];
       if (state.mode === undefined) state.mode = 'individual';
       if (state.matchType === undefined) state.matchType = 'leaderboard';
       if (!state.players || !state.players.length) state.players = ['You'];
@@ -202,6 +204,7 @@ function initDefaultState() {
   state.roundElapsedTime = 0;
   state.isTimerRunning = false;
   state.customCourseMappings = '{}';
+  state.customCourses = [];
   state.mode = 'individual';
   state.matchType = 'leaderboard';
   state.players = ['You'];
@@ -232,6 +235,7 @@ async function syncFromCloud() {
       if (userData.openaiApiKey !== undefined) state.openaiApiKey = userData.openaiApiKey;
       if (userData.golfApiKey !== undefined) state.golfApiKey = userData.golfApiKey;
       if (userData.customCourseMappings !== undefined) state.customCourseMappings = userData.customCourseMappings;
+      if (userData.customCourses !== undefined) state.customCourses = userData.customCourses;
       if (userData.playerAliases !== undefined) state.playerAliases = userData.playerAliases;
       
       // Fetch completed rounds from roundIds
@@ -299,6 +303,7 @@ async function saveSettingsToCloud() {
       openaiApiKey: state.openaiApiKey || '',
       golfApiKey: state.golfApiKey || '',
       customCourseMappings: state.customCourseMappings || '{}',
+      customCourses: state.customCourses || [],
       playerAliases: state.playerAliases || [],
       roundIds: roundIds,
       createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
@@ -1015,6 +1020,47 @@ function initUI() {
     modeMatch.addEventListener('change', updateVisibility);
   }
 
+  // Dynamic Course Length Radio Listeners
+  const holes9Radio = document.getElementById('holes-9');
+  const holes18Radio = document.getElementById('holes-18');
+  if (holes9Radio && holes18Radio) {
+    const handleHolesChange = (e) => {
+      const numHolesVal = parseInt(e.target.value) || 9;
+      state.numHoles = numHolesVal;
+      
+      // Resize state.holes if necessary, maintaining scores/pars
+      const course = state.selectedCourse || MOCK_COURSES[0];
+      const newHoles = [];
+      for (let i = 1; i <= state.numHoles; i++) {
+        if (state.holes && state.holes[i - 1]) {
+          newHoles.push(state.holes[i - 1]);
+        } else {
+          const defaultPar = (course.pars && course.pars[i - 1]) || 4;
+          newHoles.push({
+            number: i,
+            par: defaultPar,
+            score: 0,
+            putts: 0,
+            fairway: 'NA',
+            gir: 'NA',
+            conceded: false,
+            notes: [],
+            playerScores: {},
+            playerConceded: {}
+          });
+        }
+      }
+      state.holes = newHoles;
+      if (state.currentHoleIndex >= state.numHoles) {
+        state.currentHoleIndex = state.numHoles - 1;
+      }
+      
+      renderParsConfig();
+    };
+    holes9Radio.addEventListener('change', handleHolesChange);
+    holes18Radio.addEventListener('change', handleHolesChange);
+  }
+
   document.getElementById('btn-settings').addEventListener('click', () => {
     renderParsConfig();
     const syncInput = document.getElementById('sync-id-input');
@@ -1237,10 +1283,30 @@ function initUI() {
       });
       
       // Save customized pars
+      const updatedPars = [];
       for (let i = 1; i <= state.numHoles; i++) {
         const parInput = document.getElementById(`config-par-h${i}`);
-        if (parInput && state.holes[i-1]) {
-          state.holes[i-1].par = parseInt(parInput.value) || 4;
+        const parVal = parInput ? (parseInt(parInput.value) || 4) : 4;
+        if (state.holes[i-1]) {
+          state.holes[i-1].par = parVal;
+        }
+        updatedPars.push(parVal);
+      }
+
+      // Also update selectedCourse pars and holesCount
+      if (state.selectedCourse) {
+        state.selectedCourse.holesCount = state.numHoles;
+        state.selectedCourse.pars = updatedPars;
+
+        // If it's a custom course, update it in state.customCourses
+        if (state.selectedCourse.id && state.selectedCourse.id.toString().startsWith('custom_')) {
+          if (!state.customCourses) state.customCourses = [];
+          const idx = state.customCourses.findIndex(c => c.id === state.selectedCourse.id);
+          if (idx !== -1) {
+            state.customCourses[idx] = { ...state.selectedCourse };
+          } else {
+            state.customCourses.push({ ...state.selectedCourse });
+          }
         }
       }
 
@@ -4653,6 +4719,15 @@ async function searchGolfCourses(query) {
   const keyInput = document.getElementById('golfapi-key');
   const activeKey = (keyInput && keyInput.value.trim()) || state.golfApiKey;
 
+  // Search custom courses first
+  const customCourses = (state.customCourses || []).filter(c => 
+    c.name.toLowerCase().includes(lowerQuery) ||
+    c.city.toLowerCase().includes(lowerQuery) ||
+    c.state.toLowerCase().includes(lowerQuery)
+  );
+
+  let results = [...customCourses];
+
   if (activeKey) {
     try {
       const isNative = Capacitor.isNativePlatform();
@@ -4668,10 +4743,8 @@ async function searchGolfCourses(query) {
       });
       if (response.ok) {
         const data = await response.json();
-        // Parse and return structured clubs list
         if (data && data.courses) {
-          // Map response fields to standard structure
-          return data.courses.map(c => {
+          const remoteResults = data.courses.map(c => {
             return {
               id: c.id,
               name: c.course_name || c.club_name,
@@ -4680,6 +4753,8 @@ async function searchGolfCourses(query) {
               isRemote: true
             };
           });
+          results = [...results, ...remoteResults];
+          return results;
         }
       } else {
         console.error(`GolfCourseAPI returned status ${response.status}, falling back to local mocks`);
@@ -4690,17 +4765,23 @@ async function searchGolfCourses(query) {
   }
 
   // Fallback to local mock database matching name, city, or state
-  return MOCK_COURSES.filter(c => 
+  const localMocks = MOCK_COURSES.filter(c => 
     c.name.toLowerCase().includes(lowerQuery) ||
     c.city.toLowerCase().includes(lowerQuery) ||
     c.state.toLowerCase().includes(lowerQuery)
   );
+  
+  results = [...results, ...localMocks];
+  return results;
 }
 
 // Render search results dropdown items
 function renderSearchResults(courses) {
   const dropdown = document.getElementById('course-search-results');
   dropdown.innerHTML = '';
+  
+  const searchInput = document.getElementById('course-search-input');
+  const query = searchInput ? searchInput.value.trim() : '';
   
   if (courses.length === 1 && courses[0].isError) {
     const err = courses[0];
@@ -4731,38 +4812,94 @@ function renderSearchResults(courses) {
       });
       dropdown.appendChild(item);
     });
-    dropdown.classList.remove('hidden');
-    return;
-  }
-
-  if (courses.length === 0) {
+  } else if (courses.length === 0) {
     dropdown.innerHTML = '<div style="padding:0.75rem 1rem; color:var(--color-secondary); font-size:0.85rem">No courses found.</div>';
-    dropdown.classList.remove('hidden');
-    return;
+  } else {
+    courses.forEach(course => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      
+      let detailsText = '';
+      if (course.isRemote) {
+        detailsText = `${escapeHTML(course.city)}, ${escapeHTML(course.state)} (Remote Course)`;
+      } else {
+        detailsText = `${escapeHTML(course.city)}, ${escapeHTML(course.state)} &bull; ${course.holesCount} Holes &bull; Rating ${course.rating}`;
+      }
+
+      item.innerHTML = `
+        <span class="search-result-name">${escapeHTML(course.name)}</span>
+        <span class="search-result-details">${detailsText}</span>
+      `;
+      item.addEventListener('click', () => {
+        handleCourseSelection(course);
+      });
+      dropdown.appendChild(item);
+    });
+  }
+  
+  // Append Create Custom Course option if query is at least 2 chars
+  if (query.length >= 2) {
+    const divider = document.createElement('div');
+    divider.style.borderTop = '1px solid var(--border-light)';
+    divider.style.margin = '0.25rem 0';
+    dropdown.appendChild(divider);
+
+    const customItem = document.createElement('div');
+    customItem.className = 'search-result-item';
+    customItem.style.color = 'var(--emerald-glow)';
+    customItem.style.fontWeight = '600';
+    customItem.innerHTML = `
+      <span class="search-result-name">➕ Create Custom Course "${escapeHTML(query)}"</span>
+      <span class="search-result-details">Add manually and configure holes</span>
+    `;
+    customItem.addEventListener('click', () => {
+      createNewCustomCourse(query);
+    });
+    dropdown.appendChild(customItem);
   }
 
-  courses.forEach(course => {
-    const item = document.createElement('div');
-    item.className = 'search-result-item';
-    
-    let detailsText = '';
-    if (course.isRemote) {
-      detailsText = `${escapeHTML(course.city)}, ${escapeHTML(course.state)} (Remote Course)`;
-    } else {
-      detailsText = `${escapeHTML(course.city)}, ${escapeHTML(course.state)} &bull; ${course.holesCount} Holes &bull; Rating ${course.rating}`;
-    }
-
-    item.innerHTML = `
-      <span class="search-result-name">${escapeHTML(course.name)}</span>
-      <span class="search-result-details">${detailsText}</span>
-    `;
-    item.addEventListener('click', () => {
-      handleCourseSelection(course);
-    });
-    dropdown.appendChild(item);
-  });
-  
   dropdown.classList.remove('hidden');
+}
+
+function createNewCustomCourse(name) {
+  const customId = "custom_" + Date.now();
+  
+  let lat = 48.4469; // Default Juan de Fuca area BC
+  let lng = -123.4648;
+  
+  const searchInput = document.getElementById('course-search-input');
+  if (searchInput) searchInput.value = name;
+  
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      lat = pos.coords.latitude;
+      lng = pos.coords.longitude;
+      createCourseSync(lat, lng);
+    }, (err) => {
+      createCourseSync(lat, lng);
+    }, { timeout: 1000 });
+  } else {
+    createCourseSync(lat, lng);
+  }
+
+  function createCourseSync(dLat, dLng) {
+    const newCourse = {
+      id: customId,
+      name: name,
+      city: "Local",
+      state: "Custom",
+      rating: 72.0,
+      slope: 113,
+      holesCount: 9,
+      pars: Array(9).fill(4),
+      coordinates: { lat: dLat, lng: dLng }
+    };
+    
+    if (!state.customCourses) state.customCourses = [];
+    state.customCourses.push(newCourse);
+    
+    handleCourseSelection(newCourse);
+  }
 }
 
 // Unified course selection handler (fetches remote details if needed)
@@ -4772,7 +4909,9 @@ async function handleCourseSelection(course) {
 
   if (course.isRemote) {
     try {
-      const detailUrl = `/api-golf/v1/courses/${course.id}`;
+      const isNative = Capacitor.isNativePlatform();
+      const baseUrl = isNative ? 'https://api.golfcourseapi.com' : '/api-golf';
+      const detailUrl = `${baseUrl}/v1/courses/${course.id}`;
       // Read key dynamically from input if open
       const keyInput = document.getElementById('golfapi-key');
       const activeKey = (keyInput && keyInput.value.trim()) || state.golfApiKey;
