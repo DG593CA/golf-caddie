@@ -848,10 +848,13 @@
           <p class="form-help-text" style="text-align: center; margin-bottom: 1.25rem;">Sign in or create an account to start tracking your rounds.</p>
           
           <!-- Tab toggles -->
-          <div class="auth-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+          <div id="gate-auth-tabs" class="auth-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
             <button type="button" id="gate-tab-login" class="btn btn-secondary btn-sm active-tab" style="flex: 1; padding: 0.6rem;">Log In</button>
             <button type="button" id="gate-tab-signup" class="btn btn-secondary btn-sm" style="flex: 1; padding: 0.6rem;">Create Account</button>
           </div>
+
+          <!-- Forgot password helper instructions -->
+          <p id="gate-auth-forgot-helper" style="font-size: 0.85rem; color: var(--color-secondary); margin-bottom: 1.25rem; display: none; text-align: center;">Enter your email address and we will send you a password reset link.</p>
 
           <!-- Form fields -->
           <div class="auth-form-fields" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
@@ -859,9 +862,12 @@
               <label for="gate-auth-email" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Email Address</label>
               <input type="email" id="gate-auth-email" class="form-input" placeholder="name@domain.com" autocomplete="email">
             </div>
-            <div>
+            <div id="gate-auth-password-wrapper">
               <label for="gate-auth-password" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Password</label>
               <input type="password" id="gate-auth-password" class="form-input" placeholder="••••••••" autocomplete="current-password">
+              <div style="text-align: right; margin-top: 0.4rem;">
+                <span id="btn-gate-forgot-password" style="font-size: 0.8rem; color: var(--color-primary); cursor: pointer; text-decoration: underline;">Forgot Password?</span>
+              </div>
             </div>
           </div>
 
@@ -870,6 +876,11 @@
 
           <!-- Action button -->
           <button type="button" id="btn-gate-auth-submit" class="btn btn-primary btn-lg btn-block" style="font-weight: bold;">Log In</button>
+
+          <!-- Back to login toggle -->
+          <div id="gate-back-to-login-wrapper" style="text-align: center; margin-top: 1rem; display: none;">
+            <span id="btn-gate-back-to-login" style="font-size: 0.85rem; color: var(--color-primary); cursor: pointer; text-decoration: underline;">Back to Log In</span>
+          </div>
 
           <!-- Toggle to use Legacy Sync ID -->
           <details style="margin-top: 1.5rem;">

@@ -6,7 +6,8 @@ import {
   signInWithEmailAndPassword,
   onAuthStateChanged,
   signOut,
-  deleteUser
+  deleteUser,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 
 // Mock Golf Courses Database
@@ -491,6 +492,14 @@ function initAuth() {
   const gateSyncIdInput = document.getElementById('gate-sync-id-input');
   const btnGateConnectSync = document.getElementById('btn-gate-connect-sync');
 
+  // New Forgot Password Elements
+  const gateAuthTabs = document.getElementById('gate-auth-tabs');
+  const gateAuthPasswordWrapper = document.getElementById('gate-auth-password-wrapper');
+  const gateAuthForgotHelper = document.getElementById('gate-auth-forgot-helper');
+  const btnGateForgotPassword = document.getElementById('btn-gate-forgot-password');
+  const btnGateBackToLogin = document.getElementById('btn-gate-back-to-login');
+  const gateBackToLoginWrapper = document.getElementById('gate-back-to-login-wrapper');
+
   // Settings modal active auth elements
   const btnAuthLogout = document.getElementById('btn-auth-logout');
   const btnAuthDeleteAccount = document.getElementById('btn-auth-delete-account');
@@ -505,6 +514,9 @@ function initAuth() {
     gateTabSignup.classList.remove('active-tab');
     btnGateAuthSubmit.textContent = 'Log In';
     gateAuthErrorMsg.style.display = 'none';
+    gateAuthPasswordWrapper.style.display = 'block';
+    gateAuthForgotHelper.style.display = 'none';
+    gateBackToLoginWrapper.style.display = 'none';
   });
 
   gateTabSignup.addEventListener('click', () => {
@@ -513,26 +525,73 @@ function initAuth() {
     gateTabLogin.classList.remove('active-tab');
     btnGateAuthSubmit.textContent = 'Create Account';
     gateAuthErrorMsg.style.display = 'none';
+    gateAuthPasswordWrapper.style.display = 'block';
+    gateAuthForgotHelper.style.display = 'none';
+    gateBackToLoginWrapper.style.display = 'none';
   });
 
-  // Submit action on login gate (Log In or Sign Up)
+  btnGateForgotPassword.addEventListener('click', () => {
+    currentAuthMode = 'forgot';
+    gateAuthTabs.style.display = 'none';
+    gateAuthPasswordWrapper.style.display = 'none';
+    gateAuthForgotHelper.style.display = 'block';
+    gateBackToLoginWrapper.style.display = 'block';
+    btnGateAuthSubmit.textContent = 'Send Reset Email';
+    gateAuthErrorMsg.style.display = 'none';
+  });
+
+  btnGateBackToLogin.addEventListener('click', () => {
+    currentAuthMode = 'login';
+    gateAuthTabs.style.display = 'flex';
+    gateAuthPasswordWrapper.style.display = 'block';
+    gateAuthForgotHelper.style.display = 'none';
+    gateBackToLoginWrapper.style.display = 'none';
+    btnGateAuthSubmit.textContent = 'Log In';
+    gateAuthErrorMsg.style.display = 'none';
+    gateAuthPassword.value = '';
+  });
+
+  // Submit action on login gate (Log In, Sign Up, or Password Reset)
   btnGateAuthSubmit.addEventListener('click', async () => {
     const email = gateAuthEmail.value.trim();
     const password = gateAuthPassword.value;
 
-    if (!email || !password) {
-      showGateAuthError("Please fill in both email and password.");
-      return;
+    if (currentAuthMode === 'forgot') {
+      if (!email) {
+        showGateAuthError("Please enter your email address.");
+        return;
+      }
+    } else {
+      if (!email || !password) {
+        showGateAuthError("Please fill in both email and password.");
+        return;
+      }
     }
 
     gateAuthErrorMsg.style.display = 'none';
     btnGateAuthSubmit.disabled = true;
     const originalText = btnGateAuthSubmit.textContent;
-    btnGateAuthSubmit.textContent = currentAuthMode === 'login' ? 'Logging in...' : 'Creating account...';
+    
+    if (currentAuthMode === 'login') {
+      btnGateAuthSubmit.textContent = 'Logging in...';
+    } else if (currentAuthMode === 'signup') {
+      btnGateAuthSubmit.textContent = 'Creating account...';
+    } else {
+      btnGateAuthSubmit.textContent = 'Sending...';
+    }
 
     try {
-      if (currentAuthMode === 'login') {
+      if (currentAuthMode === 'forgot') {
+        await sendPasswordResetEmail(auth, email);
+        gateAuthErrorMsg.style.color = "var(--color-success, #10b981)";
+        gateAuthErrorMsg.textContent = "Reset link sent! Please check your email (including spam folder).";
+        gateAuthErrorMsg.style.display = "block";
+        gateAuthEmail.value = '';
+      } else if (currentAuthMode === 'login') {
         await signInWithEmailAndPassword(auth, email, password);
+        // Clear forms
+        gateAuthEmail.value = '';
+        gateAuthPassword.value = '';
       } else {
         // Sign Up
         // Capture existing local state before signing up for migration
@@ -554,15 +613,15 @@ function initAuth() {
         
         // Refresh local data from newly migrated cloud profile
         await syncFromCloud();
+        // Clear forms
+        gateAuthEmail.value = '';
+        gateAuthPassword.value = '';
       }
-      // Clear forms
-      gateAuthEmail.value = '';
-      gateAuthPassword.value = '';
     } catch (error) {
       console.error("Authentication error:", error);
       let friendlyMessage = error.message;
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-        friendlyMessage = "Incorrect email address or password. Please try again.";
+        friendlyMessage = currentAuthMode === 'forgot' ? "No account found with this email." : "Incorrect email address or password. Please try again.";
       } else if (error.code === 'auth/email-already-in-use') {
         friendlyMessage = "This email is already in use. Please log in instead.";
       } else if (error.code === 'auth/weak-password') {
@@ -659,6 +718,7 @@ function initAuth() {
   });
 
   function showGateAuthError(msg) {
+    gateAuthErrorMsg.style.color = "var(--color-danger, #ef4444)";
     gateAuthErrorMsg.textContent = msg;
     gateAuthErrorMsg.style.display = 'block';
   }
