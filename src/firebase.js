@@ -19,9 +19,9 @@ const db = initializeFirestore(app, {
   })
 });
 
-// Use stable browserLocalPersistence (localStorage) and indexedDB to avoid hangs on iOS
+// Use stable browserLocalPersistence (localStorage) exclusively to avoid indexedDB hangs on iOS WebView
 const auth = initializeAuth(app, {
-  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+  persistence: browserLocalPersistence
 });
 
 export { db, auth };
