@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence } from "firebase/auth";
 
 const firebaseConfig = {
   projectId: "golfcaddie-e3e0e",
@@ -18,7 +18,11 @@ const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager()
   })
 });
-const auth = getAuth(app);
+
+// Use stable browserLocalPersistence (localStorage) and indexedDB to avoid hangs on iOS
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
 
 export { db, auth };
 
