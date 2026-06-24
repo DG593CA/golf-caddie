@@ -2288,3 +2288,7 @@ a:hover {
   border-top: 2px solid rgba(255, 255, 255, 0.2) !important;
 }
 
+/* Push header down under iOS status bar/notch/Dynamic Island on native devices */
+.platform-ios .app-header {
+  padding-top: 47px;
+}

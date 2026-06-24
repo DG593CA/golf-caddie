@@ -1,6 +1,18 @@
 import './style.css';
+import { Capacitor } from '@capacitor/core';
 import { db, auth } from './firebase.js';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+
+// Detect iOS and apply class for notch safe area styling
+if (typeof window !== 'undefined' && Capacitor.getPlatform() === 'ios') {
+  if (document.body) {
+    document.body.classList.add('platform-ios');
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.classList.add('platform-ios');
+    });
+  }
+}
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
