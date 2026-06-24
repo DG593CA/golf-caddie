@@ -4655,7 +4655,9 @@ async function searchGolfCourses(query) {
 
   if (activeKey) {
     try {
-      const url = `/api-golf/v1/search?search_query=${encodeURIComponent(query)}`;
+      const isNative = Capacitor.isNativePlatform();
+      const baseUrl = isNative ? 'https://api.golfcourseapi.com' : '/api-golf';
+      const url = `${baseUrl}/v1/search?search_query=${encodeURIComponent(query)}`;
       const authHeader = activeKey.startsWith('Key ') ? activeKey : `Key ${activeKey}`;
       const response = await fetch(url, {
         method: 'GET',
@@ -4680,12 +4682,10 @@ async function searchGolfCourses(query) {
           });
         }
       } else {
-        console.error(`GolfCourseAPI returned status ${response.status}`);
-        return [{ isError: true, status: response.status }];
+        console.error(`GolfCourseAPI returned status ${response.status}, falling back to local mocks`);
       }
     } catch (e) {
       console.error('Remote GolfCourseAPI search failed, falling back to local mocks', e);
-      return [{ isError: true, message: e.message }];
     }
   }
 
