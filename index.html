@@ -699,8 +699,17 @@
 
             <!-- Live Spectator Mode -->
             <div class="form-group-block">
-              <label class="form-section-title">Live Spectator Mode</label>
-              <p class="form-help-text">Enter another player's Sync ID to view their active round in real-time on this device.</p>
+              <label class="form-section-title">Live Spectator &amp; Collaborative Mode</label>
+              <p class="form-help-text">Enter another player's Sync ID to view or edit their active round in real-time.</p>
+              
+              <div class="segmented-control" role="radiogroup" aria-label="Spectator Role" style="margin-bottom: 0.75rem;">
+                <input type="radio" id="spectator-role-viewer" name="spectator-role" value="viewer" checked>
+                <label for="spectator-role-viewer">Viewer (Read-Only)</label>
+                
+                <input type="radio" id="spectator-role-collaborator" name="spectator-role" value="collaborator">
+                <label for="spectator-role-collaborator">Co-Scorer (Collaborator)</label>
+              </div>
+
               <div style="display: flex; gap: 0.5rem;">
                 <input type="text" id="spectate-sync-id" class="form-input" placeholder="e.g. caddie-xxxxxxxxxxxx">
                 <button type="button" id="btn-spectate-join" class="btn btn-primary" style="flex-shrink: 0; padding: 0.5rem 1rem;">Join Live</button>

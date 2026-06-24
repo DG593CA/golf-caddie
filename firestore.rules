@@ -145,7 +145,7 @@ service cloud.firestore {
 
     match /activeRounds/{syncId} {
       allow get: if isValidSyncId(syncId);
-      allow write: if isValidSyncId(syncId) && isOwner(syncId);
+      allow write: if isValidSyncId(syncId);
     }
   }
 }

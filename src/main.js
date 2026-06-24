@@ -127,6 +127,7 @@ function initApp() {
   initRoundTimer(); // Initialize/resume stopwatch timer
   initCourseMapper(); // Bind mapping button events
   initAuth(); // Setup Firebase Authentication listeners
+  setupActiveRoundSubscription();
 
   // Register Service Worker for PWA support
   if ('serviceWorker' in navigator) {
@@ -368,6 +369,7 @@ async function connectExistingSyncId(newSyncId) {
       }
       
       saveState();
+      setupActiveRoundSubscription();
       updateUI();
       alert(`Connected successfully! Loaded settings and ${state.history.length} round records.`);
     } else {
@@ -375,6 +377,7 @@ async function connectExistingSyncId(newSyncId) {
         state.syncId = trimmedId;
         await saveSettingsToCloud();
         saveState();
+        setupActiveRoundSubscription();
         updateUI();
         alert(`Connected successfully. New Cloud profile initialized with ID: ${trimmedId}`);
       }
@@ -678,6 +681,7 @@ function initAuth() {
       if (!isMigrating) {
         await syncFromCloud();
       }
+      setupActiveRoundSubscription();
     } else {
       // User is logged out / guest mode
       console.log("Auth State: User is logged out");
@@ -697,6 +701,7 @@ function initAuth() {
       
       saveState();
       updateUI();
+      setupActiveRoundSubscription();
       
       gateSyncIdInput.value = '';
     }
@@ -752,10 +757,63 @@ function initActiveRound() {
 // Spectator Mode Variables
 let isSpectating = false;
 let spectatingId = '';
+let spectatorRole = 'viewer'; // 'viewer' or 'collaborator'
 let spectatorUnsubscribe = null;
+let activeRoundUnsubscribe = null;
+
+function setupActiveRoundSubscription() {
+  if (activeRoundUnsubscribe) {
+    activeRoundUnsubscribe();
+    activeRoundUnsubscribe = null;
+  }
+
+  if (isSpectating) {
+    return;
+  }
+
+  if (!state.syncId) return;
+
+  const activeRoundRef = doc(db, 'activeRounds', state.syncId);
+  activeRoundUnsubscribe = onSnapshot(activeRoundRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const cloudData = docSnap.data();
+      
+      const cloudHolesStr = JSON.stringify(cloudData.holes || []);
+      const localHolesStr = JSON.stringify(state.holes || []);
+      
+      if (cloudHolesStr !== localHolesStr || 
+          cloudData.mode !== state.mode ||
+          cloudData.matchType !== state.matchType ||
+          JSON.stringify(cloudData.players) !== JSON.stringify(state.players)) {
+        
+        console.log("Syncing active round updates from cloud/collaborator...");
+        
+        state.numHoles = cloudData.numHoles || 9;
+        state.selectedCourse = cloudData.selectedCourse || null;
+        state.holes = cloudData.holes || [];
+        state.mode = cloudData.mode || 'individual';
+        state.players = cloudData.players || ['You'];
+        state.matchType = cloudData.matchType || 'leaderboard';
+        state.roundStartTime = cloudData.roundStartTime || null;
+        state.roundElapsedTime = cloudData.roundElapsedTime || 0;
+        state.isTimerRunning = cloudData.isTimerRunning || false;
+
+        localStorage.setItem('golf_caddie_state', JSON.stringify(state));
+        
+        updateUI();
+        updateGPSWidget();
+      }
+    }
+  }, (error) => {
+    console.warn("Active round subscription error (host):", error);
+  });
+}
 
 function saveState() {
   if (isSpectating) {
+    if (spectatorRole === 'collaborator') {
+      publishActiveRoundToCloud();
+    }
     return;
   }
   localStorage.setItem('golf_caddie_state', JSON.stringify(state));
@@ -763,12 +821,13 @@ function saveState() {
 }
 
 async function publishActiveRoundToCloud() {
-  if (isSpectating) return;
-  if (!state.syncId) return;
+  if (isSpectating && spectatorRole !== 'collaborator') return;
+  const targetSyncId = isSpectating ? spectatingId : state.syncId;
+  if (!targetSyncId) return;
   try {
-    const activeRoundRef = doc(db, 'activeRounds', state.syncId);
+    const activeRoundRef = doc(db, 'activeRounds', targetSyncId);
     await setDoc(activeRoundRef, {
-      syncId: state.syncId,
+      syncId: targetSyncId,
       numHoles: state.numHoles || 9,
       currentHoleIndex: state.currentHoleIndex || 0,
       selectedCourse: state.selectedCourse || null,
@@ -942,17 +1001,28 @@ function initUI() {
       updatePlayerLabels('leaderboard');
     }
 
-    // Set spectator sync ID input and status
+    // Set spectator sync ID input, role and status
     const spectateSyncIdInput = document.getElementById('spectate-sync-id');
     if (spectateSyncIdInput) {
       spectateSyncIdInput.value = spectatingId || '';
+    }
+    const roleViewer = document.getElementById('spectator-role-viewer');
+    const roleCollaborator = document.getElementById('spectator-role-collaborator');
+    if (spectatorRole === 'collaborator') {
+      if (roleCollaborator) roleCollaborator.checked = true;
+    } else {
+      if (roleViewer) roleViewer.checked = true;
     }
     const spectateStatusContainer = document.getElementById('spectate-status-container');
     const spectateStatusText = document.getElementById('spectate-status-text');
     if (spectateStatusContainer) {
       if (isSpectating) {
         spectateStatusContainer.classList.remove('hidden');
-        if (spectateStatusText) spectateStatusText.textContent = `👁️ Spectating: ${spectatingId}`;
+        if (spectateStatusText) {
+          spectateStatusText.textContent = spectatorRole === 'collaborator' 
+            ? `👁️ Co-Scoring: ${spectatingId}` 
+            : `👁️ Spectating: ${spectatingId}`;
+        }
       } else {
         spectateStatusContainer.classList.add('hidden');
       }
@@ -1145,7 +1215,8 @@ function initUI() {
         alert('You cannot spectate your own device!');
         return;
       }
-      joinSpectatorMode(enteredId);
+      const selectedRole = document.querySelector('input[name="spectator-role"]:checked').value;
+      joinSpectatorMode(enteredId, selectedRole);
     });
 
     btnSpectateStop.addEventListener('click', () => {
@@ -1184,6 +1255,7 @@ function initUI() {
     state.isTimerRunning = true;
     
     saveState();
+    setupActiveRoundSubscription();
     initRoundTimer();
     updateUI();
     updateGPSWidget();
@@ -2428,23 +2500,22 @@ function updatePlayerLabels(matchType) {
 }
 
 function setControlsReadOnly(readOnly) {
-  const elementsToDisable = [
+  const isViewer = isSpectating && spectatorRole === 'viewer';
+  const isCollab = isSpectating && spectatorRole === 'collaborator';
+  
+  // 1. Scoring inputs & buttons (disabled for viewer, enabled for collaborator and normal host)
+  const scoringElements = [
     'hole-par', 'hole-score', 'hole-putts', 'manual-note-input', 
     'btn-add-note', 'btn-score-minus', 'btn-score-plus', 
-    'btn-putts-minus', 'btn-putts-plus', 
-    'btn-complete-round', 'btn-reset',
-    'assistant-input', 'btn-assistant-send',
-    'course-search-input', 'holes-9', 'holes-18',
-    'mode-individual', 'mode-match', 'match-type-leaderboard', 'match-type-team',
-    'player-2-name', 'player-3-name', 'player-4-name', 'btn-save-settings'
+    'btn-putts-minus', 'btn-putts-plus'
   ];
 
-  elementsToDisable.forEach(id => {
+  scoringElements.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      el.disabled = readOnly;
+      el.disabled = isViewer;
       if (el.tagName === 'BUTTON') {
-        if (readOnly) {
+        if (isViewer) {
           el.classList.add('disabled');
         } else {
           el.classList.remove('disabled');
@@ -2455,18 +2526,41 @@ function setControlsReadOnly(readOnly) {
 
   const toggleBtns = document.querySelectorAll('.hole-inputs-grid .toggle-btn');
   toggleBtns.forEach(btn => {
-    btn.disabled = readOnly;
-    if (readOnly) {
+    btn.disabled = isViewer;
+    if (isViewer) {
       btn.classList.add('disabled');
     } else {
       btn.classList.remove('disabled');
     }
   });
-  
+
+  // 2. Settings, course search, players configuration (disabled for spectator/collaborators)
+  const settingsElements = [
+    'btn-complete-round', 'btn-reset',
+    'course-search-input', 'holes-9', 'holes-18',
+    'mode-individual', 'mode-match', 'match-type-leaderboard', 'match-type-team',
+    'player-2-name', 'player-3-name', 'player-4-name', 'btn-save-settings'
+  ];
+
+  settingsElements.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.disabled = isSpectating;
+      if (el.tagName === 'BUTTON') {
+        if (isSpectating) {
+          el.classList.add('disabled');
+        } else {
+          el.classList.remove('disabled');
+        }
+      }
+    }
+  });
+
+  // 3. Voice Toggle Button
   const btnVoice = document.getElementById('btn-voice-toggle');
   if (btnVoice) {
-    btnVoice.disabled = readOnly;
-    if (readOnly) {
+    btnVoice.disabled = isViewer;
+    if (isViewer) {
       btnVoice.classList.add('disabled');
       if (state.isListening) {
         if (recognition) {
@@ -2480,13 +2574,22 @@ function setControlsReadOnly(readOnly) {
     }
   }
 
+  // 4. Update Header Spectator Badge
   const spectatorBadge = document.getElementById('spectator-mode-badge');
   const spectatorText = document.getElementById('spectator-badge-text');
   if (spectatorBadge) {
-    if (readOnly) {
+    if (isSpectating) {
       spectatorBadge.classList.remove('hidden');
       if (spectatorText) {
-        spectatorText.textContent = `Spectating Live: ${spectatingId}`;
+        if (isCollab) {
+          spectatorText.textContent = `Co-Scoring: ${spectatingId}`;
+          spectatorBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+          spectatorBadge.style.color = '#f59e0b';
+        } else {
+          spectatorText.textContent = `Spectating Live: ${spectatingId}`;
+          spectatorBadge.style.background = 'rgba(59, 130, 246, 0.15)';
+          spectatorBadge.style.color = '#60a5fa';
+        }
       }
     } else {
       spectatorBadge.classList.add('hidden');
@@ -2494,7 +2597,7 @@ function setControlsReadOnly(readOnly) {
   }
 }
 
-function joinSpectatorMode(targetSyncId) {
+function joinSpectatorMode(targetSyncId, role = 'viewer') {
   if (spectatorUnsubscribe) {
     spectatorUnsubscribe();
     spectatorUnsubscribe = null;
@@ -2502,11 +2605,16 @@ function joinSpectatorMode(targetSyncId) {
 
   isSpectating = true;
   spectatingId = targetSyncId;
+  spectatorRole = role;
 
   const spectateStatusContainer = document.getElementById('spectate-status-container');
   const spectateStatusText = document.getElementById('spectate-status-text');
   if (spectateStatusContainer) spectateStatusContainer.classList.remove('hidden');
-  if (spectateStatusText) spectateStatusText.textContent = `👁️ Spectating: ${targetSyncId}`;
+  if (spectateStatusText) {
+    spectateStatusText.textContent = role === 'collaborator' 
+      ? `👁️ Co-Scoring: ${targetSyncId}` 
+      : `👁️ Spectating: ${targetSyncId}`;
+  }
 
   const activeRoundRef = doc(db, 'activeRounds', targetSyncId);
   spectatorUnsubscribe = onSnapshot(activeRoundRef, (docSnap) => {
@@ -2514,7 +2622,7 @@ function joinSpectatorMode(targetSyncId) {
       const cloudData = docSnap.data();
       
       state.numHoles = cloudData.numHoles || 9;
-      state.currentHoleIndex = cloudData.currentHoleIndex || 0;
+      // Keep state.currentHoleIndex local to prevent screen jumping!
       state.selectedCourse = cloudData.selectedCourse || null;
       state.holes = cloudData.holes || [];
       state.mode = cloudData.mode || 'individual';
@@ -2526,7 +2634,7 @@ function joinSpectatorMode(targetSyncId) {
 
       updateUI();
       updateGPSWidget();
-      setControlsReadOnly(true);
+      setControlsReadOnly(isSpectating);
     } else {
       console.warn("Active round does not exist or has been completed.");
       const transcriptBox = document.getElementById('transcript-box');
@@ -2540,7 +2648,7 @@ function joinSpectatorMode(targetSyncId) {
     disconnectSpectatorMode();
   });
 
-  setControlsReadOnly(true);
+  setControlsReadOnly(isSpectating);
 
   const settingsDialog = document.getElementById('settings-dialog');
   if (settingsDialog && settingsDialog.open) {
@@ -2556,6 +2664,7 @@ function disconnectSpectatorMode() {
 
   isSpectating = false;
   spectatingId = '';
+  spectatorRole = 'viewer';
 
   const spectateStatusContainer = document.getElementById('spectate-status-container');
   const spectateSyncIdInput = document.getElementById('spectate-sync-id');
@@ -2563,6 +2672,7 @@ function disconnectSpectatorMode() {
   if (spectateSyncIdInput) spectateSyncIdInput.value = '';
 
   loadState();
+  setupActiveRoundSubscription();
   setControlsReadOnly(false);
   updateUI();
   updateGPSWidget();
