@@ -4790,6 +4790,7 @@ async function handleCourseSelection(course) {
         let rating = 72.0;
         let slope = 113;
         let holesCount = 18;
+        let pars = [];
         
         const tees = details.tees || {};
         const teeList = tees.male || tees.female || [];
@@ -4798,6 +4799,14 @@ async function handleCourseSelection(course) {
           rating = tee.course_rating || 72.0;
           slope = tee.slope_rating || 113;
           holesCount = tee.number_of_holes || 18;
+          
+          if (tee.holes && tee.holes.length > 0) {
+            pars = tee.holes.map(h => h.par || 4);
+          } else {
+            pars = Array(holesCount).fill(4);
+          }
+        } else {
+          pars = Array(holesCount).fill(4);
         }
         
         let coordinates = { lat: 36.5684, lng: -121.9507 };
@@ -4807,8 +4816,6 @@ async function handleCourseSelection(course) {
             lng: parseFloat(details.location.longitude)
           };
         }
-        
-        const pars = Array(holesCount).fill(4);
         
         state.selectedCourse = {
           id: details.id,
