@@ -47,5 +47,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>GolfCaddie requires your location to calculate distances to the green.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>GolfCaddie uses your microphone for hands-free voice score tracking.</string>
 </dict>
 </plist>
