@@ -142,5 +142,11 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.syncId);
       allow list: if false; // prevent listing rounds globally!
     }
+
+    match /activeRounds/{syncId} {
+      allow get: if isValidSyncId(syncId);
+      allow write: if isValidSyncId(syncId) && isOwner(syncId);
+    }
   }
 }
+

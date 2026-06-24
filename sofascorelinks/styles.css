@@ -1050,3 +1050,60 @@ tr:hover td {
 .stat-value span {
   color: var(--primary);
 }
+
+/* Individual OS Toggle & Badge Styling */
+.os-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  letter-spacing: 0.03em;
+}
+
+.os-badge.ios {
+  background: rgba(41, 121, 255, 0.1);
+  color: var(--accent);
+  border-color: rgba(41, 121, 255, 0.2);
+}
+
+.os-badge.android {
+  background: rgba(2, 208, 107, 0.1);
+  color: var(--primary);
+  border-color: rgba(2, 208, 107, 0.2);
+}
+
+.delete-row-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+}
+
+.delete-row-btn:hover {
+  color: var(--warning);
+  background: var(--warning-glow);
+}
+
+/* Global OS Selector Active State Styling */
+.btn-preset.active[data-os="ios"] {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-preset.active[data-os="android"] {
+  background: var(--primary-glow);
+  border-color: var(--primary);
+  color: var(--primary);
+}

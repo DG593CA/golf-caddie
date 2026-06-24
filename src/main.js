@@ -1,6 +1,6 @@
 import './style.css';
 import { db, auth } from './firebase.js';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -161,6 +161,7 @@ function loadState() {
       if (state.isTimerRunning === undefined) state.isTimerRunning = false;
       if (!state.customCourseMappings) state.customCourseMappings = '{}';
       if (state.mode === undefined) state.mode = 'individual';
+      if (state.matchType === undefined) state.matchType = 'leaderboard';
       if (!state.players || !state.players.length) state.players = ['You'];
       if (!state.playerAliases) state.playerAliases = [];
     } catch (e) {
@@ -188,6 +189,7 @@ function initDefaultState() {
   state.isTimerRunning = false;
   state.customCourseMappings = '{}';
   state.mode = 'individual';
+  state.matchType = 'leaderboard';
   state.players = ['You'];
   state.playerAliases = [];
   initActiveRound();
@@ -747,9 +749,71 @@ function initActiveRound() {
   }
 }
 
+// Spectator Mode Variables
+let isSpectating = false;
+let spectatingId = '';
+let spectatorUnsubscribe = null;
+
 function saveState() {
+  if (isSpectating) {
+    return;
+  }
   localStorage.setItem('golf_caddie_state', JSON.stringify(state));
+  publishActiveRoundToCloud();
 }
+
+async function publishActiveRoundToCloud() {
+  if (isSpectating) return;
+  if (!state.syncId) return;
+  try {
+    const activeRoundRef = doc(db, 'activeRounds', state.syncId);
+    await setDoc(activeRoundRef, {
+      syncId: state.syncId,
+      numHoles: state.numHoles || 9,
+      currentHoleIndex: state.currentHoleIndex || 0,
+      selectedCourse: state.selectedCourse || null,
+      holes: state.holes || [],
+      mode: state.mode || 'individual',
+      players: state.players || ['You'],
+      matchType: state.matchType || 'leaderboard',
+      roundStartTime: state.roundStartTime || null,
+      roundElapsedTime: state.roundElapsedTime || 0,
+      isTimerRunning: state.isTimerRunning || false,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Failed to publish active round to Firestore:", error);
+  }
+}
+
+async function deleteActiveRoundFromCloud(syncId) {
+  if (!syncId) return;
+  try {
+    const activeRoundRef = doc(db, 'activeRounds', syncId);
+    await deleteDoc(activeRoundRef);
+  } catch (error) {
+    console.error("Failed to delete active round from cloud:", error);
+  }
+}
+
+function getTeamBestBall(s1, c1, s2, c2) {
+  const played1 = s1 > 0 || c1;
+  const played2 = s2 > 0 || c2;
+  if (!played1 && !played2) {
+    return { played: false, score: 0, conceded: false };
+  }
+  
+  let best = Infinity;
+  if (s1 > 0 && !c1) best = Math.min(best, s1);
+  if (s2 > 0 && !c2) best = Math.min(best, s2);
+  
+  if (best !== Infinity) {
+    return { played: true, score: best, conceded: false };
+  }
+  
+  return { played: true, score: 0, conceded: true };
+}
+
 
 // UI Binding
 function initUI() {
@@ -867,6 +931,33 @@ function initUI() {
     if (p3) p3.value = state.players && state.players[2] ? state.players[2] : '';
     if (p4) p4.value = state.players && state.players[3] ? state.players[3] : '';
     
+    // Set match type radios
+    const matchTypeLeaderboard = document.getElementById('match-type-leaderboard');
+    const matchTypeTeam = document.getElementById('match-type-team');
+    if (state.matchType === 'team') {
+      if (matchTypeTeam) matchTypeTeam.checked = true;
+      updatePlayerLabels('team');
+    } else {
+      if (matchTypeLeaderboard) matchTypeLeaderboard.checked = true;
+      updatePlayerLabels('leaderboard');
+    }
+
+    // Set spectator sync ID input and status
+    const spectateSyncIdInput = document.getElementById('spectate-sync-id');
+    if (spectateSyncIdInput) {
+      spectateSyncIdInput.value = spectatingId || '';
+    }
+    const spectateStatusContainer = document.getElementById('spectate-status-container');
+    const spectateStatusText = document.getElementById('spectate-status-text');
+    if (spectateStatusContainer) {
+      if (isSpectating) {
+        spectateStatusContainer.classList.remove('hidden');
+        if (spectateStatusText) spectateStatusText.textContent = `👁️ Spectating: ${spectatingId}`;
+      } else {
+        spectateStatusContainer.classList.add('hidden');
+      }
+    }
+
     updatePlayerAliasesDatalist();
 
     settingsDialog.showModal();
@@ -912,10 +1003,23 @@ function initUI() {
       state.mode = modeVal;
       
       if (modeVal === 'match') {
+        const matchTypeVal = document.querySelector('input[name="match-type"]:checked').value;
+        state.matchType = matchTypeVal;
+
         const players = ['You'];
-        const p2 = document.getElementById('player-2-name').value.trim();
-        const p3 = document.getElementById('player-3-name').value.trim();
-        const p4 = document.getElementById('player-4-name').value.trim();
+        let p2 = document.getElementById('player-2-name').value.trim();
+        let p3 = document.getElementById('player-3-name').value.trim();
+        let p4 = document.getElementById('player-4-name').value.trim();
+        
+        if (matchTypeVal === 'team') {
+          p2 = p2 || 'Partner';
+          p3 = p3 || 'Opponent 1';
+          p4 = p4 || 'Opponent 2';
+
+          if (p2.toLowerCase() === 'you') p2 = 'Partner';
+          if (p3.toLowerCase() === 'you' || p3.toLowerCase() === p2.toLowerCase()) p3 = 'Opponent 1';
+          if (p4.toLowerCase() === 'you' || p4.toLowerCase() === p2.toLowerCase() || p4.toLowerCase() === p3.toLowerCase()) p4 = 'Opponent 2';
+        }
         
         if (p2) players.push(p2);
         if (p3) players.push(p3);
@@ -1014,9 +1118,47 @@ function initUI() {
     }
   });
 
+  // Match Type radio change listeners
+  const matchTypeLeaderboardRadio = document.getElementById('match-type-leaderboard');
+  const matchTypeTeamRadio = document.getElementById('match-type-team');
+  if (matchTypeLeaderboardRadio && matchTypeTeamRadio) {
+    const handleMatchTypeChange = () => {
+      const selected = document.querySelector('input[name="match-type"]:checked').value;
+      updatePlayerLabels(selected);
+    };
+    matchTypeLeaderboardRadio.addEventListener('change', handleMatchTypeChange);
+    matchTypeTeamRadio.addEventListener('change', handleMatchTypeChange);
+  }
+
+  // Spectator elements binding
+  const btnSpectateJoin = document.getElementById('btn-spectate-join');
+  const btnSpectateStop = document.getElementById('btn-spectate-stop');
+  const spectateSyncIdInput = document.getElementById('spectate-sync-id');
+  if (btnSpectateJoin && btnSpectateStop && spectateSyncIdInput) {
+    btnSpectateJoin.addEventListener('click', () => {
+      const enteredId = spectateSyncIdInput.value.trim();
+      if (!enteredId) {
+        alert('Please enter a valid Sync ID to spectate!');
+        return;
+      }
+      if (enteredId === state.syncId) {
+        alert('You cannot spectate your own device!');
+        return;
+      }
+      joinSpectatorMode(enteredId);
+    });
+
+    btnSpectateStop.addEventListener('click', () => {
+      disconnectSpectatorMode();
+    });
+  }
+
   // Reset round
   document.getElementById('btn-reset').addEventListener('click', () => {
+    if (isSpectating) return;
     if (confirm('Are you sure you want to reset this round? All scores and notes will be deleted.')) {
+      const oldSyncId = state.syncId;
+      deleteActiveRoundFromCloud(oldSyncId);
       initActiveRound();
       saveState();
       updateUI();
@@ -1290,6 +1432,7 @@ function initUI() {
   // Complete round open dialog
   const completeDialog = document.getElementById('complete-round-dialog');
   document.getElementById('btn-complete-round').addEventListener('click', () => {
+    if (isSpectating) return;
     // Check if any scores are logged
     const scoresCount = state.holes.filter(h => h.score > 0).length;
     if (scoresCount === 0) {
@@ -1319,6 +1462,7 @@ function initUI() {
   // Complete round form save round
   document.getElementById('complete-round-form').addEventListener('submit', (e) => {
     e.preventDefault();
+    if (isSpectating) return;
     const courseName = document.getElementById('save-course-name').value.trim();
     const dateVal = document.getElementById('save-round-date').value;
     
@@ -1392,6 +1536,8 @@ function initUI() {
     calculateAndShowReport(archivedRound);
 
     // Reset current active round scores
+    const oldSyncId = state.syncId;
+    deleteActiveRoundFromCloud(oldSyncId);
     initActiveRound();
     saveState();
     updateUI();
@@ -1908,12 +2054,93 @@ function updateUI() {
 
   // Standings Widget
   updateMatchPlayStandings();
+
+  if (isSpectating) {
+    setControlsReadOnly(true);
+  }
 }
 
 function calculateMatchPlayStandings() {
   const players = state.players || ['You'];
   const numPlayers = players.length;
   
+  if (state.matchType === 'team' && numPlayers === 4) {
+    const p1 = players[0]; // You
+    const p2 = players[1]; // Partner
+    const p3 = players[2]; // Opponent 1
+    const p4 = players[3]; // Opponent 2
+
+    let teamAWon = 0;
+    let teamBWon = 0;
+    let lastPlayedHole = 0;
+
+    state.holes.forEach(hole => {
+      const s1 = (hole.playerScores && hole.playerScores[p1]) || 0;
+      const c1 = (hole.playerConceded && hole.playerConceded[p1]) || false;
+      const s2 = (hole.playerScores && hole.playerScores[p2]) || 0;
+      const c2 = (hole.playerConceded && hole.playerConceded[p2]) || false;
+      const s3 = (hole.playerScores && hole.playerScores[p3]) || 0;
+      const c3 = (hole.playerConceded && hole.playerConceded[p3]) || false;
+      const s4 = (hole.playerScores && hole.playerScores[p4]) || 0;
+      const c4 = (hole.playerConceded && hole.playerConceded[p4]) || false;
+
+      const teamA = getTeamBestBall(s1, c1, s2, c2);
+      const teamB = getTeamBestBall(s3, c3, s4, c4);
+
+      if (teamA.played || teamB.played) {
+        lastPlayedHole = Math.max(lastPlayedHole, hole.number);
+      }
+
+      if (teamA.played && teamB.played) {
+        if (teamA.conceded && teamB.conceded) {
+          // halved
+        } else if (teamA.conceded) {
+          teamBWon++;
+        } else if (teamB.conceded) {
+          teamAWon++;
+        } else {
+          if (teamA.score < teamB.score) teamAWon++;
+          if (teamB.score < teamA.score) teamBWon++;
+        }
+      }
+    });
+
+    const holesRemaining = state.numHoles - lastPlayedHole;
+    const diff = teamAWon - teamBWon;
+    let statusText = 'All Square';
+    let matchFinished = false;
+    let winner = null;
+    let margin = '';
+    
+    const lead = Math.abs(diff);
+    
+    if (lead > holesRemaining) {
+      matchFinished = true;
+      winner = diff > 0 ? 'Team A' : 'Team B';
+      margin = `${lead} & ${holesRemaining}`;
+      statusText = `${winner} won ${margin}`;
+    } else if (lead === holesRemaining && holesRemaining > 0) {
+      statusText = diff > 0 ? `Team A Dormie ${lead}` : `Team B Dormie ${lead}`;
+    } else if (diff > 0) {
+      statusText = `Team A ${lead} Up`;
+    } else if (diff < 0) {
+      statusText = `Team B ${lead} Up`;
+    }
+
+    return {
+      mode: 'team',
+      p1, p2, p3, p4,
+      teamAWon, teamBWon,
+      diff,
+      lead,
+      statusText,
+      matchFinished,
+      winner,
+      margin,
+      holesRemaining
+    };
+  }
+
   // Tally of holes won for each player
   const holesWon = {};
   players.forEach(p => {
@@ -2068,6 +2295,43 @@ function updateMatchPlayStandings() {
   const body = document.getElementById('match-play-standings-body');
   if (!body) return;
   
+  if (standings.mode === 'team') {
+    body.innerHTML = `
+      <table class="standings-table">
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Players</th>
+            <th style="text-align: right;">Holes Won</th>
+            <th style="text-align: right;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="standings-player-name" style="font-weight: bold; color: var(--emerald-glow);">Team A</td>
+            <td style="font-size: 0.8rem; color: var(--color-secondary);">${standings.p1} & ${standings.p2}</td>
+            <td style="text-align: right;">${standings.teamAWon}</td>
+            <td style="text-align: right;" class="${standings.diff > 0 ? 'standings-status-up' : standings.diff < 0 ? 'standings-status-down' : 'standings-status-square'}">
+              ${standings.diff > 0 ? `${standings.diff} Up` : standings.diff < 0 ? `${Math.abs(standings.diff)} Down` : 'AS'}
+            </td>
+          </tr>
+          <tr>
+            <td class="standings-player-name" style="font-weight: bold; color: #f43f5e;">Team B</td>
+            <td style="font-size: 0.8rem; color: var(--color-secondary);">${standings.p3} & ${standings.p4}</td>
+            <td style="text-align: right;">${standings.teamBWon}</td>
+            <td style="text-align: right;" class="${standings.diff < 0 ? 'standings-status-up' : standings.diff > 0 ? 'standings-status-down' : 'standings-status-square'}">
+              ${standings.diff < 0 ? `${Math.abs(standings.diff)} Up` : standings.diff > 0 ? `${standings.diff} Down` : 'AS'}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size: 0.8rem; color: var(--color-secondary); margin-top: 0.5rem; text-align: center;">
+        ${standings.holesRemaining} holes remaining
+      </p>
+    `;
+    return;
+  }
+
   if (standings.mode === '2player') {
     body.innerHTML = `
       <table class="standings-table">
@@ -2144,6 +2408,168 @@ function updatePlayerAliasesDatalist() {
   }
 }
 
+function updatePlayerLabels(matchType) {
+  const p1Lbl = document.getElementById('player-1-label');
+  const p2Lbl = document.getElementById('player-2-label');
+  const p3Lbl = document.getElementById('player-3-label');
+  const p4Lbl = document.getElementById('player-4-label');
+  
+  if (matchType === 'team') {
+    if (p1Lbl) p1Lbl.textContent = 'Team A (You):';
+    if (p2Lbl) p2Lbl.textContent = 'Team A (Partner):';
+    if (p3Lbl) p3Lbl.textContent = 'Team B (Opp 1):';
+    if (p4Lbl) p4Lbl.textContent = 'Team B (Opp 2):';
+  } else {
+    if (p1Lbl) p1Lbl.textContent = 'Player 1 (You):';
+    if (p2Lbl) p2Lbl.textContent = 'Player 2:';
+    if (p3Lbl) p3Lbl.textContent = 'Player 3:';
+    if (p4Lbl) p4Lbl.textContent = 'Player 4:';
+  }
+}
+
+function setControlsReadOnly(readOnly) {
+  const elementsToDisable = [
+    'hole-par', 'hole-score', 'hole-putts', 'manual-note-input', 
+    'btn-add-note', 'btn-score-minus', 'btn-score-plus', 
+    'btn-putts-minus', 'btn-putts-plus', 
+    'btn-complete-round', 'btn-reset',
+    'assistant-input', 'btn-assistant-send',
+    'course-search-input', 'holes-9', 'holes-18',
+    'mode-individual', 'mode-match', 'match-type-leaderboard', 'match-type-team',
+    'player-2-name', 'player-3-name', 'player-4-name', 'btn-save-settings'
+  ];
+
+  elementsToDisable.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.disabled = readOnly;
+      if (el.tagName === 'BUTTON') {
+        if (readOnly) {
+          el.classList.add('disabled');
+        } else {
+          el.classList.remove('disabled');
+        }
+      }
+    }
+  });
+
+  const toggleBtns = document.querySelectorAll('.hole-inputs-grid .toggle-btn');
+  toggleBtns.forEach(btn => {
+    btn.disabled = readOnly;
+    if (readOnly) {
+      btn.classList.add('disabled');
+    } else {
+      btn.classList.remove('disabled');
+    }
+  });
+  
+  const btnVoice = document.getElementById('btn-voice-toggle');
+  if (btnVoice) {
+    btnVoice.disabled = readOnly;
+    if (readOnly) {
+      btnVoice.classList.add('disabled');
+      if (state.isListening) {
+        if (recognition) {
+          try { recognition.stop(); } catch(e) {}
+        }
+        state.isListening = false;
+        stopListeningUI();
+      }
+    } else {
+      btnVoice.classList.remove('disabled');
+    }
+  }
+
+  const spectatorBadge = document.getElementById('spectator-mode-badge');
+  const spectatorText = document.getElementById('spectator-badge-text');
+  if (spectatorBadge) {
+    if (readOnly) {
+      spectatorBadge.classList.remove('hidden');
+      if (spectatorText) {
+        spectatorText.textContent = `Spectating Live: ${spectatingId}`;
+      }
+    } else {
+      spectatorBadge.classList.add('hidden');
+    }
+  }
+}
+
+function joinSpectatorMode(targetSyncId) {
+  if (spectatorUnsubscribe) {
+    spectatorUnsubscribe();
+    spectatorUnsubscribe = null;
+  }
+
+  isSpectating = true;
+  spectatingId = targetSyncId;
+
+  const spectateStatusContainer = document.getElementById('spectate-status-container');
+  const spectateStatusText = document.getElementById('spectate-status-text');
+  if (spectateStatusContainer) spectateStatusContainer.classList.remove('hidden');
+  if (spectateStatusText) spectateStatusText.textContent = `👁️ Spectating: ${targetSyncId}`;
+
+  const activeRoundRef = doc(db, 'activeRounds', targetSyncId);
+  spectatorUnsubscribe = onSnapshot(activeRoundRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const cloudData = docSnap.data();
+      
+      state.numHoles = cloudData.numHoles || 9;
+      state.currentHoleIndex = cloudData.currentHoleIndex || 0;
+      state.selectedCourse = cloudData.selectedCourse || null;
+      state.holes = cloudData.holes || [];
+      state.mode = cloudData.mode || 'individual';
+      state.players = cloudData.players || ['You'];
+      state.matchType = cloudData.matchType || 'leaderboard';
+      state.roundStartTime = cloudData.roundStartTime || null;
+      state.roundElapsedTime = cloudData.roundElapsedTime || 0;
+      state.isTimerRunning = cloudData.isTimerRunning || false;
+
+      updateUI();
+      updateGPSWidget();
+      setControlsReadOnly(true);
+    } else {
+      console.warn("Active round does not exist or has been completed.");
+      const transcriptBox = document.getElementById('transcript-box');
+      if (transcriptBox) {
+        transcriptBox.innerHTML = '<p class="transcript-placeholder" style="color:var(--danger)">Waiting for active round data from host...</p>';
+      }
+    }
+  }, (error) => {
+    console.error("Firestore onSnapshot error:", error);
+    alert("Error connecting to live stream: " + error.message);
+    disconnectSpectatorMode();
+  });
+
+  setControlsReadOnly(true);
+
+  const settingsDialog = document.getElementById('settings-dialog');
+  if (settingsDialog && settingsDialog.open) {
+    settingsDialog.close();
+  }
+}
+
+function disconnectSpectatorMode() {
+  if (spectatorUnsubscribe) {
+    spectatorUnsubscribe();
+    spectatorUnsubscribe = null;
+  }
+
+  isSpectating = false;
+  spectatingId = '';
+
+  const spectateStatusContainer = document.getElementById('spectate-status-container');
+  const spectateSyncIdInput = document.getElementById('spectate-sync-id');
+  if (spectateStatusContainer) spectateStatusContainer.classList.add('hidden');
+  if (spectateSyncIdInput) spectateSyncIdInput.value = '';
+
+  loadState();
+  setControlsReadOnly(false);
+  updateUI();
+  updateGPSWidget();
+
+  alert("Disconnected from Live Spectator mode.");
+}
+
 function renderNotesList(activeHole) {
   const notesList = document.getElementById('hole-notes-list');
   notesList.innerHTML = '';
@@ -2199,9 +2625,12 @@ function renderScorecard() {
   if (isMatchMode) {
     scoreRow.style.display = 'none';
     const players = state.players || ['You'];
-    players.forEach(p => {
+    players.forEach((p, idx) => {
       const tr = document.createElement('tr');
       tr.className = 'player-score-row';
+      if (state.matchType === 'team' && idx === 2) {
+        tr.classList.add('player-score-row-team-divider');
+      }
       tr.innerHTML = `<td class="row-header">${p}</td>`;
       tbody.insertBefore(tr, puttsRow);
       playerRows[p] = tr;
@@ -2227,38 +2656,81 @@ function renderScorecard() {
     tdPar.textContent = hole.par;
     parRow.appendChild(tdPar);
 
-    // If Match Mode, determine the hole winner
+    // If Match Mode, determine the hole winner or team winner
     let holeWinner = null;
+    let teamWinner = null; // 'A' or 'B'
+    let teamBestScore = null;
+
     if (isMatchMode) {
       const players = state.players || ['You'];
-      let bestScore = Infinity;
-      let winners = [];
-      let activeCount = 0;
 
-      players.forEach(p => {
-        const score = (hole.playerScores && hole.playerScores[p]) || 0;
-        const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
+      if (state.matchType === 'team' && players.length === 4) {
+        const p1 = players[0];
+        const p2 = players[1];
+        const p3 = players[2];
+        const p4 = players[3];
 
-        if (score > 0 || conceded) {
-          activeCount++;
-          if (!conceded) {
-            if (score < bestScore) {
-              bestScore = score;
-              winners = [p];
-            } else if (score === bestScore) {
-              winners.push(p);
+        const s1 = (hole.playerScores && hole.playerScores[p1]) || 0;
+        const c1 = (hole.playerConceded && hole.playerConceded[p1]) || false;
+        const s2 = (hole.playerScores && hole.playerScores[p2]) || 0;
+        const c2 = (hole.playerConceded && hole.playerConceded[p2]) || false;
+        const s3 = (hole.playerScores && hole.playerScores[p3]) || 0;
+        const c3 = (hole.playerConceded && hole.playerConceded[p3]) || false;
+        const s4 = (hole.playerScores && hole.playerScores[p4]) || 0;
+        const c4 = (hole.playerConceded && hole.playerConceded[p4]) || false;
+
+        const teamA = getTeamBestBall(s1, c1, s2, c2);
+        const teamB = getTeamBestBall(s3, c3, s4, c4);
+
+        if (teamA.played && teamB.played) {
+          if (teamA.conceded && teamB.conceded) {
+            // halved
+          } else if (teamA.conceded) {
+            teamWinner = 'B';
+            teamBestScore = teamB.score;
+          } else if (teamB.conceded) {
+            teamWinner = 'A';
+            teamBestScore = teamA.score;
+          } else {
+            if (teamA.score < teamB.score) {
+              teamWinner = 'A';
+              teamBestScore = teamA.score;
+            } else if (teamB.score < teamA.score) {
+              teamWinner = 'B';
+              teamBestScore = teamB.score;
             }
           }
         }
-      });
+      } else {
+        let bestScore = Infinity;
+        let winners = [];
+        let activeCount = 0;
 
-      // A hole has a winner only if at least two players recorded a score/concession and one player has the unique best score
-      if (activeCount >= 2 && winners.length === 1) {
-        holeWinner = winners[0];
+        players.forEach(p => {
+          const score = (hole.playerScores && hole.playerScores[p]) || 0;
+          const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
+
+          if (score > 0 || conceded) {
+            activeCount++;
+            if (!conceded) {
+              if (score < bestScore) {
+                bestScore = score;
+                winners = [p];
+              } else if (score === bestScore) {
+                winners.push(p);
+              }
+            }
+          }
+        });
+
+        // A hole has a winner only if at least two players recorded a score/concession and one player has the unique best score
+        if (activeCount >= 2 && winners.length === 1) {
+          holeWinner = winners[0];
+        }
       }
 
       // Populate each player's row cell
-      players.forEach(p => {
+      players.forEach((p, idx) => {
         const td = document.createElement('td');
         if (isCurrent) td.className = 'active-col';
         td.className += ' cell-val';
@@ -2285,7 +2757,24 @@ function renderScorecard() {
           }
         }
 
-        if (p === holeWinner) {
+        let cellWon = false;
+        if (state.matchType === 'team' && players.length === 4) {
+          if (teamWinner === 'A' && idx < 2) {
+            if (!conceded && score === teamBestScore && score > 0) {
+              cellWon = true;
+            }
+          } else if (teamWinner === 'B' && idx >= 2) {
+            if (!conceded && score === teamBestScore && score > 0) {
+              cellWon = true;
+            }
+          }
+        } else {
+          if (p === holeWinner) {
+            cellWon = true;
+          }
+        }
+
+        if (cellWon) {
           td.classList.add('cell-won-hole');
         }
 
@@ -2353,6 +2842,7 @@ function navigateHole(index) {
 }
 
 function updateHoleMetric(key, val) {
+  if (isSpectating) return;
   const activeHole = state.holes[state.currentHoleIndex];
   if (activeHole) {
     activeHole[key] = val;
@@ -2373,6 +2863,7 @@ function updateHoleMetric(key, val) {
 }
 
 function addManualNote() {
+  if (isSpectating) return;
   const input = document.getElementById('manual-note-input');
   const noteText = input.value.trim();
   if (noteText) {
@@ -2789,6 +3280,7 @@ function normalizeGolfTranscript(text) {
 }
 
 function processFinalTranscript(transcript) {
+  if (isSpectating) return;
   if (!transcript || !transcript.trim()) return;
 
   const normalized = normalizeGolfTranscript(transcript);

@@ -207,6 +207,10 @@
                     <span class="gps-pulse"></span>
                     <span id="gps-status-lbl">GPS Active</span>
                   </div>
+                  <div class="gps-status-badge hidden" id="spectator-mode-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; display: flex; align-items: center; gap: 0.25rem;">
+                    <span class="gps-pulse" style="background: #3b82f6; box-shadow: 0 0 0 rgba(59, 130, 246, 0.7);"></span>
+                    <span id="spectator-badge-text">Spectating Live</span>
+                  </div>
                 </div>
               </div>
               <div class="gps-distance-display">
@@ -591,24 +595,33 @@
 
             <!-- Match Play Players Configuration -->
             <div id="match-play-setup-section" class="form-group-block hidden">
-              <label class="form-section-title">Match Play Players (Up to 4)</label>
-              <p class="form-help-text">Enter up to 4 player names. Player 1 is always you. Leaving names blank will exclude them.</p>
+              <label class="form-section-title">Match Type</label>
+              <div class="segmented-control" role="radiogroup" aria-label="Match Type" style="margin-bottom: 1rem;">
+                <input type="radio" id="match-type-leaderboard" name="match-type" value="leaderboard" checked>
+                <label for="match-type-leaderboard">Leaderboard / Individual</label>
+                
+                <input type="radio" id="match-type-team" name="match-type" value="team">
+                <label for="match-type-team">2-on-2 Team Match</label>
+              </div>
+
+              <label class="form-section-title" id="match-players-title">Match Play Players</label>
+              <p class="form-help-text" id="match-players-help">Enter player names. Leaving names blank will exclude them.</p>
               <div class="match-players-inputs">
                 <div class="player-input-row">
-                  <span class="player-label">Player 1:</span>
+                  <span class="player-label" id="player-1-label">Player 1:</span>
                   <input type="text" id="player-1-name" class="form-input" value="You" readonly>
                 </div>
                 <div class="player-input-row">
-                  <span class="player-label">Player 2:</span>
-                  <input type="text" id="player-2-name" class="form-input" placeholder="Enter Player 2 name/alias..." list="player-aliases-list">
+                  <span class="player-label" id="player-2-label">Player 2:</span>
+                  <input type="text" id="player-2-name" class="form-input" placeholder="Enter player name/alias..." list="player-aliases-list">
                 </div>
                 <div class="player-input-row">
-                  <span class="player-label">Player 3:</span>
-                  <input type="text" id="player-3-name" class="form-input" placeholder="Enter Player 3 name/alias..." list="player-aliases-list">
+                  <span class="player-label" id="player-3-label">Player 3:</span>
+                  <input type="text" id="player-3-name" class="form-input" placeholder="Enter player name/alias..." list="player-aliases-list">
                 </div>
                 <div class="player-input-row">
-                  <span class="player-label">Player 4:</span>
-                  <input type="text" id="player-4-name" class="form-input" placeholder="Enter Player 4 name/alias..." list="player-aliases-list">
+                  <span class="player-label" id="player-4-label">Player 4:</span>
+                  <input type="text" id="player-4-name" class="form-input" placeholder="Enter player name/alias..." list="player-aliases-list">
                 </div>
               </div>
               <datalist id="player-aliases-list"></datalist>
@@ -681,6 +694,20 @@
                   <input type="checkbox" id="switch-audio-feedback" checked>
                   <span class="slider round"></span>
                 </label>
+              </div>
+            </div>
+
+            <!-- Live Spectator Mode -->
+            <div class="form-group-block">
+              <label class="form-section-title">Live Spectator Mode</label>
+              <p class="form-help-text">Enter another player's Sync ID to view their active round in real-time on this device.</p>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="spectate-sync-id" class="form-input" placeholder="e.g. caddie-xxxxxxxxxxxx">
+                <button type="button" id="btn-spectate-join" class="btn btn-primary" style="flex-shrink: 0; padding: 0.5rem 1rem;">Join Live</button>
+              </div>
+              <div id="spectate-status-container" class="hidden" style="margin-top: 0.5rem; display: flex; align-items: center; justify-content: space-between; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);">
+                <span id="spectate-status-text" style="font-size: 0.85rem; color: #60a5fa; font-weight: 500;">👁️ Spectating: None</span>
+                <button type="button" id="btn-spectate-stop" class="btn btn-danger btn-xs" style="padding: 0.25rem 0.5rem;">Disconnect</button>
               </div>
             </div>
 

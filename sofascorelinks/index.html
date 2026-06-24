@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SofaScore Link Builder — Dynamic Attribution & Deep Link Generator</title>
   <meta name="description" content="Generate and customize SofaScore campaign tracking URLs and deep links with custom publisher IDs, payouts, click lookback windows, and instant copy-to-clipboard functionality.">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=1.1.0">
 </head>
 <body>
   <div class="container">
@@ -70,6 +70,14 @@
           <div class="input-wrapper">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             <input type="text" id="mediaSource" class="form-control" value="qinyueblivz_int" placeholder="e.g. qinyueblivz_int">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Target OS (Payout Mode)</label>
+          <div style="display: flex; gap: 0.5rem; background: rgba(11, 15, 25, 0.6); padding: 0.25rem; border-radius: 10px; border: 1px solid var(--border-color);">
+            <button type="button" id="btnOsAndroid" class="btn btn-preset active" style="flex: 1; margin: 0; justify-content: center; text-transform: uppercase; font-weight: 600;" data-os="android">Android (AOS)</button>
+            <button type="button" id="btnOsiOS" class="btn btn-preset" style="flex: 1; margin: 0; justify-content: center; text-transform: uppercase; font-weight: 600;" data-os="ios">iOS</button>
           </div>
         </div>
 
@@ -191,6 +199,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- App Javascript -->
-  <script src="app.js"></script>
+  <script src="app.js?v=1.1.0"></script>
 </body>
 </html>
