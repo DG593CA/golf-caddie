@@ -2706,3 +2706,38 @@ a:hover {
 .lookup-history-outcome.draw {
   color: var(--color-secondary);
 }
+
+/* Pinned Post Visual Highlights & Mod Controls */
+.community-post-card.pinned-post {
+  border: 1px solid var(--gold) !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.12) !important;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.03) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+}
+
+.mod-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.mod-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-primary);
+}
+
+.mod-action-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.mod-action-btn.pin-toggle:hover {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--gold);
+}

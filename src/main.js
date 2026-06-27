@@ -123,7 +123,8 @@ let state = {
   customCourseMappings: '{}',
   customCourses: [],
   hasCompletedTutorial: false,
-  hiddenRoundIds: []
+  hiddenRoundIds: [],
+  isAdmin: false
 };
 
 // Speech Recognition Variables
@@ -183,6 +184,7 @@ function loadState() {
       if (!state.customCourses) state.customCourses = [];
       if (state.hasCompletedTutorial === undefined) state.hasCompletedTutorial = false;
       if (!state.hiddenRoundIds) state.hiddenRoundIds = [];
+      if (state.isAdmin === undefined) state.isAdmin = false;
       if (state.mode === undefined) state.mode = 'individual';
       if (state.matchType === undefined) state.matchType = 'leaderboard';
       if (!state.players || !state.players.length) state.players = ['You'];
@@ -215,6 +217,7 @@ function initDefaultState() {
   state.customCourses = [];
   state.hasCompletedTutorial = false;
   state.hiddenRoundIds = [];
+  state.isAdmin = false;
   state.mode = 'individual';
   state.matchType = 'leaderboard';
   state.players = ['You'];
@@ -253,6 +256,22 @@ async function syncFromCloud() {
       if (userData.customCourses !== undefined) state.customCourses = userData.customCourses;
       if (userData.hasCompletedTutorial !== undefined) state.hasCompletedTutorial = userData.hasCompletedTutorial;
       if (userData.playerAliases !== undefined) state.playerAliases = userData.playerAliases;
+      
+      const isDeveloperEmail = auth.currentUser && auth.currentUser.email && (
+        auth.currentUser.email.toLowerCase().includes('danny') ||
+        auth.currentUser.email.toLowerCase().includes('travis') ||
+        auth.currentUser.email.toLowerCase() === 'travis.hildreth@hotmail.com'
+      );
+      if (userData.isAdmin !== undefined) {
+        state.isAdmin = !!userData.isAdmin;
+      } else if (isDeveloperEmail) {
+        state.isAdmin = true;
+        try {
+          await updateDoc(userDocRef, { isAdmin: true });
+        } catch (e) {
+          console.warn("Failed to auto-bootstrap isAdmin in cloud:", e);
+        }
+      }
       
       // Fetch completed rounds from roundIds and query participant match play rounds
       const cloudRounds = [];
@@ -1801,6 +1820,20 @@ function initUI() {
       if (communityContent) communityContent.classList.remove('hidden');
       activeRoundContent.classList.add('hidden');
       historyContent.classList.add('hidden');
+      
+      // Toggle admin options container visibility
+      const adminOptions = document.getElementById('community-admin-options');
+      if (adminOptions) {
+        if (state.isAdmin) {
+          adminOptions.classList.remove('hidden');
+          const select = document.getElementById('community-post-as-handle');
+          if (select && select.options[0]) {
+            select.options[0].textContent = `Your Username (@${state.username || 'user'})`;
+          }
+        } else {
+          adminOptions.classList.add('hidden');
+        }
+      }
       
       // Start community real-time feed subscription
       initCommunityFeedListener();
@@ -6080,9 +6113,23 @@ function initCommunityFeedListener() {
       return;
     }
 
+    const posts = [];
     snapshot.forEach((postDoc) => {
-      const post = postDoc.data();
-      const postId = postDoc.id;
+      posts.push({
+        id: postDoc.id,
+        ...postDoc.data()
+      });
+    });
+
+    // Sort in memory: pinned posts first, keeping newest-first ordering otherwise
+    posts.sort((a, b) => {
+      const pinA = a.isPinned ? 1 : 0;
+      const pinB = b.isPinned ? 1 : 0;
+      return pinB - pinA;
+    });
+
+    posts.forEach((post) => {
+      const postId = post.id;
       const hasLiked = post.likes && Array.isArray(post.likes) && post.likes.includes(state.syncId);
       const likesCount = post.likes ? post.likes.length : 0;
       const commentsCount = post.commentsCount || 0;
@@ -6090,20 +6137,46 @@ function initCommunityFeedListener() {
       const avatarLetters = (post.username || 'Golfer').substring(0, 2).toUpperCase();
 
       const postCard = document.createElement('div');
-      postCard.className = 'glass-card community-post-card';
+      postCard.className = 'glass-card community-post-card' + (post.isPinned ? ' pinned-post' : '');
       postCard.dataset.postId = postId;
+
+      const pinActionBtn = state.isAdmin ? `
+        <button class="mod-action-btn pin-toggle" onclick="window.togglePinPost('${postId}', ${!!post.isPinned})" title="${post.isPinned ? 'Unpin Post' : 'Pin Post'}">
+          📌
+        </button>
+      ` : '';
+
+      const deleteActionBtn = state.isAdmin ? `
+        <button class="mod-action-btn delete" onclick="window.deletePost('${postId}')" title="Delete Post">
+          🗑️
+        </button>
+      ` : '';
+
+      const pinnedBadge = post.isPinned ? `
+        <div style="background: rgba(245, 158, 11, 0.15); color: var(--gold); font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.25rem; margin-bottom: 0.75rem; width: fit-content; border: 1px solid rgba(245, 158, 11, 0.3);">
+          📌 FEATURED
+        </div>
+      ` : '';
+
       postCard.innerHTML = `
         <!-- Header -->
-        <div class="post-header">
-          <div class="post-avatar">${avatarLetters}</div>
-          <div class="post-meta">
-            <span class="post-author-name">${escapeHtml(post.username || 'Anonymous Golfer')}</span>
-            <span class="post-timestamp">${formatTimeAgo(post.createdAt)}</span>
+        <div class="post-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div class="post-avatar">${avatarLetters}</div>
+            <div class="post-meta">
+              <span class="post-author-name">${escapeHtml(post.username || 'Anonymous Golfer')}</span>
+              <span class="post-timestamp">${formatTimeAgo(post.createdAt)}</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.25rem;">
+            ${pinActionBtn}
+            ${deleteActionBtn}
           </div>
         </div>
         
         <!-- Content -->
-        <div class="post-body">
+        <div class="post-body" style="display: flex; flex-direction: column;">
+          ${pinnedBadge}
           ${post.text ? `<p class="post-text">${escapeHtml(post.text)}</p>` : ''}
           ${post.image ? `<img src="${post.image}" class="post-image" alt="Golf Community Post Upload">` : ''}
         </div>
@@ -6148,7 +6221,19 @@ async function createPost(text, base64Image) {
     return;
   }
 
-  const activeUsername = state.username || auth.currentUser.email.split('@')[0] || 'Anonymous';
+  let activeUsername = state.username || auth.currentUser.email.split('@')[0] || 'Anonymous';
+  let isPinned = false;
+
+  if (state.isAdmin) {
+    const handleSelect = document.getElementById('community-post-as-handle');
+    if (handleSelect && handleSelect.value !== 'current') {
+      activeUsername = handleSelect.value;
+    }
+    const pinCheck = document.getElementById('community-post-pin');
+    if (pinCheck && pinCheck.checked) {
+      isPinned = true;
+    }
+  }
 
   const postsRef = collection(db, 'posts');
   await addDoc(postsRef, {
@@ -6158,8 +6243,15 @@ async function createPost(text, base64Image) {
     image: base64Image || '',
     likes: [],
     commentsCount: 0,
+    isPinned: isPinned,
     createdAt: new Date()
   });
+
+  // Reset pin checkbox
+  if (state.isAdmin) {
+    const pinCheck = document.getElementById('community-post-pin');
+    if (pinCheck) pinCheck.checked = false;
+  }
 }
 
 // Toggle liking a post (adds or removes user's syncId from likes array)
@@ -6225,12 +6317,24 @@ function subscribeToComments(postId) {
 
       const commentItem = document.createElement('div');
       commentItem.className = 'comment-item';
+      commentItem.style.display = 'flex';
+      commentItem.style.alignItems = 'flex-start';
+      commentItem.style.gap = '0.5rem';
+
+      const commentId = commentDoc.id;
+      const deleteCommentBtn = state.isAdmin ? `
+        <button class="mod-action-btn delete" onclick="window.deleteComment('${postId}', '${commentId}')" title="Delete Comment" style="margin-top: 0.25rem; align-self: center;">
+          🗑️
+        </button>
+      ` : '';
+
       commentItem.innerHTML = `
         <div class="comment-avatar">${avatarLetters}</div>
-        <div class="comment-content-bubble">
+        <div class="comment-content-bubble" style="flex: 1;">
           <span class="comment-author-name">${escapeHtml(comment.username)}</span>
           <p class="comment-text">${escapeHtml(comment.text)}</p>
         </div>
+        ${deleteCommentBtn}
       `;
       commentsList.appendChild(commentItem);
     });
@@ -6712,3 +6816,41 @@ document.addEventListener('DOMContentLoaded', () => {
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
   initMatchPlayLookupUI();
 }
+
+// Admin Moderation Global Functions
+window.togglePinPost = async function(postId, currentPinnedState) {
+  if (!state.isAdmin) return;
+  try {
+    const postRef = doc(db, 'posts', postId);
+    await updateDoc(postRef, { isPinned: !currentPinnedState });
+  } catch (error) {
+    console.error("Failed to pin/unpin post:", error);
+    alert("Moderation error: " + error.message);
+  }
+};
+
+window.deletePost = async function(postId) {
+  if (!state.isAdmin) return;
+  if (confirm("Are you sure you want to delete this post? This will remove it from the community feed permanently.")) {
+    try {
+      const postRef = doc(db, 'posts', postId);
+      await deleteDoc(postRef);
+    } catch (error) {
+      console.error("Failed to delete post:", error);
+      alert("Moderation error: " + error.message);
+    }
+  }
+};
+
+window.deleteComment = async function(postId, commentId) {
+  if (!state.isAdmin) return;
+  if (confirm("Are you sure you want to delete this comment?")) {
+    try {
+      const commentRef = doc(db, 'posts', postId, 'comments', commentId);
+      await deleteDoc(commentRef);
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+      alert("Moderation error: " + error.message);
+    }
+  }
+};
