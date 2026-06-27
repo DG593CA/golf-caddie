@@ -6414,6 +6414,13 @@ function initCommunityFeedListener(filterMode = 'all') {
       
       const avatarLetters = (post.username || 'Golfer').substring(0, 2).toUpperCase();
 
+      const youtubeId = extractYouTubeId(post.text);
+      const youtubeEmbed = youtubeId ? `
+        <div class="youtube-embed-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px; margin-top: 0.75rem; border: 1px solid var(--border-light); background: #000; box-shadow: var(--shadow-glow);">
+          <iframe src="https://www.youtube.com/embed/${youtubeId}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+      ` : '';
+
       const postCard = document.createElement('div');
       postCard.className = 'glass-card community-post-card' + (post.isPinned ? ' pinned-post' : '');
       postCard.dataset.postId = postId;
@@ -6456,6 +6463,7 @@ function initCommunityFeedListener(filterMode = 'all') {
         <div class="post-body" style="display: flex; flex-direction: column;">
           ${pinnedBadge}
           ${post.text ? `<p class="post-text">${formatTextWithTags(escapeHtml(post.text))}</p>` : ''}
+          ${youtubeEmbed}
           ${post.image ? `<img src="${post.image}" class="post-image" alt="Golf Community Post Upload">` : ''}
         </div>
         
@@ -7328,4 +7336,18 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
   initContactUsUI();
+}
+
+// Helper to extract YouTube video ID from post/comment body texts
+function extractYouTubeId(text) {
+  if (!text) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const words = text.split(/\s+/);
+  for (const word of words) {
+    const match = word.match(regExp);
+    if (match && match[2].length === 11) {
+      return match[2];
+    }
+  }
+  return null;
 }
