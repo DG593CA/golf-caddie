@@ -51,6 +51,7 @@
         <nav class="app-nav-tabs" aria-label="Main Navigation">
           <button id="tab-active-round" class="nav-tab active" aria-selected="true">⛳ Active Round</button>
           <button id="tab-history" class="nav-tab" aria-selected="false">📊 History &amp; Handicap</button>
+          <button id="tab-community" class="nav-tab" aria-selected="false">👥 Community</button>
         </nav>
 
         <!-- Active Round Tab Content -->
@@ -561,6 +562,45 @@
             </div>
           </section>
         </div>
+
+        <!-- Community Tab Content -->
+        <div id="community-tab-content" class="tab-content hidden" style="padding: 1rem 0;">
+          <!-- Create Post Card -->
+          <div class="glass-card community-create-post-card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+            <h3 style="margin-bottom: 0.75rem; font-size: 1.1rem; color: var(--color-primary);">Create a Post</h3>
+            <textarea id="community-post-text" placeholder="Share your latest round, golf tips, or highlights..." class="form-input" style="width: 100%; min-height: 80px; resize: none; margin-bottom: 1rem; border-radius: 8px; padding: 0.75rem;" maxlength="500"></textarea>
+            
+            <div class="post-actions-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <!-- Image Upload Button & Preview -->
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <label for="community-post-image-input" class="btn btn-secondary btn-sm" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; padding: 0.5rem 0.75rem;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                  <span>Add Photo</span>
+                </label>
+                <input type="file" id="community-post-image-input" accept="image/*" style="display: none;">
+                
+                <!-- Small thumbnail preview -->
+                <div id="community-post-image-preview-container" style="display: none; position: relative;">
+                  <img id="community-post-image-preview" src="" style="width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-light);">
+                  <button type="button" id="btn-clear-post-image" style="position: absolute; top: -5px; right: -5px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">&times;</button>
+                </div>
+              </div>
+              
+              <button type="button" id="btn-submit-post" class="btn btn-primary btn-sm" style="padding: 0.5rem 1.25rem;">
+                Post
+              </button>
+            </div>
+          </div>
+          
+          <!-- Community Feed Section -->
+          <div class="community-feed-section">
+            <h3 style="margin-bottom: 1rem; font-size: 1.1rem; opacity: 0.9;">Recent Activity</h3>
+            <div id="community-feed-list" class="community-feed-grid">
+              <!-- Dynamically populated via real-time Firestore listener -->
+              <p class="empty-notes-text" style="padding: 3rem 1rem; text-align: center;">Loading community activity...</p>
+            </div>
+          </div>
+        </div>
       </main>
 
       <!-- Settings & Course Setup Modal (Standard semantic dialog) -->
@@ -871,6 +911,10 @@
 
           <!-- Form fields -->
           <div class="auth-form-fields" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
+            <div id="gate-auth-username-wrapper" style="display: none;">
+              <label for="gate-auth-username" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Username</label>
+              <input type="text" id="gate-auth-username" class="form-input" placeholder="Choose username (e.g. golfer1)" autocomplete="username">
+            </div>
             <div>
               <label for="gate-auth-email" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Email Address</label>
               <input type="email" id="gate-auth-email" class="form-input" placeholder="name@domain.com" autocomplete="email">

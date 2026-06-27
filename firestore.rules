@@ -75,7 +75,7 @@ service cloud.firestore {
     // Domain validation functions
     function isValidUserDoc(data, syncId) {
       return hasRequiredFields(['syncId', 'roundIds', 'createdAt', 'updatedAt']) &&
-             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'playerAliases', 'createdAt', 'updatedAt']) &&
+             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'playerAliases', 'createdAt', 'updatedAt', 'username', 'customCourses', 'hasCompletedTutorial']) &&
              data.syncId == syncId &&
              isValidSyncId(data.syncId) &&
              isValidOptionalString(data, 'apiKey', 1000) &&
@@ -84,7 +84,10 @@ service cloud.firestore {
              isValidOptionalString(data, 'customCourseMappings', 100000) &&
              data.roundIds is list &&
              data.roundIds.size() <= 5000 &&
-             (!('playerAliases' in data) || (data.playerAliases is list && data.playerAliases.size() <= 1000));
+             (!('playerAliases' in data) || (data.playerAliases is list && data.playerAliases.size() <= 1000)) &&
+             (!('username' in data) || (data.username is string && data.username.size() <= 50)) &&
+             (!('hasCompletedTutorial' in data) || data.hasCompletedTutorial is bool) &&
+             (!('customCourses' in data) || data.customCourses is list);
     }
 
     function isValidRoundDoc(data, docId) {
@@ -146,6 +149,14 @@ service cloud.firestore {
     match /activeRounds/{syncId} {
       allow get: if isValidSyncId(syncId);
       allow write: if isValidSyncId(syncId);
+    }
+
+    match /posts/{postId} {
+      allow read, write: if request.auth != null;
+      
+      match /comments/{commentId} {
+        allow read, write: if request.auth != null;
+      }
     }
   }
 }

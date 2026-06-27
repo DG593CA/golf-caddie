@@ -1,7 +1,7 @@
 import './style.css';
 import { Capacitor } from '@capacitor/core';
 import { db, auth } from './firebase.js';
-import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, addDoc, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 // Detect iOS and apply class for notch safe area styling
 if (typeof window !== 'undefined' && Capacitor.getPlatform() === 'ios') {
@@ -105,6 +105,7 @@ const MOCK_COURSES = [
 
 let state = {
   syncId: '',
+  username: '',
   numHoles: 9,
   currentHoleIndex: 0,
   apiKey: '',
@@ -167,6 +168,7 @@ function loadState() {
       state = JSON.parse(savedState);
       state.isListening = false;
       if (!state.syncId) state.syncId = generateSyncId();
+      if (state.username === undefined) state.username = '';
       if (!state.history) state.history = [];
       if (!state.golfApiKey) state.golfApiKey = 'JU7TE2S574463W653KOETCNKH4';
       if (state.openaiApiKey === undefined) state.openaiApiKey = '';
@@ -194,6 +196,7 @@ function loadState() {
 
 function initDefaultState() {
   state.syncId = generateSyncId();
+  state.username = '';
   state.numHoles = 9;
   state.apiKey = '';
   state.golfApiKey = 'JU7TE2S574463W653KOETCNKH4';
@@ -235,6 +238,11 @@ async function syncFromCloud() {
       const userData = userDocSnap.data();
       
       // Update local keys if they match
+      if (userData.username !== undefined) {
+        state.username = userData.username;
+      } else {
+        state.username = auth.currentUser && auth.currentUser.email ? auth.currentUser.email.split('@')[0] : 'Golfer_' + state.syncId.substring(0, 5);
+      }
       if (userData.apiKey !== undefined) state.apiKey = userData.apiKey;
       if (userData.openaiApiKey !== undefined) state.openaiApiKey = userData.openaiApiKey;
       if (userData.golfApiKey !== undefined) state.golfApiKey = userData.golfApiKey;
@@ -304,6 +312,7 @@ async function saveSettingsToCloud() {
     
     await setDoc(userDocRef, {
       syncId: state.syncId,
+      username: state.username || '',
       apiKey: state.apiKey || '',
       openaiApiKey: state.openaiApiKey || '',
       golfApiKey: state.golfApiKey || '',
@@ -462,7 +471,7 @@ async function deleteUserAccount() {
   }
 }
 
-async function migrateUserData(uid, localHistory, localSettings) {
+async function migrateUserData(uid, localHistory, localSettings, username) {
   try {
     const userDocRef = doc(db, 'users', uid);
     let roundIds = [];
@@ -487,6 +496,7 @@ async function migrateUserData(uid, localHistory, localSettings) {
     // Set the user document
     await setDoc(userDocRef, {
       syncId: uid,
+      username: username || '',
       apiKey: localSettings.apiKey || '',
       openaiApiKey: localSettings.openaiApiKey || '',
       golfApiKey: localSettings.golfApiKey || 'JU7TE2S574463W653KOETCNKH4',
@@ -514,6 +524,10 @@ function initAuth() {
   const gateAuthErrorMsg = document.getElementById('gate-auth-error-msg');
   const gateSyncIdInput = document.getElementById('gate-sync-id-input');
   const btnGateConnectSync = document.getElementById('btn-gate-connect-sync');
+  
+  // Username Elements
+  const gateAuthUsernameWrapper = document.getElementById('gate-auth-username-wrapper');
+  const gateAuthUsername = document.getElementById('gate-auth-username');
 
   // New Forgot Password Elements
   const gateAuthTabs = document.getElementById('gate-auth-tabs');
@@ -540,6 +554,7 @@ function initAuth() {
     gateAuthPasswordWrapper.style.display = 'block';
     gateAuthForgotHelper.style.display = 'none';
     gateBackToLoginWrapper.style.display = 'none';
+    if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'none';
   });
 
   gateTabSignup.addEventListener('click', () => {
@@ -551,6 +566,7 @@ function initAuth() {
     gateAuthPasswordWrapper.style.display = 'block';
     gateAuthForgotHelper.style.display = 'none';
     gateBackToLoginWrapper.style.display = 'none';
+    if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'block';
   });
 
   btnGateForgotPassword.addEventListener('click', () => {
@@ -561,6 +577,7 @@ function initAuth() {
     gateBackToLoginWrapper.style.display = 'block';
     btnGateAuthSubmit.textContent = 'Send Reset Email';
     gateAuthErrorMsg.style.display = 'none';
+    if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'none';
   });
 
   btnGateBackToLogin.addEventListener('click', () => {
@@ -572,12 +589,14 @@ function initAuth() {
     btnGateAuthSubmit.textContent = 'Log In';
     gateAuthErrorMsg.style.display = 'none';
     gateAuthPassword.value = '';
+    if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'none';
   });
 
   // Submit action on login gate (Log In, Sign Up, or Password Reset)
   btnGateAuthSubmit.addEventListener('click', async () => {
     const email = gateAuthEmail.value.trim();
     const password = gateAuthPassword.value;
+    let username = '';
 
     if (currentAuthMode === 'forgot') {
       if (!email) {
@@ -588,6 +607,21 @@ function initAuth() {
       if (!email || !password) {
         showGateAuthError("Please fill in both email and password.");
         return;
+      }
+      if (currentAuthMode === 'signup') {
+        username = gateAuthUsername.value.trim();
+        if (!username) {
+          showGateAuthError("Please choose a username for the community.");
+          return;
+        }
+        if (username.length < 3 || username.length > 20) {
+          showGateAuthError("Username must be between 3 and 20 characters.");
+          return;
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+          showGateAuthError("Username can only contain letters, numbers, and underscores.");
+          return;
+        }
       }
     }
 
@@ -617,6 +651,16 @@ function initAuth() {
         gateAuthPassword.value = '';
       } else {
         // Sign Up
+        // Check if username is already taken first in Firestore users collection
+        const q = query(collection(db, 'users'), where('username', '==', username));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          showGateAuthError("This username is already taken. Please choose another.");
+          btnGateAuthSubmit.disabled = false;
+          btnGateAuthSubmit.textContent = originalText;
+          return;
+        }
+
         // Capture existing local state before signing up for migration
         const existingLocalHistory = [...(state.history || [])];
         const existingSettings = {
@@ -631,7 +675,9 @@ function initAuth() {
         const user = userCredential.user;
 
         // Perform migration of local rounds and settings to Firestore under new User UID
-        await migrateUserData(user.uid, existingLocalHistory, existingSettings);
+        state.username = username;
+        saveState();
+        await migrateUserData(user.uid, existingLocalHistory, existingSettings, username);
         isMigrating = false;
         
         // Refresh local data from newly migrated cloud profile
@@ -639,6 +685,7 @@ function initAuth() {
         // Clear forms
         gateAuthEmail.value = '';
         gateAuthPassword.value = '';
+        if (gateAuthUsername) gateAuthUsername.value = '';
       }
     } catch (error) {
       console.error("Authentication error:", error);
@@ -1624,20 +1671,33 @@ function initUI() {
   // Tab Switching Layout triggers
   const tabActiveRound = document.getElementById('tab-active-round');
   const tabHistory = document.getElementById('tab-history');
+  const tabCommunity = document.getElementById('tab-community');
   const activeRoundContent = document.getElementById('active-round-tab-content');
   const historyContent = document.getElementById('history-tab-content');
+  const communityContent = document.getElementById('community-tab-content');
 
   tabActiveRound.addEventListener('click', () => {
     tabActiveRound.classList.add('active');
     tabActiveRound.setAttribute('aria-selected', 'true');
     tabHistory.classList.remove('active');
     tabHistory.setAttribute('aria-selected', 'false');
+    if (tabCommunity) {
+      tabCommunity.classList.remove('active');
+      tabCommunity.setAttribute('aria-selected', 'false');
+    }
+    
     activeRoundContent.classList.remove('hidden');
     historyContent.classList.add('hidden');
+    if (communityContent) communityContent.classList.add('hidden');
     
     // Reset view to show active scoring dashboard and hide performance report
     document.getElementById('dashboard-view').classList.remove('hidden');
     document.getElementById('report-view').classList.add('hidden');
+
+    if (window.communityUnsubscribe) {
+      window.communityUnsubscribe();
+      window.communityUnsubscribe = null;
+    }
   });
 
   tabHistory.addEventListener('click', () => {
@@ -1645,11 +1705,40 @@ function initUI() {
     tabHistory.setAttribute('aria-selected', 'true');
     tabActiveRound.classList.remove('active');
     tabActiveRound.setAttribute('aria-selected', 'false');
+    if (tabCommunity) {
+      tabCommunity.classList.remove('active');
+      tabCommunity.setAttribute('aria-selected', 'false');
+    }
+    
     historyContent.classList.remove('hidden');
     activeRoundContent.classList.add('hidden');
+    if (communityContent) communityContent.classList.add('hidden');
     // Ensure the history page contents are rendered
     renderHistoryTab();
+
+    if (window.communityUnsubscribe) {
+      window.communityUnsubscribe();
+      window.communityUnsubscribe = null;
+    }
   });
+
+  if (tabCommunity) {
+    tabCommunity.addEventListener('click', () => {
+      tabCommunity.classList.add('active');
+      tabCommunity.setAttribute('aria-selected', 'true');
+      tabActiveRound.classList.remove('active');
+      tabActiveRound.setAttribute('aria-selected', 'false');
+      tabHistory.classList.remove('active');
+      tabHistory.setAttribute('aria-selected', 'false');
+      
+      if (communityContent) communityContent.classList.remove('hidden');
+      activeRoundContent.classList.add('hidden');
+      historyContent.classList.add('hidden');
+      
+      // Start community real-time feed subscription
+      initCommunityFeedListener();
+    });
+  }
 
   // Complete round open dialog
   const completeDialog = document.getElementById('complete-round-dialog');
@@ -5718,3 +5807,373 @@ function initTutorial() {
     }
   });
 }
+
+// =========================================================================
+// Golf Community Feed Business Logic
+// =========================================================================
+
+window.communityUnsubscribe = null;
+let activePostCommentsSubscriptions = {};
+let postImageBase64 = '';
+
+// Helper to escape HTML to prevent XSS in community
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Helper to format timestamps nicely
+function formatTimeAgo(timestamp) {
+  if (!timestamp) return 'Just now';
+  let date;
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    date = timestamp.toDate();
+  } else if (timestamp instanceof Date) {
+    date = timestamp;
+  } else if (timestamp && timestamp.seconds) {
+    date = new Date(timestamp.seconds * 1000);
+  } else {
+    date = new Date(timestamp);
+  }
+  
+  const seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 60) return 'Just now';
+  
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+// Initialize community event listeners (file uploads, posting)
+function initCommunityUI() {
+  const postImageInput = document.getElementById('community-post-image-input');
+  const imagePreviewContainer = document.getElementById('community-post-image-preview-container');
+  const imagePreview = document.getElementById('community-post-image-preview');
+  const btnClearImage = document.getElementById('btn-clear-post-image');
+  const btnSubmitPost = document.getElementById('btn-submit-post');
+  const postTextarea = document.getElementById('community-post-text');
+
+  if (postImageInput) {
+    postImageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Validate size (< 800KB for base64 safety in Firestore)
+      if (file.size > 800 * 1024) {
+        alert("Image is too large. Please select a photo smaller than 800 KB.");
+        postImageInput.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        postImageBase64 = event.target.result;
+        if (imagePreview) imagePreview.src = postImageBase64;
+        if (imagePreviewContainer) imagePreviewContainer.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (btnClearImage) {
+    btnClearImage.addEventListener('click', () => {
+      postImageBase64 = '';
+      if (postImageInput) postImageInput.value = '';
+      if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
+      if (imagePreview) imagePreview.src = '';
+    });
+  }
+
+  if (btnSubmitPost) {
+    btnSubmitPost.addEventListener('click', async () => {
+      const text = postTextarea.value.trim();
+      if (!text && !postImageBase64) {
+        alert("Please write a message or attach a photo before posting.");
+        return;
+      }
+
+      btnSubmitPost.disabled = true;
+      btnSubmitPost.textContent = 'Posting...';
+
+      try {
+        await createPost(text, postImageBase64);
+        
+        // Clear input form
+        postTextarea.value = '';
+        postImageBase64 = '';
+        if (postImageInput) postImageInput.value = '';
+        if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
+        if (imagePreview) imagePreview.src = '';
+      } catch (error) {
+        console.error("Failed to share post:", error);
+        alert("Failed to share post: " + error.message);
+      } finally {
+        btnSubmitPost.disabled = false;
+        btnSubmitPost.textContent = 'Post';
+      }
+    });
+  }
+}
+
+// Add a community listener execution during app initialization
+document.addEventListener('DOMContentLoaded', () => {
+  initCommunityUI();
+});
+// Fallback if DOMContentLoaded already fired
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  initCommunityUI();
+}
+
+// Start real-time snapshot subscription to recent community activity
+function initCommunityFeedListener() {
+  if (window.communityUnsubscribe) return; // already listening
+
+  const feedList = document.getElementById('community-feed-list');
+  if (!feedList) return;
+
+  const postsRef = collection(db, 'posts');
+  const q = query(postsRef, orderBy('createdAt', 'desc'), limit(50));
+
+  window.communityUnsubscribe = onSnapshot(q, (snapshot) => {
+    feedList.innerHTML = '';
+    
+    if (snapshot.empty) {
+      feedList.innerHTML = `
+        <div style="text-align: center; padding: 3rem 1rem; color: var(--color-secondary);">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⛳</div>
+          <p>No activity yet. Be the first to share something with the community!</p>
+        </div>
+      `;
+      return;
+    }
+
+    snapshot.forEach((postDoc) => {
+      const post = postDoc.data();
+      const postId = postDoc.id;
+      const hasLiked = post.likes && Array.isArray(post.likes) && post.likes.includes(state.syncId);
+      const likesCount = post.likes ? post.likes.length : 0;
+      const commentsCount = post.commentsCount || 0;
+      
+      const avatarLetters = (post.username || 'Golfer').substring(0, 2).toUpperCase();
+
+      const postCard = document.createElement('div');
+      postCard.className = 'glass-card community-post-card';
+      postCard.dataset.postId = postId;
+      postCard.innerHTML = `
+        <!-- Header -->
+        <div class="post-header">
+          <div class="post-avatar">${avatarLetters}</div>
+          <div class="post-meta">
+            <span class="post-author-name">${escapeHtml(post.username || 'Anonymous Golfer')}</span>
+            <span class="post-timestamp">${formatTimeAgo(post.createdAt)}</span>
+          </div>
+        </div>
+        
+        <!-- Content -->
+        <div class="post-body">
+          ${post.text ? `<p class="post-text">${escapeHtml(post.text)}</p>` : ''}
+          ${post.image ? `<img src="${post.image}" class="post-image" alt="Golf Community Post Upload">` : ''}
+        </div>
+        
+        <!-- Actions -->
+        <div class="post-actions">
+          <button class="post-action-btn like-btn ${hasLiked ? 'liked' : ''}" onclick="window.toggleLikePost('${postId}')">
+            <svg class="heart-icon" width="16" height="16" viewBox="0 0 24 24" fill="${hasLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <span>${likesCount} Likes</span>
+          </button>
+          
+          <button class="post-action-btn comment-toggle-btn" onclick="window.toggleCommentsView('${postId}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+            <span class="comment-count-text-${postId}">${commentsCount} Comments</span>
+          </button>
+        </div>
+        
+        <!-- Comments Drawer -->
+        <div class="post-comments-container hidden" id="comments-container-${postId}">
+          <div class="comments-list" id="comments-list-${postId}">
+            <p style="font-size: 0.8rem; color: var(--color-secondary); padding: 0.5rem 0;">Loading comments...</p>
+          </div>
+          
+          <div class="comment-input-row">
+            <input type="text" id="comment-input-${postId}" placeholder="Write a reply..." class="form-input comment-input" maxlength="250">
+            <button class="btn btn-primary btn-sm comment-submit-btn" onclick="window.submitComment('${postId}')">Reply</button>
+          </div>
+        </div>
+      `;
+      feedList.appendChild(postCard);
+    });
+  }, (error) => {
+    console.error("Community Feed snapshot failed:", error);
+    feedList.innerHTML = `<p class="empty-notes-text" style="color: var(--danger); text-align: center;">Unable to load community feed: ${error.message}</p>`;
+  });
+}
+
+// Create a new post document
+async function createPost(text, base64Image) {
+  if (!auth.currentUser) {
+    alert("You must be logged in to share a post.");
+    return;
+  }
+
+  const activeUsername = state.username || auth.currentUser.email.split('@')[0] || 'Anonymous';
+
+  const postsRef = collection(db, 'posts');
+  await addDoc(postsRef, {
+    uid: state.syncId,
+    username: activeUsername,
+    text: text || '',
+    image: base64Image || '',
+    likes: [],
+    commentsCount: 0,
+    createdAt: new Date()
+  });
+}
+
+// Toggle liking a post (adds or removes user's syncId from likes array)
+window.toggleLikePost = async function(postId) {
+  if (!state.syncId) return;
+
+  const postDocRef = doc(db, 'posts', postId);
+  try {
+    const postSnap = await getDoc(postDocRef);
+    if (!postSnap.exists()) return;
+
+    const postData = postSnap.data();
+    const likesList = postData.likes || [];
+    const isLiked = likesList.includes(state.syncId);
+
+    await updateDoc(postDocRef, {
+      likes: isLiked ? arrayRemove(state.syncId) : arrayUnion(state.syncId)
+    });
+  } catch (error) {
+    console.error("Failed to toggle like:", error);
+  }
+};
+
+// Toggle comments visibility drawer and setup real-time comment collection subscription
+window.toggleCommentsView = function(postId) {
+  const container = document.getElementById(`comments-container-${postId}`);
+  if (!container) return;
+
+  const isHidden = container.classList.contains('hidden');
+  if (isHidden) {
+    container.classList.remove('hidden');
+    subscribeToComments(postId);
+  } else {
+    container.classList.add('hidden');
+    unsubscribeFromComments(postId);
+  }
+};
+
+// Start listener for comments subcollection under a specific post doc
+function subscribeToComments(postId) {
+  if (activePostCommentsSubscriptions[postId]) return; // already listening
+
+  const commentsList = document.getElementById(`comments-list-${postId}`);
+  if (!commentsList) return;
+
+  const commentsRef = collection(db, 'posts', postId, 'comments');
+  const q = query(commentsRef, orderBy('createdAt', 'asc'));
+
+  activePostCommentsSubscriptions[postId] = onSnapshot(q, (snapshot) => {
+    commentsList.innerHTML = '';
+    
+    if (snapshot.empty) {
+      commentsList.innerHTML = `<p style="font-size: 0.8rem; color: var(--color-secondary); padding: 0.5rem 0;">No comments yet. Start the conversation!</p>`;
+      updateCommentsCountLabel(postId, 0);
+      return;
+    }
+
+    let count = 0;
+    snapshot.forEach((commentDoc) => {
+      count++;
+      const comment = commentDoc.data();
+      const avatarLetters = (comment.username || 'Golfer').substring(0, 2).toUpperCase();
+
+      const commentItem = document.createElement('div');
+      commentItem.className = 'comment-item';
+      commentItem.innerHTML = `
+        <div class="comment-avatar">${avatarLetters}</div>
+        <div class="comment-content-bubble">
+          <span class="comment-author-name">${escapeHtml(comment.username)}</span>
+          <p class="comment-text">${escapeHtml(comment.text)}</p>
+        </div>
+      `;
+      commentsList.appendChild(commentItem);
+    });
+
+    // Auto-scroll comment list to bottom
+    commentsList.scrollTop = commentsList.scrollHeight;
+
+    // Sync comments count in parent post
+    updateCommentsCountLabel(postId, count);
+    
+    const postDocRef = doc(db, 'posts', postId);
+    updateDoc(postDocRef, { commentsCount: count }).catch(err => {
+      console.warn("Failed to update parent comment count in cloud document:", err);
+    });
+  }, (err) => {
+    console.error("Comments listener failed:", err);
+  });
+}
+
+// Unsubscribe helper from comments
+function unsubscribeFromComments(postId) {
+  if (activePostCommentsSubscriptions[postId]) {
+    activePostCommentsSubscriptions[postId]();
+    delete activePostCommentsSubscriptions[postId];
+  }
+}
+
+// Local UI count helper
+function updateCommentsCountLabel(postId, count) {
+  const label = document.querySelector(`.comment-count-text-${postId}`);
+  if (label) {
+    label.textContent = `${count} Comments`;
+  }
+}
+
+// Submit a reply comment
+window.submitComment = async function(postId) {
+  const input = document.getElementById(`comment-input-${postId}`);
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (!auth.currentUser) {
+    alert("You must be logged in to comment.");
+    return;
+  }
+
+  const activeUsername = state.username || auth.currentUser.email.split('@')[0] || 'Anonymous';
+  const commentSubmitBtn = document.querySelector(`#comments-container-${postId} .comment-submit-btn`);
+
+  if (commentSubmitBtn) commentSubmitBtn.disabled = true;
+
+  try {
+    const commentsRef = collection(db, 'posts', postId, 'comments');
+    await addDoc(commentsRef, {
+      uid: state.syncId,
+      username: activeUsername,
+      text: text,
+      createdAt: new Date()
+    });
+    input.value = '';
+  } catch (error) {
+    console.error("Failed to add comment:", error);
+    alert("Failed to submit comment: " + error.message);
+  } finally {
+    if (commentSubmitBtn) commentSubmitBtn.disabled = false;
+  }
+};
