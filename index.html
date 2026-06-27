@@ -713,6 +713,20 @@
                 </div>
               </div>
               <datalist id="player-aliases-list"></datalist>
+
+              <!-- Custom Team Names (Only visible when 2-on-2 Team Match is selected) -->
+              <div id="team-names-setup" class="hidden" style="margin-top: 1rem; border-top: 1px dashed var(--border-light); padding-top: 1rem;">
+                <label class="form-section-title">Team Names</label>
+                <p class="form-help-text">Customize team names for matching results and standings.</p>
+                <div class="player-input-row" style="margin-bottom: 0.5rem;">
+                  <span class="player-label" style="min-width: 70px;">Team 1:</span>
+                  <input type="text" id="team-1-name" class="form-input" placeholder="Team A">
+                </div>
+                <div class="player-input-row">
+                  <span class="player-label" style="min-width: 70px;">Team 2:</span>
+                  <input type="text" id="team-2-name" class="form-input" placeholder="Team B">
+                </div>
+              </div>
             </div>
 
             <!-- Cloud Database Sync (Firebase Auth status) -->

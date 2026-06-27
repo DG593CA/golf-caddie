@@ -124,7 +124,9 @@ let state = {
   customCourses: [],
   hasCompletedTutorial: false,
   hiddenRoundIds: [],
-  isAdmin: false
+  isAdmin: false,
+  team1Name: '',
+  team2Name: ''
 };
 
 // Speech Recognition Variables
@@ -185,6 +187,8 @@ function loadState() {
       if (state.hasCompletedTutorial === undefined) state.hasCompletedTutorial = false;
       if (!state.hiddenRoundIds) state.hiddenRoundIds = [];
       if (state.isAdmin === undefined) state.isAdmin = false;
+      if (state.team1Name === undefined) state.team1Name = '';
+      if (state.team2Name === undefined) state.team2Name = '';
       if (state.mode === undefined) state.mode = 'individual';
       if (state.matchType === undefined) state.matchType = 'leaderboard';
       if (!state.players || !state.players.length) state.players = ['You'];
@@ -218,6 +222,8 @@ function initDefaultState() {
   state.hasCompletedTutorial = false;
   state.hiddenRoundIds = [];
   state.isAdmin = false;
+  state.team1Name = '';
+  state.team2Name = '';
   state.mode = 'individual';
   state.matchType = 'leaderboard';
   state.players = ['You'];
@@ -977,6 +983,8 @@ function setupActiveRoundSubscription() {
       if (cloudHolesStr !== localHolesStr || 
           cloudData.mode !== state.mode ||
           cloudData.matchType !== state.matchType ||
+          cloudData.team1Name !== state.team1Name ||
+          cloudData.team2Name !== state.team2Name ||
           JSON.stringify(cloudData.players) !== JSON.stringify(state.players)) {
         
         console.log("Syncing active round updates from cloud/collaborator...");
@@ -987,6 +995,8 @@ function setupActiveRoundSubscription() {
         state.mode = cloudData.mode || 'individual';
         state.players = cloudData.players || ['You'];
         state.matchType = cloudData.matchType || 'leaderboard';
+        state.team1Name = cloudData.team1Name || '';
+        state.team2Name = cloudData.team2Name || '';
         state.roundStartTime = cloudData.roundStartTime || null;
         state.roundElapsedTime = cloudData.roundElapsedTime || 0;
         state.isTimerRunning = cloudData.isTimerRunning || false;
@@ -1030,6 +1040,8 @@ async function publishActiveRoundToCloud() {
       players: state.players || ['You'],
       playerUsernames: (state.players || []).map(p => p.toLowerCase()),
       matchType: state.matchType || 'leaderboard',
+      team1Name: state.team1Name || '',
+      team2Name: state.team2Name || '',
       roundStartTime: state.roundStartTime || null,
       roundElapsedTime: state.roundElapsedTime || 0,
       isTimerRunning: state.isTimerRunning || false,
@@ -1128,10 +1140,18 @@ function initUI() {
   const matchSetupSec = document.getElementById('match-play-setup-section');
   if (modeIndiv && modeMatch && matchSetupSec) {
     const updateVisibility = () => {
+      const teamNamesSetup = document.getElementById('team-names-setup');
       if (modeMatch.checked) {
         matchSetupSec.classList.remove('hidden');
+        const selectedMatchType = document.querySelector('input[name="match-type"]:checked');
+        if (teamNamesSetup && selectedMatchType && selectedMatchType.value === 'team') {
+          teamNamesSetup.classList.remove('hidden');
+        } else if (teamNamesSetup) {
+          teamNamesSetup.classList.add('hidden');
+        }
       } else {
         matchSetupSec.classList.add('hidden');
+        if (teamNamesSetup) teamNamesSetup.classList.add('hidden');
       }
     };
     modeIndiv.addEventListener('change', updateVisibility);
@@ -1212,6 +1232,22 @@ function initUI() {
         matchSetupSec.classList.remove('hidden');
       } else {
         matchSetupSec.classList.add('hidden');
+      }
+    }
+
+    // Populate custom team names
+    const team1Input = document.getElementById('team-1-name');
+    const team2Input = document.getElementById('team-2-name');
+    if (team1Input) team1Input.value = state.team1Name || '';
+    if (team2Input) team2Input.value = state.team2Name || '';
+
+    // Show/hide team-names-setup panel
+    const teamNamesSetup = document.getElementById('team-names-setup');
+    if (teamNamesSetup) {
+      if (state.mode === 'match' && state.matchType === 'team') {
+        teamNamesSetup.classList.remove('hidden');
+      } else {
+        teamNamesSetup.classList.add('hidden');
       }
     }
     
@@ -1312,6 +1348,11 @@ function initUI() {
         const matchTypeVal = document.querySelector('input[name="match-type"]:checked').value;
         state.matchType = matchTypeVal;
 
+        const team1Val = document.getElementById('team-1-name').value.trim();
+        const team2Val = document.getElementById('team-2-name').value.trim();
+        state.team1Name = team1Val;
+        state.team2Name = team2Val;
+
         let p1 = state.username || 'You';
         let p2 = document.getElementById('player-2-name').value.trim();
         let p3 = document.getElementById('player-3-name').value.trim();
@@ -1378,6 +1419,8 @@ function initUI() {
       } else {
         state.mode = 'individual';
         state.players = ['You'];
+        state.team1Name = '';
+        state.team2Name = '';
       }
       
       if (state.numHoles !== numHolesVal) {
@@ -1478,6 +1521,15 @@ function initUI() {
     const handleMatchTypeChange = () => {
       const selected = document.querySelector('input[name="match-type"]:checked').value;
       updatePlayerLabels(selected);
+      
+      const teamNamesSetup = document.getElementById('team-names-setup');
+      if (teamNamesSetup) {
+        if (selected === 'team') {
+          teamNamesSetup.classList.remove('hidden');
+        } else {
+          teamNamesSetup.classList.add('hidden');
+        }
+      }
     };
     matchTypeLeaderboardRadio.addEventListener('change', handleMatchTypeChange);
     matchTypeTeamRadio.addEventListener('change', handleMatchTypeChange);
@@ -1935,6 +1987,8 @@ function initUI() {
       durationSeconds: elapsedSeconds,
       mode: state.mode || 'individual',
       players: state.players || ['You'],
+      team1Name: state.team1Name || '',
+      team2Name: state.team2Name || '',
       matchPlayStandings: matchPlayStandingsVal,
       holes: JSON.parse(JSON.stringify(state.holes)) // deep copy
     };
@@ -2528,17 +2582,20 @@ function calculateMatchPlayStandings() {
     
     const lead = Math.abs(diff);
     
+    const t1Name = state.team1Name || 'Team A';
+    const t2Name = state.team2Name || 'Team B';
+    
     if (lead > holesRemaining) {
       matchFinished = true;
-      winner = diff > 0 ? 'Team A' : 'Team B';
+      winner = diff > 0 ? t1Name : t2Name;
       margin = `${lead} & ${holesRemaining}`;
       statusText = `${winner} won ${margin}`;
     } else if (lead === holesRemaining && holesRemaining > 0) {
-      statusText = diff > 0 ? `Team A Dormie ${lead}` : `Team B Dormie ${lead}`;
+      statusText = diff > 0 ? `${t1Name} Dormie ${lead}` : `${t2Name} Dormie ${lead}`;
     } else if (diff > 0) {
-      statusText = `Team A ${lead} Up`;
+      statusText = `${t1Name} ${lead} Up`;
     } else if (diff < 0) {
-      statusText = `Team B ${lead} Up`;
+      statusText = `${t2Name} ${lead} Up`;
     }
 
     return {
@@ -2971,6 +3028,8 @@ function joinSpectatorMode(targetSyncId, role = 'viewer') {
       state.mode = cloudData.mode || 'individual';
       state.players = cloudData.players || ['You'];
       state.matchType = cloudData.matchType || 'leaderboard';
+      state.team1Name = cloudData.team1Name || '';
+      state.team2Name = cloudData.team2Name || '';
       state.roundStartTime = cloudData.roundStartTime || null;
       state.roundElapsedTime = cloudData.roundElapsedTime || 0;
       state.isTimerRunning = cloudData.isTimerRunning || false;
@@ -3824,6 +3883,73 @@ function processFinalTranscript(transcript) {
     if (!clause) continue;
 
     let isStat = false;
+
+    // Team match-play result voice commands (e.g. "Team A one-up", "Cougars won the hole")
+    if (state.mode === 'match' && state.matchType === 'team' && state.players && state.players.length === 4) {
+      const team1Name = (state.team1Name || 'Team A').toLowerCase();
+      const team2Name = (state.team2Name || 'Team B').toLowerCase();
+
+      const p1 = state.players[0];
+      const p2 = state.players[1];
+      const p3 = state.players[2];
+      const p4 = state.players[3];
+
+      // Check Team 1 win commands: "Team A one-up", "Team A won", "Team 1 up"
+      const t1Regex = new RegExp(`\\b(?:${team1Name}|team\\s+1)\\s+(?:one[- ]up|1[- ]up|won|won\\s+the\\s+hole|up)\\b`, 'i');
+      if (t1Regex.test(clause)) {
+        activeHole.playerConceded[p1] = false;
+        activeHole.playerConceded[p2] = false;
+        if (!activeHole.playerScores[p1]) activeHole.playerScores[p1] = activeHole.par;
+        if (!activeHole.playerScores[p2]) activeHole.playerScores[p2] = activeHole.par;
+        
+        activeHole.conceded = false;
+        activeHole.score = activeHole.playerScores[p1];
+
+        activeHole.playerConceded[p3] = true;
+        activeHole.playerConceded[p4] = true;
+        activeHole.playerScores[p3] = activeHole.par;
+        activeHole.playerScores[p4] = activeHole.par;
+
+        updates.playerUpdates.push({ name: p1, conceded: false, score: activeHole.playerScores[p1] });
+        updates.playerUpdates.push({ name: p2, conceded: false, score: activeHole.playerScores[p2] });
+        updates.playerUpdates.push({ name: p3, conceded: true, score: activeHole.par });
+        updates.playerUpdates.push({ name: p4, conceded: true, score: activeHole.par });
+
+        isStat = true;
+        clause = clause.replace(t1Regex, '').trim();
+      }
+
+      // Check Team 2 win commands: "Team B one-up", "Team B won", "Team 2 up"
+      const t2Regex = new RegExp(`\\b(?:${team2Name}|team\\s+2)\\s+(?:one[- ]up|1[- ]up|won|won\\s+the\\s+hole|up)\\b`, 'i');
+      if (t2Regex.test(clause)) {
+        activeHole.playerConceded[p3] = false;
+        activeHole.playerConceded[p4] = false;
+        if (!activeHole.playerScores[p3]) activeHole.playerScores[p3] = activeHole.par;
+        if (!activeHole.playerScores[p4]) activeHole.playerScores[p4] = activeHole.par;
+
+        activeHole.playerConceded[p1] = true;
+        activeHole.playerConceded[p2] = true;
+        activeHole.playerScores[p1] = activeHole.par;
+        activeHole.playerScores[p2] = activeHole.par;
+
+        activeHole.conceded = true;
+        activeHole.score = activeHole.playerScores[p1];
+
+        updates.playerUpdates.push({ name: p1, conceded: true, score: activeHole.par });
+        updates.playerUpdates.push({ name: p2, conceded: true, score: activeHole.par });
+        updates.playerUpdates.push({ name: p3, conceded: false, score: activeHole.playerScores[p3] });
+        updates.playerUpdates.push({ name: p4, conceded: false, score: activeHole.playerScores[p4] });
+
+        isStat = true;
+        clause = clause.replace(t2Regex, '').trim();
+      }
+    }
+
+    if (!isStat && !clause) {
+      clauses[i] = '';
+      continue;
+    }
+
     let matchedPlayer = null;
 
     if (state.mode === 'match' && state.players) {
@@ -3847,6 +3973,40 @@ function processFinalTranscript(transcript) {
     }
 
     if (matchedPlayer) {
+      // Check if matchedPlayer won the hole: "John one-up", "John won the hole"
+      const wonMatch = clause.match(/\b(?:one[- ]up|1[- ]up|won|won\s+the\s+hole|up)\b/i);
+      if (wonMatch) {
+        activeHole.playerConceded[matchedPlayer] = false;
+        if (!activeHole.playerScores[matchedPlayer]) {
+          activeHole.playerScores[matchedPlayer] = activeHole.par;
+        }
+        updates.playerUpdates.push({ name: matchedPlayer, conceded: false, score: activeHole.playerScores[matchedPlayer] });
+        
+        if (matchedPlayer === 'You') {
+          activeHole.conceded = false;
+          activeHole.score = activeHole.playerScores[matchedPlayer];
+        }
+
+        state.players.forEach(p => {
+          if (p.toLowerCase() !== matchedPlayer.toLowerCase()) {
+            activeHole.playerConceded[p] = true;
+            let scoreVal = activeHole.playerScores[p] || 0;
+            if (scoreVal === 0) {
+              scoreVal = activeHole.par;
+              activeHole.playerScores[p] = scoreVal;
+            }
+            updates.playerUpdates.push({ name: p, conceded: true, score: scoreVal });
+            
+            if (p === 'You') {
+              activeHole.conceded = true;
+              activeHole.score = scoreVal;
+            }
+          }
+        });
+        isStat = true;
+        clause = clause.replace(wonMatch[0], '').trim();
+      }
+
       // Parse stats for matched player
       const concededMatch = clause.match(/\b(?:concede(?:d)?(?:\s+hole)?|hole\s+concede(?:d)?)\b/i);
       if (concededMatch) {
@@ -6643,15 +6803,18 @@ function calculateMatchPlayStandingsForRound(round) {
     const lead = Math.abs(diff);
     let winner = null;
     
+    const t1Name = round.team1Name || 'Team A';
+    const t2Name = round.team2Name || 'Team B';
+
     if (lead > holesRemaining) {
-      winner = diff > 0 ? 'Team A' : 'Team B';
+      winner = diff > 0 ? t1Name : t2Name;
       statusText = `${winner} won ${lead} & ${holesRemaining}`;
     } else if (lead === holesRemaining && holesRemaining > 0) {
-      statusText = diff > 0 ? `Team A Dormie ${lead}` : `Team B Dormie ${lead}`;
+      statusText = diff > 0 ? `${t1Name} Dormie ${lead}` : `${t2Name} Dormie ${lead}`;
     } else if (diff > 0) {
-      statusText = `Team A ${lead} Up`;
+      statusText = `${t1Name} ${lead} Up`;
     } else if (diff < 0) {
-      statusText = `Team B ${lead} Up`;
+      statusText = `${t2Name} ${lead} Up`;
     }
 
     return { statusText, winner };
