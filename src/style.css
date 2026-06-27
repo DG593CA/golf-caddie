@@ -2603,3 +2603,106 @@ a:hover {
   padding: 0 0.75rem;
   font-size: 0.8rem !important;
 }
+
+/* Match Play Live Popup & Stats Lookup Styles */
+.active-match-popup {
+  animation: popupScaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes popupScaleIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.lookup-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.lookup-stat-bubble {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem;
+  text-align: center;
+}
+
+.lookup-stat-lbl {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.lookup-stat-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.lookup-stat-val.win {
+  color: var(--emerald-glow);
+}
+
+.lookup-stat-val.loss {
+  color: var(--danger);
+}
+
+.lookup-stat-val.draw {
+  color: var(--gold);
+}
+
+.lookup-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.lookup-history-item {
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 3px solid var(--gold);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lookup-history-course {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.lookup-history-date {
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+}
+
+.lookup-history-outcome {
+  font-weight: 600;
+}
+
+.lookup-history-outcome.win {
+  color: var(--emerald-glow);
+}
+
+.lookup-history-outcome.loss {
+  color: var(--danger);
+}
+
+.lookup-history-outcome.draw {
+  color: var(--color-secondary);
+}

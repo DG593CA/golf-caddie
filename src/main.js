@@ -122,7 +122,8 @@ let state = {
   isTimerRunning: false,
   customCourseMappings: '{}',
   customCourses: [],
-  hasCompletedTutorial: false
+  hasCompletedTutorial: false,
+  hiddenRoundIds: []
 };
 
 // Speech Recognition Variables
@@ -181,6 +182,7 @@ function loadState() {
       if (!state.customCourseMappings) state.customCourseMappings = '{}';
       if (!state.customCourses) state.customCourses = [];
       if (state.hasCompletedTutorial === undefined) state.hasCompletedTutorial = false;
+      if (!state.hiddenRoundIds) state.hiddenRoundIds = [];
       if (state.mode === undefined) state.mode = 'individual';
       if (state.matchType === undefined) state.matchType = 'leaderboard';
       if (!state.players || !state.players.length) state.players = ['You'];
@@ -212,6 +214,7 @@ function initDefaultState() {
   state.customCourseMappings = '{}';
   state.customCourses = [];
   state.hasCompletedTutorial = false;
+  state.hiddenRoundIds = [];
   state.mode = 'individual';
   state.matchType = 'leaderboard';
   state.players = ['You'];
@@ -251,9 +254,11 @@ async function syncFromCloud() {
       if (userData.hasCompletedTutorial !== undefined) state.hasCompletedTutorial = userData.hasCompletedTutorial;
       if (userData.playerAliases !== undefined) state.playerAliases = userData.playerAliases;
       
-      // Fetch completed rounds from roundIds
+      // Fetch completed rounds from roundIds and query participant match play rounds
+      const cloudRounds = [];
+      
+      // 1. Fetch rounds where user is creator (host)
       if (userData.roundIds && userData.roundIds.length > 0) {
-        const cloudRounds = [];
         for (const roundDocId of userData.roundIds) {
           const roundDocRef = doc(db, 'rounds', roundDocId);
           const roundSnap = await getDoc(roundDocRef);
@@ -261,22 +266,48 @@ async function syncFromCloud() {
             cloudRounds.push(roundSnap.data());
           }
         }
-        
-        if (cloudRounds.length > 0) {
-          if (!state.history) state.history = [];
-          
-          let modified = false;
-          cloudRounds.forEach(cloudRound => {
-            const exists = state.history.some(r => r.id === cloudRound.id);
-            if (!exists) {
-              state.history.push(cloudRound);
-              modified = true;
+      }
+
+      // 2. Fetch rounds where user is participant in Match Play
+      if (state.username) {
+        try {
+          const qParticipant = query(
+            collection(db, 'rounds'),
+            where('mode', '==', 'match'),
+            where('playerUsernames', 'array-contains', state.username.toLowerCase())
+          );
+          const participantSnap = await getDocs(qParticipant);
+          participantSnap.forEach(docSnap => {
+            const rData = docSnap.data();
+            // Avoid duplicate additions
+            if (!cloudRounds.some(r => r.id === rData.id)) {
+              cloudRounds.push(rData);
             }
           });
-          
-          if (modified) {
-            state.history.sort((a, b) => b.id - a.id);
+        } catch (err) {
+          console.warn("Failed to fetch participant rounds:", err);
+        }
+      }
+      
+      if (cloudRounds.length > 0) {
+        if (!state.history) state.history = [];
+        
+        let modified = false;
+        cloudRounds.forEach(cloudRound => {
+          // Check if this round is hidden locally
+          if (state.hiddenRoundIds && state.hiddenRoundIds.includes(cloudRound.id)) {
+            return;
           }
+          
+          const exists = state.history.some(r => r.id === cloudRound.id);
+          if (!exists) {
+            state.history.push(cloudRound);
+            modified = true;
+          }
+        });
+        
+        if (modified) {
+          state.history.sort((a, b) => b.id - a.id);
         }
       }
       
@@ -339,6 +370,7 @@ async function saveRoundToCloud(archivedRound) {
     const roundDocRef = doc(db, 'rounds', docId);
     await setDoc(roundDocRef, {
       ...archivedRound,
+      playerUsernames: (archivedRound.players || []).map(p => p.toLowerCase()),
       syncId: state.syncId,
       createdAt: new Date()
     });
@@ -812,6 +844,7 @@ function initAuth() {
         await syncFromCloud();
       }
       setupActiveRoundSubscription();
+      listenForActiveMatches();
 
       if (!state.hasCompletedTutorial) {
         setTimeout(() => {
@@ -821,6 +854,11 @@ function initAuth() {
     } else {
       // User is logged out / guest mode
       console.log("Auth State: User is logged out");
+      
+      if (window.activeMatchesUnsubscribe) {
+        window.activeMatchesUnsubscribe();
+        window.activeMatchesUnsubscribe = null;
+      }
       
       // Show login gate and block app
       authGateOverlay.style.display = 'flex';
@@ -964,12 +1002,14 @@ async function publishActiveRoundToCloud() {
     const activeRoundRef = doc(db, 'activeRounds', targetSyncId);
     await setDoc(activeRoundRef, {
       syncId: targetSyncId,
+      hostUsername: isSpectating ? (state.hostUsername || 'Host') : (state.username || 'Host'),
       numHoles: state.numHoles || 9,
       currentHoleIndex: state.currentHoleIndex || 0,
       selectedCourse: state.selectedCourse || null,
       holes: state.holes || [],
       mode: state.mode || 'individual',
       players: state.players || ['You'],
+      playerUsernames: (state.players || []).map(p => p.toLowerCase()),
       matchType: state.matchType || 'leaderboard',
       roundStartTime: state.roundStartTime || null,
       roundElapsedTime: state.roundElapsedTime || 0,
@@ -1253,21 +1293,48 @@ function initUI() {
         const matchTypeVal = document.querySelector('input[name="match-type"]:checked').value;
         state.matchType = matchTypeVal;
 
-        const players = ['You'];
+        let p1 = state.username || 'You';
         let p2 = document.getElementById('player-2-name').value.trim();
         let p3 = document.getElementById('player-3-name').value.trim();
         let p4 = document.getElementById('player-4-name').value.trim();
-        
+
         if (matchTypeVal === 'team') {
           p2 = p2 || 'Partner';
           p3 = p3 || 'Opponent 1';
           p4 = p4 || 'Opponent 2';
 
-          if (p2.toLowerCase() === 'you') p2 = 'Partner';
-          if (p3.toLowerCase() === 'you' || p3.toLowerCase() === p2.toLowerCase()) p3 = 'Opponent 1';
-          if (p4.toLowerCase() === 'you' || p4.toLowerCase() === p2.toLowerCase() || p4.toLowerCase() === p3.toLowerCase()) p4 = 'Opponent 2';
+          if (p2.toLowerCase() === p1.toLowerCase()) p2 = 'Partner';
+          if (p3.toLowerCase() === p1.toLowerCase() || p3.toLowerCase() === p2.toLowerCase()) p3 = 'Opponent 1';
+          if (p4.toLowerCase() === p1.toLowerCase() || p4.toLowerCase() === p2.toLowerCase() || p4.toLowerCase() === p3.toLowerCase()) p4 = 'Opponent 2';
         }
-        
+
+        const playerNames = [];
+        if (p2 && !['partner', 'opponent 1', 'opponent 2'].includes(p2.toLowerCase())) playerNames.push(p2);
+        if (p3 && !['partner', 'opponent 1', 'opponent 2'].includes(p3.toLowerCase())) playerNames.push(p3);
+        if (p4 && !['partner', 'opponent 1', 'opponent 2'].includes(p4.toLowerCase())) playerNames.push(p4);
+
+        // Check which entered usernames are valid registered users
+        const unregisteredUsernames = [];
+        for (const pName of playerNames) {
+          const qUser = query(collection(db, 'users'), where('username', '==', pName.toLowerCase()));
+          const snapUser = await getDocs(qUser);
+          if (snapUser.empty) {
+            unregisteredUsernames.push(pName);
+          }
+        }
+
+        if (unregisteredUsernames.length > 0) {
+          const proceed = confirm(`The following players are not registered golfers in the system: ${unregisteredUsernames.join(', ')}.\n\nThey won't be able to connect or update scores on their phones in real time. Would you like to proceed anyway?`);
+          if (!proceed) {
+            if (saveButton) {
+              saveButton.disabled = false;
+              saveButton.textContent = originalText;
+            }
+            return;
+          }
+        }
+
+        const players = [p1];
         if (p2) players.push(p2);
         if (p3) players.push(p3);
         if (p4) players.push(p4);
@@ -1281,11 +1348,11 @@ function initUI() {
         });
         state.players = uniquePlayers;
         
-        // Auto-save aliases (excluding Player 1 "You" or existing ones)
+        // Auto-save aliases (excluding Player 1 or existing ones)
         if (!state.playerAliases) state.playerAliases = [];
         uniquePlayers.forEach(p => {
           const lowerP = p.toLowerCase();
-          if (lowerP !== 'you' && !state.playerAliases.some(alias => alias.toLowerCase() === lowerP)) {
+          if (lowerP !== p1.toLowerCase() && lowerP !== 'you' && !state.playerAliases.some(alias => alias.toLowerCase() === lowerP)) {
             state.playerAliases.push(p);
           }
         });
@@ -1814,6 +1881,8 @@ function initUI() {
     const pad = (num) => String(num).padStart(2, '0');
     const durationStr = hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
 
+    const matchPlayStandingsVal = state.mode === 'match' ? calculateMatchPlayStandings() : null;
+
     const archivedRound = {
       id: Date.now(),
       courseName: courseName,
@@ -1833,6 +1902,7 @@ function initUI() {
       durationSeconds: elapsedSeconds,
       mode: state.mode || 'individual',
       players: state.players || ['You'],
+      matchPlayStandings: matchPlayStandingsVal,
       holes: JSON.parse(JSON.stringify(state.holes)) // deep copy
     };
 
@@ -2860,6 +2930,7 @@ function joinSpectatorMode(targetSyncId, role = 'viewer') {
     if (docSnap.exists()) {
       const cloudData = docSnap.data();
       
+      state.hostUsername = cloudData.hostUsername || 'Host';
       state.numHoles = cloudData.numHoles || 9;
       // Keep state.currentHoleIndex local to prevent screen jumping!
       state.selectedCourse = cloudData.selectedCourse || null;
@@ -2876,9 +2947,19 @@ function joinSpectatorMode(targetSyncId, role = 'viewer') {
       setControlsReadOnly(isSpectating);
     } else {
       console.warn("Active round does not exist or has been completed.");
-      const transcriptBox = document.getElementById('transcript-box');
-      if (transcriptBox) {
-        transcriptBox.innerHTML = '<p class="transcript-placeholder" style="color:var(--danger)">Waiting for active round data from host...</p>';
+      if (isSpectating && spectatorRole === 'collaborator') {
+        alert("The host has completed this round! The round is now saved in your history.");
+        disconnectSpectatorMode();
+        // Sync history from cloud to load the completed round
+        syncFromCloud();
+        // Switch to history tab
+        const tabHistory = document.getElementById('tab-history');
+        if (tabHistory) tabHistory.click();
+      } else {
+        const transcriptBox = document.getElementById('transcript-box');
+        if (transcriptBox) {
+          transcriptBox.innerHTML = '<p class="transcript-placeholder" style="color:var(--danger)">Waiting for active round data from host...</p>';
+        }
       }
     }
   }, (error) => {
@@ -4718,10 +4799,23 @@ function renderHistoryTab() {
       diffLabel = diffVal;
     }
 
+    let matchPlaySummaryHtml = '';
+    if (round.mode === 'match') {
+      const standings = round.matchPlayStandings || calculateMatchPlayStandingsForRound(round);
+      if (standings && standings.statusText) {
+        matchPlaySummaryHtml = `
+          <div class="history-card-matchplay-summary" style="margin-top: 0.4rem; font-size: 0.8rem; color: var(--gold); display: flex; align-items: center; gap: 0.25rem;">
+            🏆 <strong>Match Play:</strong> ${escapeHTML(standings.statusText)}
+          </div>
+        `;
+      }
+    }
+
     card.innerHTML = `
       <div class="history-card-main">
         <span class="history-card-course">${escapeHTML(round.courseName)}</span>
         <span class="history-card-date">${escapeHTML(round.date)} &bull; ${round.numHoles} Holes${round.mode === 'match' ? `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald-glow); font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: var(--radius-sm); margin-left: 0.5rem;">Match Play</span>` : ''}${round.duration ? ` &bull; ⏱️ ${escapeHTML(round.duration)}` : ''}</span>
+        ${matchPlaySummaryHtml}
       </div>
       <div class="history-card-stats">
         <div class="history-card-stat-box">
@@ -4762,9 +4856,38 @@ function renderHistoryTab() {
       }
     });
 
-    card.querySelector('.btn-delete').addEventListener('click', (e) => {
+    card.querySelector('.btn-delete').addEventListener('click', async (e) => {
       const rId = parseInt(e.currentTarget.dataset.id);
       if (confirm('Are you sure you want to delete this round from your history? This cannot be undone.')) {
+        const round = state.history.find(r => r.id === rId);
+        if (round) {
+          if (round.syncId !== state.syncId) {
+            // Participant round: hide locally so it doesn't pull on sync
+            if (!state.hiddenRoundIds) state.hiddenRoundIds = [];
+            if (!state.hiddenRoundIds.includes(rId)) {
+              state.hiddenRoundIds.push(rId);
+            }
+          } else {
+            // Host round: delete from cloud database
+            try {
+              const docId = `${state.syncId}_${round.id}`;
+              const roundDocRef = doc(db, 'rounds', docId);
+              await deleteDoc(roundDocRef);
+              
+              // Remove from user's roundIds list in Firestore
+              const userDocRef = doc(db, 'users', state.syncId);
+              const userDocSnap = await getDoc(userDocRef);
+              if (userDocSnap.exists()) {
+                const rIds = userDocSnap.data().roundIds || [];
+                const updatedRIds = rIds.filter(id => id !== docId);
+                await updateDoc(userDocRef, { roundIds: updatedRIds });
+              }
+            } catch (err) {
+              console.warn("Failed to delete round from cloud database:", err);
+            }
+          }
+        }
+        
         state.history = state.history.filter(r => r.id !== rId);
         saveState();
         renderHistoryTab();
@@ -6177,3 +6300,415 @@ window.submitComment = async function(postId) {
     if (commentSubmitBtn) commentSubmitBtn.disabled = false;
   }
 };
+
+// =========================================================================
+// Multi-User Match Play & Stats Discovery Engine
+// =========================================================================
+
+window.activeMatchesUnsubscribe = null;
+window.dismissedActiveMatchId = null;
+
+// Dynamic active match detection listener
+function listenForActiveMatches() {
+  if (window.activeMatchesUnsubscribe) {
+    window.activeMatchesUnsubscribe();
+    window.activeMatchesUnsubscribe = null;
+  }
+
+  const activeUsername = state.username || (auth.currentUser && auth.currentUser.email ? auth.currentUser.email.split('@')[0] : '');
+  if (!activeUsername) return;
+
+  const activeRoundsRef = collection(db, 'activeRounds');
+  const q = query(activeRoundsRef, where('playerUsernames', 'array-contains', activeUsername.toLowerCase()));
+
+  window.activeMatchesUnsubscribe = onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) return;
+    
+    // Skip if user is currently spectating/co-scoring
+    if (isSpectating) return;
+
+    snapshot.forEach((docSnap) => {
+      const hostSyncId = docSnap.id;
+      
+      // Skip if user is the host
+      if (hostSyncId === state.syncId) return;
+      
+      // Skip if match has been dismissed previously in this session
+      if (window.dismissedActiveMatchId === hostSyncId) return;
+
+      const matchData = docSnap.data();
+      // Ensure it is match play
+      if (matchData.mode !== 'match') return;
+
+      const hostUsername = matchData.hostUsername || 'Host';
+      const courseName = matchData.selectedCourse ? matchData.selectedCourse.name : 'a golf course';
+
+      showActiveMatchNotification(hostSyncId, hostUsername, courseName);
+    });
+  }, (error) => {
+    console.warn("Active matches subscription warning:", error);
+  });
+}
+
+// Display custom glassmorphic modal offering to join live co-scoring session
+function showActiveMatchNotification(hostSyncId, hostUsername, courseName) {
+  if (document.getElementById('active-match-popup')) return;
+
+  const popup = document.createElement('div');
+  popup.id = 'active-match-popup';
+  popup.className = 'glass-card active-match-popup';
+  popup.style.position = 'fixed';
+  popup.style.top = '50%';
+  popup.style.left = '50%';
+  popup.style.transform = 'translate(-50%, -50%)';
+  popup.style.zIndex = '99999';
+  popup.style.padding = '1.5rem';
+  popup.style.width = '90%';
+  popup.style.maxWidth = '400px';
+  popup.style.border = '1px solid var(--border-focus)';
+  popup.style.boxShadow = 'var(--shadow-glow)';
+
+  popup.innerHTML = `
+    <h3 style="margin-bottom: 0.5rem; color: var(--gold); display: flex; align-items: center; gap: 0.5rem;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      <span>Live Match Play</span>
+    </h3>
+    <p style="font-size: 0.9rem; line-height: 1.45; color: var(--color-primary); margin-bottom: 1.25rem;">
+      You have been added to a match play round at <strong>${escapeHtml(courseName)}</strong> by <strong>${escapeHtml(hostUsername)}</strong>. Would you like to connect and co-score in real-time?
+    </p>
+    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+      <button type="button" id="btn-active-match-decline" class="btn btn-secondary btn-sm" style="padding: 0.5rem 1rem;">Dismiss</button>
+      <button type="button" id="btn-active-match-accept" class="btn btn-primary btn-sm" style="padding: 0.5rem 1rem; font-weight: 600;">Join Session</button>
+    </div>
+  `;
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'active-match-backdrop';
+  backdrop.style.position = 'fixed';
+  backdrop.style.top = '0';
+  backdrop.style.left = '0';
+  backdrop.style.width = '100vw';
+  backdrop.style.height = '100vh';
+  backdrop.style.background = 'rgba(0, 0, 0, 0.65)';
+  backdrop.style.backdropFilter = 'blur(4px)';
+  backdrop.style.zIndex = '99998';
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(popup);
+
+  document.getElementById('btn-active-match-decline').addEventListener('click', () => {
+    cleanup();
+    window.dismissedActiveMatchId = hostSyncId;
+  });
+
+  document.getElementById('btn-active-match-accept').addEventListener('click', () => {
+    cleanup();
+    const tabActiveRound = document.getElementById('tab-active-round');
+    if (tabActiveRound) tabActiveRound.click();
+    joinSpectatorMode(hostSyncId, 'collaborator');
+  });
+
+  function cleanup() {
+    if (popup.parentNode) popup.parentNode.removeChild(popup);
+    if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+  }
+}
+
+// Calculate match play standings for any historical round object
+function calculateMatchPlayStandingsForRound(round) {
+  const players = round.players || ['You'];
+  const numPlayers = players.length;
+  const numHoles = round.numHoles || 9;
+
+  if (round.matchType === 'team' && numPlayers === 4) {
+    const p1 = players[0];
+    const p2 = players[1];
+    const p3 = players[2];
+    const p4 = players[3];
+
+    let teamAWon = 0;
+    let teamBWon = 0;
+    let lastPlayedHole = 0;
+
+    round.holes.forEach(hole => {
+      const s1 = (hole.playerScores && hole.playerScores[p1]) || 0;
+      const c1 = (hole.playerConceded && hole.playerConceded[p1]) || false;
+      const s2 = (hole.playerScores && hole.playerScores[p2]) || 0;
+      const c2 = (hole.playerConceded && hole.playerConceded[p2]) || false;
+      const s3 = (hole.playerScores && hole.playerScores[p3]) || 0;
+      const c3 = (hole.playerConceded && hole.playerConceded[p3]) || false;
+      const s4 = (hole.playerScores && hole.playerScores[p4]) || 0;
+      const c4 = (hole.playerConceded && hole.playerConceded[p4]) || false;
+
+      const teamA = getTeamBestBall(s1, c1, s2, c2);
+      const teamB = getTeamBestBall(s3, c3, s4, c4);
+
+      if (teamA.played || teamB.played) {
+        lastPlayedHole = Math.max(lastPlayedHole, hole.number);
+      }
+
+      if (teamA.played && teamB.played) {
+        if (teamA.conceded && teamB.conceded) {
+          // halved
+        } else if (teamA.conceded) {
+          teamBWon++;
+        } else if (teamB.conceded) {
+          teamAWon++;
+        } else {
+          if (teamA.score < teamB.score) teamAWon++;
+          if (teamB.score < teamA.score) teamBWon++;
+        }
+      }
+    });
+
+    const holesRemaining = numHoles - lastPlayedHole;
+    const diff = teamAWon - teamBWon;
+    let statusText = 'All Square';
+    const lead = Math.abs(diff);
+    let winner = null;
+    
+    if (lead > holesRemaining) {
+      winner = diff > 0 ? 'Team A' : 'Team B';
+      statusText = `${winner} won ${lead} & ${holesRemaining}`;
+    } else if (lead === holesRemaining && holesRemaining > 0) {
+      statusText = diff > 0 ? `Team A Dormie ${lead}` : `Team B Dormie ${lead}`;
+    } else if (diff > 0) {
+      statusText = `Team A ${lead} Up`;
+    } else if (diff < 0) {
+      statusText = `Team B ${lead} Up`;
+    }
+
+    return { statusText, winner };
+  }
+
+  if (numPlayers === 2) {
+    const p1 = players[0];
+    const p2 = players[1];
+    
+    let p1Won = 0;
+    let p2Won = 0;
+    let lastPlayedHole = 0;
+
+    round.holes.forEach(hole => {
+      const s1 = (hole.playerScores && hole.playerScores[p1]) || 0;
+      const c1 = (hole.playerConceded && hole.playerConceded[p1]) || false;
+      const s2 = (hole.playerScores && hole.playerScores[p2]) || 0;
+      const c2 = (hole.playerConceded && hole.playerConceded[p2]) || false;
+      
+      const p1Played = s1 > 0 || c1;
+      const p2Played = s2 > 0 || c2;
+      
+      if (p1Played || p2Played) {
+        lastPlayedHole = Math.max(lastPlayedHole, hole.number);
+      }
+
+      if (p1Played && p2Played) {
+        if (c1 && c2) {
+          // halved
+        } else if (c1) {
+          p2Won++;
+        } else if (c2) {
+          p1Won++;
+        } else {
+          if (s1 < s2) p1Won++;
+          if (s2 < s1) p2Won++;
+        }
+      }
+    });
+
+    const holesRemaining = numHoles - lastPlayedHole;
+    const diff = p1Won - p2Won;
+    let statusText = 'All Square';
+    const lead = Math.abs(diff);
+    let winner = null;
+    
+    if (lead > holesRemaining) {
+      winner = diff > 0 ? p1 : p2;
+      statusText = `${winner} won ${lead} & ${holesRemaining}`;
+    } else if (lead === holesRemaining && holesRemaining > 0) {
+      statusText = diff > 0 ? `${p1} Dormie ${lead}` : `${p2} Dormie ${lead}`;
+    } else if (diff > 0) {
+      statusText = `${p1} ${lead} Up`;
+    } else if (diff < 0) {
+      statusText = `${p2} ${lead} Up`;
+    }
+    
+    return { statusText, winner };
+  }
+
+  // 3 or 4 players
+  const holesWon = {};
+  players.forEach(p => { holesWon[p] = 0; });
+  let lastPlayedHole = 0;
+  
+  round.holes.forEach(hole => {
+    const played = {};
+    let anyPlayed = false;
+    players.forEach(p => {
+      const score = (hole.playerScores && hole.playerScores[p]) || 0;
+      const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
+      if (score > 0 || conceded) {
+        played[p] = { score, conceded };
+        anyPlayed = true;
+      }
+    });
+    if (anyPlayed) {
+      lastPlayedHole = Math.max(lastPlayedHole, hole.number);
+      let bestScore = Infinity;
+      let winners = [];
+      players.forEach(p => {
+        if (played[p] && !played[p].conceded) {
+          const s = played[p].score;
+          if (s < bestScore) {
+            bestScore = s;
+            winners = [p];
+          } else if (s === bestScore) {
+            winners.push(p);
+          }
+        }
+      });
+      if (winners.length === 1) {
+        holesWon[winners[0]]++;
+      }
+    }
+  });
+
+  const leaderboard = players.map(p => ({
+    name: p,
+    won: holesWon[p] || 0
+  })).sort((a, b) => b.won - a.won);
+
+  return {
+    statusText: `${leaderboard[0].name} leads (${leaderboard[0].won} holes)`,
+    winner: leaderboard[0].name
+  };
+}
+
+// Search and compute head-to-head match stats between logged-in user and opponent
+function analyzeMatchPlayHistory(opponentUsername) {
+  const oppNameClean = opponentUsername.trim().toLowerCase();
+  const resultsContainer = document.getElementById('matchplay-lookup-results');
+  if (!resultsContainer) return;
+
+  if (!oppNameClean) {
+    alert("Please enter an opponent's username to analyze.");
+    return;
+  }
+
+  const myUsername = (state.username || 'You').toLowerCase();
+
+  // Filter history rounds for match play rounds containing both players
+  const matches = (state.history || []).filter(round => {
+    if (round.mode !== 'match') return false;
+    const playerNamesLower = (round.players || []).map(p => p.toLowerCase());
+    
+    // User can be listed as 'you' or their actual username
+    const containsMe = playerNamesLower.includes(myUsername) || playerNamesLower.includes('you');
+    const containsOpponent = playerNamesLower.includes(oppNameClean);
+    
+    return containsMe && containsOpponent;
+  });
+
+  resultsContainer.classList.remove('hidden');
+
+  if (matches.length === 0) {
+    resultsContainer.innerHTML = `
+      <p style="text-align: center; color: var(--color-secondary); font-size: 0.85rem; padding: 0.5rem 0;">
+        No match play rounds found with opponent: <strong>${escapeHtml(opponentUsername)}</strong>.
+      </p>
+    `;
+    return;
+  }
+
+  let wins = 0;
+  let losses = 0;
+  let ties = 0;
+  let itemsHtml = '';
+
+  matches.forEach(round => {
+    const standings = round.matchPlayStandings || calculateMatchPlayStandingsForRound(round);
+    const dateStr = round.date;
+    const courseName = round.courseName || 'Golf Course';
+    
+    let outcomeClass = 'draw';
+    let outcomeText = 'All Square';
+
+    if (standings.winner) {
+      const winnerLower = standings.winner.toLowerCase();
+      if (winnerLower === myUsername || winnerLower === 'you' || winnerLower === 'team a') {
+        wins++;
+        outcomeClass = 'win';
+        outcomeText = 'Won';
+      } else {
+        losses++;
+        outcomeClass = 'loss';
+        outcomeText = 'Lost';
+      }
+    } else {
+      ties++;
+    }
+
+    const marginText = standings.statusText || 'Halved';
+
+    itemsHtml += `
+      <div class="lookup-history-item">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <span class="lookup-history-course">${escapeHtml(courseName)}</span>
+          <span class="lookup-history-date">${escapeHtml(dateStr)} &bull; ${escapeHtml(marginText)}</span>
+        </div>
+        <span class="lookup-history-outcome ${outcomeClass}">${outcomeText}</span>
+      </div>
+    `;
+  });
+
+  const winRate = ((wins / matches.length) * 100).toFixed(0);
+
+  resultsContainer.innerHTML = `
+    <div style="margin-bottom: 0.75rem; font-size: 0.9rem;">
+      Analyze: <strong>${escapeHtml(state.username || 'You')}</strong> vs <strong>${escapeHtml(opponentUsername)}</strong>
+    </div>
+    <div class="lookup-stats-grid">
+      <div class="lookup-stat-bubble">
+        <span class="lookup-stat-lbl">Played</span>
+        <span class="lookup-stat-val">${matches.length}</span>
+      </div>
+      <div class="lookup-stat-bubble">
+        <span class="lookup-stat-lbl">Record</span>
+        <span class="lookup-stat-val win">${wins}W - ${losses}L</span>
+      </div>
+      <div class="lookup-stat-bubble">
+        <span class="lookup-stat-lbl">Win %</span>
+        <span class="lookup-stat-val draw">${winRate}%</span>
+      </div>
+    </div>
+    <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--color-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">Match History</div>
+    <div class="lookup-history-list">
+      ${itemsHtml}
+    </div>
+  `;
+}
+
+// Bind lookup stats listeners during initialization
+function initMatchPlayLookupUI() {
+  const btnLookup = document.getElementById('btn-matchplay-lookup');
+  const inputLookup = document.getElementById('matchplay-lookup-username');
+  if (btnLookup && inputLookup) {
+    btnLookup.addEventListener('click', () => {
+      analyzeMatchPlayHistory(inputLookup.value);
+    });
+
+    inputLookup.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        analyzeMatchPlayHistory(inputLookup.value);
+      }
+    });
+  }
+}
+
+// Execute UI hooks
+document.addEventListener('DOMContentLoaded', () => {
+  initMatchPlayLookupUI();
+});
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  initMatchPlayLookupUI();
+}
