@@ -2741,3 +2741,58 @@ a:hover {
   background: rgba(245, 158, 11, 0.15);
   color: var(--gold);
 }
+
+/* User Tagging System Styles */
+.tag-badge {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--emerald-glow);
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-block;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.tag-badge:hover {
+  background: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.tag-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+.tag-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.tag-suggestion-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tag-suggestion-avatar {
+  background: var(--gold);
+  color: #121212;
+  font-weight: 700;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+.tag-suggestion-username {
+  font-weight: 600;
+}

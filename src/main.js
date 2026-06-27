@@ -6079,6 +6079,45 @@ function initCommunityUI() {
       }
     });
   }
+
+  // Register tag autocomplete suggestions handler
+  const suggestionsBox = document.getElementById('community-tag-suggestions');
+  if (postTextarea && suggestionsBox) {
+    initTagAutocomplete(postTextarea, suggestionsBox);
+  }
+
+  // Register feed filter button click listeners
+  const btnFilterAll = document.getElementById('btn-feed-filter-all');
+  const btnFilterTagged = document.getElementById('btn-feed-filter-tagged');
+  if (btnFilterAll && btnFilterTagged) {
+    btnFilterAll.addEventListener('click', () => {
+      btnFilterAll.className = 'btn btn-sm btn-primary';
+      btnFilterAll.style.flex = '1';
+      btnFilterAll.style.padding = '0.45rem 0.75rem';
+      btnFilterAll.style.fontWeight = '600';
+      
+      btnFilterTagged.className = 'btn btn-sm btn-secondary';
+      btnFilterTagged.style.flex = '1';
+      btnFilterTagged.style.padding = '0.45rem 0.75rem';
+      btnFilterTagged.style.fontWeight = '600';
+      
+      initCommunityFeedListener('all');
+    });
+
+    btnFilterTagged.addEventListener('click', () => {
+      btnFilterAll.className = 'btn btn-sm btn-secondary';
+      btnFilterAll.style.flex = '1';
+      btnFilterAll.style.padding = '0.45rem 0.75rem';
+      btnFilterAll.style.fontWeight = '600';
+      
+      btnFilterTagged.className = 'btn btn-sm btn-primary';
+      btnFilterTagged.style.flex = '1';
+      btnFilterTagged.style.padding = '0.45rem 0.75rem';
+      btnFilterTagged.style.fontWeight = '600';
+      
+      initCommunityFeedListener('tagged');
+    });
+  }
 }
 
 // Add a community listener execution during app initialization
@@ -6091,25 +6130,48 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
 }
 
 // Start real-time snapshot subscription to recent community activity
-function initCommunityFeedListener() {
-  if (window.communityUnsubscribe) return; // already listening
+function initCommunityFeedListener(filterMode = 'all') {
+  // If we change filter mode, unsubscribe from the previous one
+  if (window.communityUnsubscribe) {
+    window.communityUnsubscribe();
+    window.communityUnsubscribe = null;
+  }
 
   const feedList = document.getElementById('community-feed-list');
   if (!feedList) return;
 
+  const activeUserLower = (state.username || (auth.currentUser && auth.currentUser.email ? auth.currentUser.email.split('@')[0] : '')).toLowerCase();
+
   const postsRef = collection(db, 'posts');
-  const q = query(postsRef, orderBy('createdAt', 'desc'), limit(50));
+  let q = query(postsRef, orderBy('createdAt', 'desc'), limit(50));
+
+  if (filterMode === 'tagged' && activeUserLower) {
+    q = query(
+      postsRef,
+      where('taggedUsernames', 'array-contains', activeUserLower),
+      limit(50)
+    );
+  }
 
   window.communityUnsubscribe = onSnapshot(q, (snapshot) => {
     feedList.innerHTML = '';
     
     if (snapshot.empty) {
-      feedList.innerHTML = `
-        <div style="text-align: center; padding: 3rem 1rem; color: var(--color-secondary);">
-          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⛳</div>
-          <p>No activity yet. Be the first to share something with the community!</p>
-        </div>
-      `;
+      if (filterMode === 'tagged') {
+        feedList.innerHTML = `
+          <div style="text-align: center; padding: 3rem 1rem; color: var(--color-secondary);">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🏷️</div>
+            <p>You haven't been tagged in any community posts yet!</p>
+          </div>
+        `;
+      } else {
+        feedList.innerHTML = `
+          <div style="text-align: center; padding: 3rem 1rem; color: var(--color-secondary);">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⛳</div>
+            <p>No activity yet. Be the first to share something with the community!</p>
+          </div>
+        `;
+      }
       return;
     }
 
@@ -6121,11 +6183,18 @@ function initCommunityFeedListener() {
       });
     });
 
-    // Sort in memory: pinned posts first, keeping newest-first ordering otherwise
+    // Sort in memory: Pinned posts first, otherwise chronological (newest first)
     posts.sort((a, b) => {
+      const dateA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
+      const dateB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
+      
       const pinA = a.isPinned ? 1 : 0;
       const pinB = b.isPinned ? 1 : 0;
-      return pinB - pinA;
+
+      if (pinA !== pinB) {
+        return pinB - pinA;
+      }
+      return dateB - dateA;
     });
 
     posts.forEach((post) => {
@@ -6177,7 +6246,7 @@ function initCommunityFeedListener() {
         <!-- Content -->
         <div class="post-body" style="display: flex; flex-direction: column;">
           ${pinnedBadge}
-          ${post.text ? `<p class="post-text">${escapeHtml(post.text)}</p>` : ''}
+          ${post.text ? `<p class="post-text">${formatTextWithTags(escapeHtml(post.text))}</p>` : ''}
           ${post.image ? `<img src="${post.image}" class="post-image" alt="Golf Community Post Upload">` : ''}
         </div>
         
@@ -6235,6 +6304,8 @@ async function createPost(text, base64Image) {
     }
   }
 
+  const taggedList = extractMentions(text || '');
+
   const postsRef = collection(db, 'posts');
   await addDoc(postsRef, {
     uid: state.syncId,
@@ -6244,6 +6315,7 @@ async function createPost(text, base64Image) {
     likes: [],
     commentsCount: 0,
     isPinned: isPinned,
+    taggedUsernames: taggedList,
     createdAt: new Date()
   });
 
@@ -6332,7 +6404,7 @@ function subscribeToComments(postId) {
         <div class="comment-avatar">${avatarLetters}</div>
         <div class="comment-content-bubble" style="flex: 1;">
           <span class="comment-author-name">${escapeHtml(comment.username)}</span>
-          <p class="comment-text">${escapeHtml(comment.text)}</p>
+          <p class="comment-text">${formatTextWithTags(escapeHtml(comment.text))}</p>
         </div>
         ${deleteCommentBtn}
       `;
@@ -6854,3 +6926,110 @@ window.deleteComment = async function(postId, commentId) {
     }
   }
 };
+
+// =========================================================================
+// Interactive User Tagging & Autocomplete Suggestion Handlers
+// =========================================================================
+
+// Regex to match user tags (alphanumeric and underscores, 3-20 characters)
+const TAG_REGEX = /@([a-zA-Z0-9_]{3,20})/g;
+
+// Extract tags from post/comment text and normalize them to lowercase
+function extractMentions(text) {
+  if (!text) return [];
+  const matches = [...text.matchAll(TAG_REGEX)];
+  const uniqueTags = new Set(matches.map(m => m[1].toLowerCase()));
+  return Array.from(uniqueTags);
+}
+
+// Convert user tags to clickable span buttons in HTML
+function formatTextWithTags(text) {
+  if (!text) return '';
+  return text.replace(TAG_REGEX, (match, username) => {
+    return `<span class="tag-badge" onclick="window.viewTaggedUserStats('${escapeHtml(username)}')">${match}</span>`;
+  });
+}
+
+// Global click function to view tagged user stats in history page
+window.viewTaggedUserStats = function(username) {
+  const tabHistory = document.getElementById('tab-history');
+  if (tabHistory) tabHistory.click();
+  const inputLookup = document.getElementById('matchplay-lookup-username');
+  if (inputLookup) {
+    inputLookup.value = username;
+    analyzeMatchPlayHistory(username);
+  }
+};
+
+// Initialise autocomplete suggestions listener on input text area
+function initTagAutocomplete(textarea, suggestionsBox) {
+  textarea.addEventListener('input', async () => {
+    const val = textarea.value.substring(0, textarea.selectionStart);
+    const atIndex = val.lastIndexOf('@');
+
+    // Check if user is typing a tag token (starts with @ and has no spaces)
+    if (atIndex !== -1 && !val.substring(atIndex).includes(' ')) {
+      const queryText = val.substring(atIndex + 1).toLowerCase();
+      if (queryText.length >= 1) {
+        try {
+          const usersRef = collection(db, 'users');
+          // Standard lexicographical range prefix search
+          const q = query(
+            usersRef,
+            where('username', '>=', queryText),
+            where('username', '<=', queryText + '\uf8ff'),
+            limit(5)
+          );
+          const snap = await getDocs(q);
+
+          if (snap.empty) {
+            suggestionsBox.classList.add('hidden');
+            return;
+          }
+
+          suggestionsBox.innerHTML = '';
+          suggestionsBox.classList.remove('hidden');
+
+          snap.forEach(userDoc => {
+            const uData = userDoc.data();
+            const username = uData.username || '';
+            const avatarLetters = username.substring(0, 2).toUpperCase();
+
+            const item = document.createElement('div');
+            item.className = 'tag-suggestion-item';
+            item.innerHTML = `
+              <div class="tag-suggestion-avatar">${avatarLetters}</div>
+              <span class="tag-suggestion-username">@${escapeHtml(username)}</span>
+            `;
+
+            // When selected, replace typing query with chosen tag and close dropdown
+            item.addEventListener('click', () => {
+              const fullText = textarea.value;
+              const before = fullText.substring(0, atIndex);
+              const after = fullText.substring(textarea.selectionStart);
+              textarea.value = before + '@' + username + ' ' + after;
+              suggestionsBox.classList.add('hidden');
+              textarea.focus();
+            });
+
+            suggestionsBox.appendChild(item);
+          });
+        } catch (err) {
+          console.warn("Tag suggestions query error:", err);
+          suggestionsBox.classList.add('hidden');
+        }
+      } else {
+        suggestionsBox.classList.add('hidden');
+      }
+    } else {
+      suggestionsBox.classList.add('hidden');
+    }
+  });
+
+  // Hide suggestions overlay when clicking outside
+  document.addEventListener('click', (e) => {
+    if (e.target !== textarea && !suggestionsBox.contains(e.target)) {
+      suggestionsBox.classList.add('hidden');
+    }
+  });
+}
