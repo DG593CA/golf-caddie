@@ -101,7 +101,7 @@ service cloud.firestore {
                'id', 'syncId', 'courseName', 'date', 'rating', 'slope', 'numHoles',
                'totalScore', 'totalPar', 'totalPutts', 'avgPutts', 'threePutts',
                'onePutts', 'fairwayPercent', 'girPercent', 'holes', 'createdAt',
-               'duration', 'durationSeconds', 'mode', 'players', 'playerUsernames', 'matchPlayStandings'
+               'duration', 'durationSeconds', 'mode', 'players', 'playerUsernames', 'matchPlayStandings', 'team1Name', 'team2Name'
              ]) &&
              docId == data.syncId + "_" + string(data.id) &&
              data.id is number && data.id > 0 &&
@@ -178,6 +178,15 @@ service cloud.firestore {
         allow update, delete: if request.auth != null &&
                               (resource.data.uid == request.auth.uid || isAdmin());
       }
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if request.resource.data.name is string && request.resource.data.name.size() > 0 &&
+                    request.resource.data.email is string && request.resource.data.email.size() > 0 &&
+                    request.resource.data.type is string &&
+                    request.resource.data.message is string && request.resource.data.message.size() > 0 &&
+                    request.resource.data.createdAt is timestamp;
+      allow read, update, delete: if isAdmin();
     }
   }
 }

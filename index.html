@@ -47,11 +47,11 @@
       </header>
 
       <main class="app-content">
-        <!-- Navigation Tabs -->
         <nav class="app-nav-tabs" aria-label="Main Navigation">
           <button id="tab-active-round" class="nav-tab active" aria-selected="true">⛳ Active Round</button>
           <button id="tab-history" class="nav-tab" aria-selected="false">📊 History &amp; Handicap</button>
           <button id="tab-community" class="nav-tab" aria-selected="false">👥 Community</button>
+          <button id="tab-contact" class="nav-tab" aria-selected="false">✉️ Contact Us</button>
         </nav>
 
         <!-- Active Round Tab Content -->
@@ -644,6 +644,53 @@
             <div id="community-feed-list" class="community-feed-grid">
               <!-- Dynamically populated via real-time Firestore listener -->
               <p class="empty-notes-text" style="padding: 3rem 1rem; text-align: center;">Loading community activity...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Us Tab Content -->
+        <div id="contact-tab-content" class="tab-content hidden" style="padding: 1rem 0;">
+          <div class="glass-card" style="max-width: 600px; margin: 0 auto; padding: 1.75rem;">
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem; color: var(--color-primary); font-weight: 700; text-align: center;">✉️ Contact Us &amp; Feedback</h2>
+            <p style="color: var(--color-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; text-align: center; line-height: 1.4;">
+              Have questions, issues, or ideas for new features? Let us know! We collect all feedback to continuously improve your Golf Caddie experience.
+            </p>
+
+            <form id="contact-feedback-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div class="form-group-block" style="margin-bottom: 0;">
+                <label for="contact-name" class="form-section-title" style="margin-bottom: 0.35rem;">Name</label>
+                <input type="text" id="contact-name" class="form-input" placeholder="Your Name" required style="width: 100%; border-radius: 8px;">
+              </div>
+
+              <div class="form-group-block" style="margin-bottom: 0;">
+                <label for="contact-email" class="form-section-title" style="margin-bottom: 0.35rem;">Email Address</label>
+                <input type="email" id="contact-email" class="form-input" placeholder="you@example.com" required style="width: 100%; border-radius: 8px;">
+              </div>
+
+              <div class="form-group-block" style="margin-bottom: 0;">
+                <label for="contact-type" class="form-section-title" style="margin-bottom: 0.35rem;">Feedback Type</label>
+                <select id="contact-type" class="form-input" style="width: 100%; border-radius: 8px; background: rgba(0,0,0,0.4);">
+                  <option value="feature">💡 Feature Request</option>
+                  <option value="bug">🐛 Bug Report / Issue</option>
+                  <option value="question">❓ General Inquiry / Question</option>
+                  <option value="other">💬 Other Feedback</option>
+                </select>
+              </div>
+
+              <div class="form-group-block" style="margin-bottom: 0;">
+                <label for="contact-message" class="form-section-title" style="margin-bottom: 0.35rem;">Message</label>
+                <textarea id="contact-message" placeholder="Please describe your feedback, request, or issue in detail..." class="form-input" style="width: 100%; min-height: 120px; resize: vertical; border-radius: 8px; padding: 0.75rem;" required maxlength="1000"></textarea>
+              </div>
+
+              <button type="submit" id="btn-submit-feedback" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-weight: 600; font-size: 1rem; border-radius: 8px; margin-top: 0.5rem; transition: all 0.2s ease;">
+                Submit Feedback
+              </button>
+            </form>
+            
+            <div id="contact-success-msg" class="hidden" style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; text-align: center; color: var(--emerald-glow);">
+              <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">✓</div>
+              <strong style="font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">Feedback Submitted!</strong>
+              <span style="font-size: 0.8rem; opacity: 0.9;">Thank you. Our team has received your submission and will review it shortly.</span>
             </div>
           </div>
         </div>

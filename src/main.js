@@ -1823,10 +1823,17 @@ function initUI() {
       tabCommunity.classList.remove('active');
       tabCommunity.setAttribute('aria-selected', 'false');
     }
+    const tabContact = document.getElementById('tab-contact');
+    if (tabContact) {
+      tabContact.classList.remove('active');
+      tabContact.setAttribute('aria-selected', 'false');
+    }
     
     activeRoundContent.classList.remove('hidden');
     historyContent.classList.add('hidden');
     if (communityContent) communityContent.classList.add('hidden');
+    const contactContent = document.getElementById('contact-tab-content');
+    if (contactContent) contactContent.classList.add('hidden');
     
     // Reset view to show active scoring dashboard and hide performance report
     document.getElementById('dashboard-view').classList.remove('hidden');
@@ -1847,10 +1854,17 @@ function initUI() {
       tabCommunity.classList.remove('active');
       tabCommunity.setAttribute('aria-selected', 'false');
     }
+    const tabContact = document.getElementById('tab-contact');
+    if (tabContact) {
+      tabContact.classList.remove('active');
+      tabContact.setAttribute('aria-selected', 'false');
+    }
     
     historyContent.classList.remove('hidden');
     activeRoundContent.classList.add('hidden');
     if (communityContent) communityContent.classList.add('hidden');
+    const contactContent = document.getElementById('contact-tab-content');
+    if (contactContent) contactContent.classList.add('hidden');
     // Ensure the history page contents are rendered
     renderHistoryTab();
 
@@ -1868,10 +1882,17 @@ function initUI() {
       tabActiveRound.setAttribute('aria-selected', 'false');
       tabHistory.classList.remove('active');
       tabHistory.setAttribute('aria-selected', 'false');
+      const tabContact = document.getElementById('tab-contact');
+      if (tabContact) {
+        tabContact.classList.remove('active');
+        tabContact.setAttribute('aria-selected', 'false');
+      }
       
       if (communityContent) communityContent.classList.remove('hidden');
       activeRoundContent.classList.add('hidden');
       historyContent.classList.add('hidden');
+      const contactContent = document.getElementById('contact-tab-content');
+      if (contactContent) contactContent.classList.add('hidden');
       
       // Toggle admin options container visibility
       const adminOptions = document.getElementById('community-admin-options');
@@ -1889,6 +1910,34 @@ function initUI() {
       
       // Start community real-time feed subscription
       initCommunityFeedListener();
+    });
+  }
+
+  // Contact Us Tab Switching Trigger
+  const tabContact = document.getElementById('tab-contact');
+  const contactContent = document.getElementById('contact-tab-content');
+  if (tabContact && contactContent) {
+    tabContact.addEventListener('click', () => {
+      tabContact.classList.add('active');
+      tabContact.setAttribute('aria-selected', 'true');
+      tabActiveRound.classList.remove('active');
+      tabActiveRound.setAttribute('aria-selected', 'false');
+      tabHistory.classList.remove('active');
+      tabHistory.setAttribute('aria-selected', 'false');
+      if (tabCommunity) {
+        tabCommunity.classList.remove('active');
+        tabCommunity.setAttribute('aria-selected', 'false');
+      }
+
+      contactContent.classList.remove('hidden');
+      activeRoundContent.classList.add('hidden');
+      historyContent.classList.add('hidden');
+      if (communityContent) communityContent.classList.add('hidden');
+
+      if (window.communityUnsubscribe) {
+        window.communityUnsubscribe();
+        window.communityUnsubscribe = null;
+      }
     });
   }
 
@@ -7195,4 +7244,88 @@ function initTagAutocomplete(textarea, suggestionsBox) {
       suggestionsBox.classList.add('hidden');
     }
   });
+}
+
+// =========================================================================
+// Contact Us & Feedback Submission Handler
+// =========================================================================
+function initContactUsUI() {
+  const form = document.getElementById('contact-feedback-form');
+  const successMsg = document.getElementById('contact-success-msg');
+  if (!form) return;
+
+  const contactNameInput = document.getElementById('contact-name');
+  const contactEmailInput = document.getElementById('contact-email');
+  
+  if (contactNameInput && state.username) {
+    contactNameInput.value = state.username;
+  }
+  if (contactEmailInput && auth.currentUser && auth.currentUser.email) {
+    contactEmailInput.value = auth.currentUser.email;
+  }
+
+  // Handle auth state changes to update prefill values dynamically
+  auth.onAuthStateChanged((user) => {
+    if (contactNameInput && state.username) contactNameInput.value = state.username;
+    if (contactEmailInput && user && user.email) contactEmailInput.value = user.email;
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('btn-submit-feedback');
+    const nameVal = document.getElementById('contact-name').value.trim();
+    const emailVal = document.getElementById('contact-email').value.trim();
+    const typeVal = document.getElementById('contact-type').value;
+    const messageVal = document.getElementById('contact-message').value.trim();
+
+    if (!nameVal || !emailVal || !messageVal) {
+      alert("Please fill out all required fields.");
+      return;
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+    }
+
+    try {
+      const feedbackRef = collection(db, 'feedback');
+      await addDoc(feedbackRef, {
+        name: nameVal,
+        email: emailVal,
+        type: typeVal,
+        message: messageVal,
+        uid: state.syncId || null,
+        createdAt: new Date()
+      });
+
+      // Clear message field and show success
+      document.getElementById('contact-message').value = '';
+      form.classList.add('hidden');
+      if (successMsg) successMsg.classList.remove('hidden');
+
+      // Auto-hide success message and show form again after 5 seconds
+      setTimeout(() => {
+        if (successMsg) successMsg.classList.add('hidden');
+        form.classList.remove('hidden');
+      }, 5000);
+    } catch (err) {
+      console.error("Failed to submit feedback:", err);
+      alert("Failed to submit feedback: " + err.message);
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Feedback';
+      }
+    }
+  });
+}
+
+// Hook Contact Us UI initialization globally
+document.addEventListener('DOMContentLoaded', () => {
+  initContactUsUI();
+});
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  initContactUsUI();
 }
