@@ -1398,9 +1398,22 @@ a:hover {
 }
 
 .nav-tab.active {
-  color: var(--emerald-glow);
+  color: var(--color-primary);
   background-color: rgba(16, 185, 129, 0.08);
   border: 1px solid rgba(16, 185, 129, 0.2);
+  position: relative;
+}
+
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 15%;
+  right: 15%;
+  height: 3px;
+  background: var(--emerald-gradient);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--emerald-glow);
 }
 
 /* Handicap Hero Card */

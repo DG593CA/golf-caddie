@@ -870,6 +870,7 @@ function initAuth() {
       }
       setupActiveRoundSubscription();
       listenForActiveMatches();
+      updateCreatorProfileBox();
 
       if (!state.hasCompletedTutorial) {
         setTimeout(() => {
@@ -879,6 +880,7 @@ function initAuth() {
     } else {
       // User is logged out / guest mode
       console.log("Auth State: User is logged out");
+      updateCreatorProfileBox();
       
       if (window.activeMatchesUnsubscribe) {
         window.activeMatchesUnsubscribe();
@@ -1909,6 +1911,7 @@ function initUI() {
       }
       
       // Start community real-time feed subscription
+      updateCreatorProfileBox();
       initCommunityFeedListener();
     });
   }
@@ -7350,4 +7353,15 @@ function extractYouTubeId(text) {
     }
   }
   return null;
+}
+
+// Update the user profile box in the community creator panel
+function updateCreatorProfileBox() {
+  const avatarEl = document.getElementById('creator-profile-avatar');
+  const nameEl = document.getElementById('creator-profile-name');
+  if (!avatarEl || !nameEl) return;
+
+  const currentUsername = state.username || (auth.currentUser && auth.currentUser.email ? auth.currentUser.email.split('@')[0] : 'Golfer');
+  nameEl.textContent = currentUsername;
+  avatarEl.textContent = currentUsername.substring(0, 2).toUpperCase();
 }
