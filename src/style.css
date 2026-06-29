@@ -1325,6 +1325,11 @@ a:hover {
   display: none !important;
 }
 
+.tab-content {
+  display: block;
+  width: 100%;
+}
+
 /* Keyframes animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
