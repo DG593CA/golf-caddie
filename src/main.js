@@ -1861,107 +1861,59 @@ function initUI() {
     }
   });
 
-  // Tab Switching Layout triggers
-  const tabActiveRound = document.getElementById('tab-active-round');
-  const tabHistory = document.getElementById('tab-history');
-  const tabCommunity = document.getElementById('tab-community');
-  const activeRoundContent = document.getElementById('active-round-tab-content');
-  const historyContent = document.getElementById('history-tab-content');
-  const communityContent = document.getElementById('community-tab-content');
+  // Tab Switching via Global Event Delegation (prevents DOM-ready race conditions on mobile)
+  document.addEventListener('click', (e) => {
+    const tabButton = e.target.closest('.nav-tab');
+    if (!tabButton) return;
 
-  if (tabActiveRound && activeRoundContent && historyContent) {
-    tabActiveRound.addEventListener('click', () => {
-      tabActiveRound.classList.add('active');
-      tabActiveRound.setAttribute('aria-selected', 'true');
-      if (tabHistory) {
-        tabHistory.classList.remove('active');
-        tabHistory.setAttribute('aria-selected', 'false');
+    const tabId = tabButton.id;
+    const tabActiveRound = document.getElementById('tab-active-round');
+    const tabHistory = document.getElementById('tab-history');
+    const tabCommunity = document.getElementById('tab-community');
+    const tabContact = document.getElementById('tab-contact');
+
+    const activeRoundContent = document.getElementById('active-round-tab-content');
+    const historyContent = document.getElementById('history-tab-content');
+    const communityContent = document.getElementById('community-tab-content');
+    const contactContent = document.getElementById('contact-tab-content');
+
+    // Deactivate all tab button styles
+    const tabs = [tabActiveRound, tabHistory, tabCommunity, tabContact];
+    tabs.forEach(tab => {
+      if (tab) {
+        tab.classList.remove('active');
+        tab.setAttribute('aria-selected', 'false');
       }
-      if (tabCommunity) {
-        tabCommunity.classList.remove('active');
-        tabCommunity.setAttribute('aria-selected', 'false');
-      }
-      const tabContact = document.getElementById('tab-contact');
-      if (tabContact) {
-        tabContact.classList.remove('active');
-        tabContact.setAttribute('aria-selected', 'false');
-      }
-      
+    });
+
+    // Activate clicked tab style
+    tabButton.classList.add('active');
+    tabButton.setAttribute('aria-selected', 'true');
+
+    // Hide all tab content sections
+    const contents = [activeRoundContent, historyContent, communityContent, contactContent];
+    contents.forEach(content => {
+      if (content) content.classList.add('hidden');
+    });
+
+    // Unsubscribe from community updates if moving away
+    if (tabId !== 'tab-community' && window.communityUnsubscribe) {
+      window.communityUnsubscribe();
+      window.communityUnsubscribe = null;
+    }
+
+    // Toggle specific tab view contents
+    if (tabId === 'tab-active-round' && activeRoundContent) {
       activeRoundContent.classList.remove('hidden');
-      historyContent.classList.add('hidden');
-      if (communityContent) communityContent.classList.add('hidden');
-      const contactContent = document.getElementById('contact-tab-content');
-      if (contactContent) contactContent.classList.add('hidden');
-      
-      // Reset view to show active scoring dashboard and hide performance report
       const dashView = document.getElementById('dashboard-view');
       const repView = document.getElementById('report-view');
       if (dashView) dashView.classList.remove('hidden');
       if (repView) repView.classList.add('hidden');
-
-      if (window.communityUnsubscribe) {
-        window.communityUnsubscribe();
-        window.communityUnsubscribe = null;
-      }
-    });
-  }
-
-  if (tabHistory && historyContent && activeRoundContent) {
-    tabHistory.addEventListener('click', () => {
-      tabHistory.classList.add('active');
-      tabHistory.setAttribute('aria-selected', 'true');
-      if (tabActiveRound) {
-        tabActiveRound.classList.remove('active');
-        tabActiveRound.setAttribute('aria-selected', 'false');
-      }
-      if (tabCommunity) {
-        tabCommunity.classList.remove('active');
-        tabCommunity.setAttribute('aria-selected', 'false');
-      }
-      const tabContact = document.getElementById('tab-contact');
-      if (tabContact) {
-        tabContact.classList.remove('active');
-        tabContact.setAttribute('aria-selected', 'false');
-      }
-      
+    } else if (tabId === 'tab-history' && historyContent) {
       historyContent.classList.remove('hidden');
-      activeRoundContent.classList.add('hidden');
-      if (communityContent) communityContent.classList.add('hidden');
-      const contactContent = document.getElementById('contact-tab-content');
-      if (contactContent) contactContent.classList.add('hidden');
-      // Ensure the history page contents are rendered
       renderHistoryTab();
-
-      if (window.communityUnsubscribe) {
-        window.communityUnsubscribe();
-        window.communityUnsubscribe = null;
-      }
-    });
-  }
-
-  if (tabCommunity && communityContent && activeRoundContent && historyContent) {
-    tabCommunity.addEventListener('click', () => {
-      tabCommunity.classList.add('active');
-      tabCommunity.setAttribute('aria-selected', 'true');
-      if (tabActiveRound) {
-        tabActiveRound.classList.remove('active');
-        tabActiveRound.setAttribute('aria-selected', 'false');
-      }
-      if (tabHistory) {
-        tabHistory.classList.remove('active');
-        tabHistory.setAttribute('aria-selected', 'false');
-      }
-      const tabContact = document.getElementById('tab-contact');
-      if (tabContact) {
-        tabContact.classList.remove('active');
-        tabContact.setAttribute('aria-selected', 'false');
-      }
-      
+    } else if (tabId === 'tab-community' && communityContent) {
       communityContent.classList.remove('hidden');
-      activeRoundContent.classList.add('hidden');
-      historyContent.classList.add('hidden');
-      const contactContent = document.getElementById('contact-tab-content');
-      if (contactContent) contactContent.classList.add('hidden');
       
       // Toggle admin options container visibility
       const adminOptions = document.getElementById('community-admin-options');
@@ -1976,44 +1928,13 @@ function initUI() {
           adminOptions.classList.add('hidden');
         }
       }
-      
-      // Start community real-time feed subscription
+
       updateCreatorProfileBox();
       initCommunityFeedListener();
-    });
-  }
-
-  // Contact Us Tab Switching Trigger
-  const tabContact = document.getElementById('tab-contact');
-  const contactContent = document.getElementById('contact-tab-content');
-  if (tabContact && contactContent && activeRoundContent && historyContent) {
-    tabContact.addEventListener('click', () => {
-      tabContact.classList.add('active');
-      tabContact.setAttribute('aria-selected', 'true');
-      if (tabActiveRound) {
-        tabActiveRound.classList.remove('active');
-        tabActiveRound.setAttribute('aria-selected', 'false');
-      }
-      if (tabHistory) {
-        tabHistory.classList.remove('active');
-        tabHistory.setAttribute('aria-selected', 'false');
-      }
-      if (tabCommunity) {
-        tabCommunity.classList.remove('active');
-        tabCommunity.setAttribute('aria-selected', 'false');
-      }
-
+    } else if (tabId === 'tab-contact' && contactContent) {
       contactContent.classList.remove('hidden');
-      activeRoundContent.classList.add('hidden');
-      historyContent.classList.add('hidden');
-      if (communityContent) communityContent.classList.add('hidden');
-
-      if (window.communityUnsubscribe) {
-        window.communityUnsubscribe();
-        window.communityUnsubscribe = null;
-      }
-    });
-  }
+    }
+  });
 
   // Complete round open dialog
   const completeDialog = document.getElementById('complete-round-dialog');
