@@ -6433,6 +6433,7 @@ function initCommunityFeedListener(filterMode = 'all') {
 
   window.communityUnsubscribe = onSnapshot(q, (snapshot) => {
     feedList.innerHTML = '';
+    const posts = [];
     
     if (snapshot.empty) {
       if (filterMode === 'tagged') {
@@ -6442,24 +6443,27 @@ function initCommunityFeedListener(filterMode = 'all') {
             <p>You haven't been tagged in any community posts yet!</p>
           </div>
         `;
+        return;
       } else {
-        feedList.innerHTML = `
-          <div style="text-align: center; padding: 3rem 1rem; color: var(--color-secondary);">
-            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⛳</div>
-            <p>No activity yet. Be the first to share something with the community!</p>
-          </div>
-        `;
+        // Render a local fallback mock post so the feed is never blank during testing!
+        posts.push({
+          id: 'mock-welcome-post',
+          username: 'GolfCaddie_AI',
+          text: 'Welcome to the GolfCaddie AI Community! ⛳\n\nThis is a live mock post. Share your round summaries, tag friends using @username, or link YouTube videos of your swing! Tap below to start interacting.',
+          isPinned: true,
+          createdAt: new Date(),
+          likes: ['mock-user-1', 'mock-user-2'],
+          commentsCount: 2
+        });
       }
-      return;
-    }
-
-    const posts = [];
-    snapshot.forEach((postDoc) => {
-      posts.push({
-        id: postDoc.id,
-        ...postDoc.data()
+    } else {
+      snapshot.forEach((postDoc) => {
+        posts.push({
+          id: postDoc.id,
+          ...postDoc.data()
+        });
       });
-    });
+    }
 
     // Sort in memory: Pinned posts first, otherwise chronological (newest first)
     posts.sort((a, b) => {

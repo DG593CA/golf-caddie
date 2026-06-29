@@ -6,6 +6,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="GolfCaddie AI - Keep track of your golf score, shots, and putts hands-free using real-time voice commands. Get a detailed AI coaching summary at the end of your round." />
     <title>GolfCaddie AI - Voice Golf Tracker & Analyzer</title>
+    <!-- Global Debugging Error Overlay -->
+    <script>
+      (function() {
+        function showOverlay(title, msg) {
+          var errDiv = document.createElement('div');
+          errDiv.style.position = 'fixed';
+          errDiv.style.top = '0';
+          errDiv.style.left = '0';
+          errDiv.style.right = '0';
+          errDiv.style.background = '#ef4444';
+          errDiv.style.color = '#ffffff';
+          errDiv.style.padding = '1rem';
+          errDiv.style.zIndex = '9999999';
+          errDiv.style.fontFamily = 'monospace';
+          errDiv.style.fontSize = '12px';
+          errDiv.style.wordBreak = 'break-all';
+          errDiv.innerHTML = '<strong>' + title + ':</strong> ' + msg;
+          document.body.appendChild(errDiv);
+        }
+        window.onerror = function(message, source, lineno, colno, error) {
+          var details = message + ' at ' + (source || 'unknown') + ':' + lineno + ':' + colno;
+          showOverlay('JS Error', details);
+          return false;
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+          showOverlay('Promise Rejection', event.reason);
+        });
+      })();
+    </script>
     <!-- PWA Config -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

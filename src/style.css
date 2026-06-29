@@ -1328,6 +1328,8 @@ a:hover {
 .tab-content {
   display: block;
   width: 100%;
+  min-height: 100%;
+  overflow: auto;
 }
 
 /* Keyframes animations */
