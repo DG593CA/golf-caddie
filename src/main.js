@@ -135,6 +135,17 @@ let speechTimeout = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let whisperIsRecording = false;
+let timerInterval = null;
+
+// Spectator Mode, Migration, and GPS Variables
+let isSpectating = false;
+let spectatingId = '';
+let spectatorRole = 'viewer'; // 'viewer' or 'collaborator'
+let spectatorUnsubscribe = null;
+let activeRoundUnsubscribe = null;
+let isMigrating = false;
+let isWalkSimulating = false;
+let walkDistanceRemaining = 150;
 
 // Initialize App
 function initApp() {
@@ -479,7 +490,6 @@ async function connectExistingSyncId(newSyncId) {
 }
 // Authentication state tracking and handlers
 let currentAuthMode = 'login'; // 'login' or 'signup'
-let isMigrating = false;
 
 async function deleteUserAccount() {
   const user = auth.currentUser;
@@ -954,13 +964,6 @@ function initActiveRound() {
     timerInterval = null;
   }
 }
-
-// Spectator Mode Variables
-let isSpectating = false;
-let spectatingId = '';
-let spectatorRole = 'viewer'; // 'viewer' or 'collaborator'
-let spectatorUnsubscribe = null;
-let activeRoundUnsubscribe = null;
 
 function setupActiveRoundSubscription() {
   if (activeRoundUnsubscribe) {
@@ -5615,9 +5618,6 @@ function calculateHaversineDistanceYards(lat1, lon1, lat2, lon2) {
 }
 
 // GPS Rangefinder UI Updater
-let isWalkSimulating = false;
-let walkDistanceRemaining = 150;
-
 function updateGPSWidget() {
   const course = state.selectedCourse || MOCK_COURSES[0];
   const holeNum = state.currentHoleIndex + 1;
@@ -5803,8 +5803,6 @@ function startWalkSimulation() {
 }
 
 // Active Round Timer / Stopwatch Logic
-let timerInterval = null;
-
 function initRoundTimer() {
   if (timerInterval) clearInterval(timerInterval);
   if (state.isTimerRunning && state.roundStartTime) {
