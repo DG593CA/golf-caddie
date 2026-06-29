@@ -22,6 +22,43 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 
+// Global error logging overlay for mobile device debugging
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    const errDiv = document.createElement('div');
+    errDiv.style.position = 'fixed';
+    errDiv.style.top = '0';
+    errDiv.style.left = '0';
+    errDiv.style.right = '0';
+    errDiv.style.background = '#ef4444';
+    errDiv.style.color = '#ffffff';
+    errDiv.style.padding = '1rem';
+    errDiv.style.zIndex = '999999';
+    errDiv.style.fontFamily = 'monospace';
+    errDiv.style.fontSize = '12px';
+    errDiv.style.wordBreak = 'break-all';
+    errDiv.innerHTML = `<strong>JS Error:</strong> ${event.message}<br><small>${event.filename}:${event.lineno}</small>`;
+    document.body.appendChild(errDiv);
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const errDiv = document.createElement('div');
+    errDiv.style.position = 'fixed';
+    errDiv.style.top = '0';
+    errDiv.style.left = '0';
+    errDiv.style.right = '0';
+    errDiv.style.background = '#f97316';
+    errDiv.style.color = '#ffffff';
+    errDiv.style.padding = '1rem';
+    errDiv.style.zIndex = '999999';
+    errDiv.style.fontFamily = 'monospace';
+    errDiv.style.fontSize = '12px';
+    errDiv.style.wordBreak = 'break-all';
+    errDiv.innerHTML = `<strong>Promise Rejection:</strong> ${event.reason}`;
+    document.body.appendChild(errDiv);
+  });
+}
+
 // Unregister service worker and clear cache to resolve WebKit cached view hangs
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
@@ -1832,81 +1869,95 @@ function initUI() {
   const historyContent = document.getElementById('history-tab-content');
   const communityContent = document.getElementById('community-tab-content');
 
-  tabActiveRound.addEventListener('click', () => {
-    tabActiveRound.classList.add('active');
-    tabActiveRound.setAttribute('aria-selected', 'true');
-    tabHistory.classList.remove('active');
-    tabHistory.setAttribute('aria-selected', 'false');
-    if (tabCommunity) {
-      tabCommunity.classList.remove('active');
-      tabCommunity.setAttribute('aria-selected', 'false');
-    }
-    const tabContact = document.getElementById('tab-contact');
-    if (tabContact) {
-      tabContact.classList.remove('active');
-      tabContact.setAttribute('aria-selected', 'false');
-    }
-    
-    activeRoundContent.classList.remove('hidden');
-    historyContent.classList.add('hidden');
-    if (communityContent) communityContent.classList.add('hidden');
-    const contactContent = document.getElementById('contact-tab-content');
-    if (contactContent) contactContent.classList.add('hidden');
-    
-    // Reset view to show active scoring dashboard and hide performance report
-    document.getElementById('dashboard-view').classList.remove('hidden');
-    document.getElementById('report-view').classList.add('hidden');
-
-    if (window.communityUnsubscribe) {
-      window.communityUnsubscribe();
-      window.communityUnsubscribe = null;
-    }
-  });
-
-  tabHistory.addEventListener('click', () => {
-    tabHistory.classList.add('active');
-    tabHistory.setAttribute('aria-selected', 'true');
-    tabActiveRound.classList.remove('active');
-    tabActiveRound.setAttribute('aria-selected', 'false');
-    if (tabCommunity) {
-      tabCommunity.classList.remove('active');
-      tabCommunity.setAttribute('aria-selected', 'false');
-    }
-    const tabContact = document.getElementById('tab-contact');
-    if (tabContact) {
-      tabContact.classList.remove('active');
-      tabContact.setAttribute('aria-selected', 'false');
-    }
-    
-    historyContent.classList.remove('hidden');
-    activeRoundContent.classList.add('hidden');
-    if (communityContent) communityContent.classList.add('hidden');
-    const contactContent = document.getElementById('contact-tab-content');
-    if (contactContent) contactContent.classList.add('hidden');
-    // Ensure the history page contents are rendered
-    renderHistoryTab();
-
-    if (window.communityUnsubscribe) {
-      window.communityUnsubscribe();
-      window.communityUnsubscribe = null;
-    }
-  });
-
-  if (tabCommunity) {
-    tabCommunity.addEventListener('click', () => {
-      tabCommunity.classList.add('active');
-      tabCommunity.setAttribute('aria-selected', 'true');
-      tabActiveRound.classList.remove('active');
-      tabActiveRound.setAttribute('aria-selected', 'false');
-      tabHistory.classList.remove('active');
-      tabHistory.setAttribute('aria-selected', 'false');
+  if (tabActiveRound && activeRoundContent && historyContent) {
+    tabActiveRound.addEventListener('click', () => {
+      tabActiveRound.classList.add('active');
+      tabActiveRound.setAttribute('aria-selected', 'true');
+      if (tabHistory) {
+        tabHistory.classList.remove('active');
+        tabHistory.setAttribute('aria-selected', 'false');
+      }
+      if (tabCommunity) {
+        tabCommunity.classList.remove('active');
+        tabCommunity.setAttribute('aria-selected', 'false');
+      }
       const tabContact = document.getElementById('tab-contact');
       if (tabContact) {
         tabContact.classList.remove('active');
         tabContact.setAttribute('aria-selected', 'false');
       }
       
-      if (communityContent) communityContent.classList.remove('hidden');
+      activeRoundContent.classList.remove('hidden');
+      historyContent.classList.add('hidden');
+      if (communityContent) communityContent.classList.add('hidden');
+      const contactContent = document.getElementById('contact-tab-content');
+      if (contactContent) contactContent.classList.add('hidden');
+      
+      // Reset view to show active scoring dashboard and hide performance report
+      const dashView = document.getElementById('dashboard-view');
+      const repView = document.getElementById('report-view');
+      if (dashView) dashView.classList.remove('hidden');
+      if (repView) repView.classList.add('hidden');
+
+      if (window.communityUnsubscribe) {
+        window.communityUnsubscribe();
+        window.communityUnsubscribe = null;
+      }
+    });
+  }
+
+  if (tabHistory && historyContent && activeRoundContent) {
+    tabHistory.addEventListener('click', () => {
+      tabHistory.classList.add('active');
+      tabHistory.setAttribute('aria-selected', 'true');
+      if (tabActiveRound) {
+        tabActiveRound.classList.remove('active');
+        tabActiveRound.setAttribute('aria-selected', 'false');
+      }
+      if (tabCommunity) {
+        tabCommunity.classList.remove('active');
+        tabCommunity.setAttribute('aria-selected', 'false');
+      }
+      const tabContact = document.getElementById('tab-contact');
+      if (tabContact) {
+        tabContact.classList.remove('active');
+        tabContact.setAttribute('aria-selected', 'false');
+      }
+      
+      historyContent.classList.remove('hidden');
+      activeRoundContent.classList.add('hidden');
+      if (communityContent) communityContent.classList.add('hidden');
+      const contactContent = document.getElementById('contact-tab-content');
+      if (contactContent) contactContent.classList.add('hidden');
+      // Ensure the history page contents are rendered
+      renderHistoryTab();
+
+      if (window.communityUnsubscribe) {
+        window.communityUnsubscribe();
+        window.communityUnsubscribe = null;
+      }
+    });
+  }
+
+  if (tabCommunity && communityContent && activeRoundContent && historyContent) {
+    tabCommunity.addEventListener('click', () => {
+      tabCommunity.classList.add('active');
+      tabCommunity.setAttribute('aria-selected', 'true');
+      if (tabActiveRound) {
+        tabActiveRound.classList.remove('active');
+        tabActiveRound.setAttribute('aria-selected', 'false');
+      }
+      if (tabHistory) {
+        tabHistory.classList.remove('active');
+        tabHistory.setAttribute('aria-selected', 'false');
+      }
+      const tabContact = document.getElementById('tab-contact');
+      if (tabContact) {
+        tabContact.classList.remove('active');
+        tabContact.setAttribute('aria-selected', 'false');
+      }
+      
+      communityContent.classList.remove('hidden');
       activeRoundContent.classList.add('hidden');
       historyContent.classList.add('hidden');
       const contactContent = document.getElementById('contact-tab-content');
@@ -1935,14 +1986,18 @@ function initUI() {
   // Contact Us Tab Switching Trigger
   const tabContact = document.getElementById('tab-contact');
   const contactContent = document.getElementById('contact-tab-content');
-  if (tabContact && contactContent) {
+  if (tabContact && contactContent && activeRoundContent && historyContent) {
     tabContact.addEventListener('click', () => {
       tabContact.classList.add('active');
       tabContact.setAttribute('aria-selected', 'true');
-      tabActiveRound.classList.remove('active');
-      tabActiveRound.setAttribute('aria-selected', 'false');
-      tabHistory.classList.remove('active');
-      tabHistory.setAttribute('aria-selected', 'false');
+      if (tabActiveRound) {
+        tabActiveRound.classList.remove('active');
+        tabActiveRound.setAttribute('aria-selected', 'false');
+      }
+      if (tabHistory) {
+        tabHistory.classList.remove('active');
+        tabHistory.setAttribute('aria-selected', 'false');
+      }
       if (tabCommunity) {
         tabCommunity.classList.remove('active');
         tabCommunity.setAttribute('aria-selected', 'false');
