@@ -22,6 +22,26 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 
+// Unregister service worker and clear cache to resolve WebKit cached view hangs
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister().then(() => {
+        console.log("Service Worker successfully unregistered");
+      });
+    }
+  });
+}
+if (typeof window !== 'undefined' && 'caches' in window) {
+  caches.keys().then((keys) => {
+    keys.forEach((key) => {
+      caches.delete(key).then(() => {
+        console.log("Cache deleted:", key);
+      });
+    });
+  });
+}
+
 // Mock Golf Courses Database
 const MOCK_COURSES = [
   {
@@ -160,13 +180,6 @@ function initApp() {
   initTutorial(); // Bind onboarding tutorial buttons
   initAuth(); // Setup Firebase Authentication listeners
   setupActiveRoundSubscription();
-
-  // Register Service Worker for PWA support
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-      .then((reg) => console.log('Service Worker registered:', reg.scope))
-      .catch((err) => console.error('Service Worker registration failed:', err));
-  }
 }
 
 if (document.readyState === 'loading') {
