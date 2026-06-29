@@ -1,7 +1,7 @@
 import './style.css';
 import { Capacitor } from '@capacitor/core';
 import { db, auth } from './firebase.js';
-import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, addDoc, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, addDoc, orderBy, limit, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 // Detect iOS and apply class for notch safe area styling
 if (typeof window !== 'undefined' && Capacitor.getPlatform() === 'ios') {
@@ -7273,7 +7273,7 @@ function initContactUsUI() {
   }
 
   // Handle auth state changes to update prefill values dynamically
-  auth.onAuthStateChanged((user) => {
+  onAuthStateChanged(auth, (user) => {
     if (contactNameInput && state.username) contactNameInput.value = state.username;
     if (contactEmailInput && user && user.email) contactEmailInput.value = user.email;
   });
