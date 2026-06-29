@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛳</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="GolfCaddie AI - Keep track of your golf score, shots, and putts hands-free using real-time voice commands. Get a detailed AI coaching summary at the end of your round." />
+    <title>GolfCaddie AI - Voice Golf Tracker & Analyzer</title>
+    <!-- PWA Config -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="GolfCaddie AI" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <!-- Direct style injection -->
+    <!-- Outfit Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="/assets/index-qpwpx2rX.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CRlt5hZn.css">
+  </head>
+  <body>
+    <div id="app">
+      <!-- Header Navigation -->
+      <header class="app-header">
+        <div class="header-container">
+          <div class="logo-area" style="cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" onclick="location.reload();">
+            <svg class="logo-svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #10B981; flex-shrink: 0;">
+              <circle cx="12" cy="12" r="10" fill="rgba(16, 185, 129, 0.12)" stroke="currentColor" stroke-width="1.5"></circle>
+              <circle cx="11.5" cy="7.5" r="1.5" fill="currentColor"></circle>
+              <path d="M10 17 L11.5 11.5 L14 10 L17.5 12" stroke="currentColor" stroke-width="1.5"></path>
+              <path d="M11.5 11.5 L10.5 14.5 L9.5 17.5" stroke="currentColor" stroke-width="1.5"></path>
+              <path d="M14 10 L16 5 L17 4.5" stroke="currentColor" stroke-width="1"></path>
+              <path d="M7 16 C6.5 12, 8 9, 10 9 C12 9, 13.5 10.5, 15 13" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2" opacity="0.6"></path>
+            </svg>
+            <h1 class="logo-text" style="font-family: var(--font-sans); font-size: 1.30rem; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.1rem; margin: 0; color: #FFFFFF;">
+              <span>GolfCaddie</span><span style="color: #10B981; font-weight: 800;">AI</span>
+            </h1>
+          </div>
+          <div class="header-actions">
+            <button id="btn-start-round" class="btn btn-primary" aria-label="Start Round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+              <span>Start Round</span>
+            </button>
+            <button id="btn-settings" class="btn btn-secondary" aria-label="Course Settings">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span>Settings</span>
+            </button>
+            <button id="btn-reset" class="btn btn-danger" aria-label="Reset Round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <nav class="app-nav-tabs" aria-label="Main Navigation">
+          <button id="tab-active-round" class="nav-tab active" aria-selected="true">⛳ Active Round</button>
+          <button id="tab-history" class="nav-tab" aria-selected="false">📊 History &amp; Handicap</button>
+          <button id="tab-community" class="nav-tab" aria-selected="false">👥 Community</button>
+          <button id="tab-contact" class="nav-tab" aria-selected="false">✉️ Contact Us</button>
+        </nav>
+
+        <!-- Active Round Tab Content -->
+        <div id="active-round-tab-content" class="tab-content">
+          <!-- GPS Rangefinder Card (Dynamic Yardages relative to course rating & coordinates) -->
+          <section id="gps-rangefinder-card" class="gps-rangefinder-card glass-card">
+            <div class="gps-header">
+              <div class="gps-course-info">
+                <span id="gps-course-name" class="gps-course-name">Pebble Beach Golf Links</span>
+                <span id="gps-course-details" class="gps-course-details">Rating: 75.5 &bull; Slope: 145</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+                <div class="gps-status-badge" id="round-timer-badge" style="background: rgba(255, 255, 255, 0.05); color: var(--color-primary); display: flex; align-items: center; gap: 0.25rem;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8; color: var(--emerald-glow);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  <span id="gps-timer-val">00:00</span>
+                  <button type="button" id="btn-timer-toggle" class="btn-icon" style="padding: 0; background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; margin-left: 2px;" aria-label="Pause or resume round timer">
+                    <svg id="timer-toggle-svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                  </button>
+                </div>
+                <div class="gps-status-badge">
+                  <span class="gps-pulse"></span>
+                  <span id="gps-status-lbl">GPS Active</span>
+                </div>
+                <div class="gps-status-badge hidden" id="spectator-mode-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; display: flex; align-items: center; gap: 0.25rem;">
+                  <span class="gps-pulse" style="background: #3b82f6; box-shadow: 0 0 0 rgba(59, 130, 246, 0.7);"></span>
+                  <span id="spectator-badge-text">Spectating Live</span>
+                </div>
+              </div>
+            </div>
+            <div class="gps-distance-display">
+              <div class="gps-main-dist">
+                <span id="gps-dist-val">150</span>
+                <span class="gps-dist-unit">Yds</span>
+              </div>
+              <div class="gps-sub-dists">
+                <div class="sub-dist-box">
+                  <span class="sub-dist-lbl">Front</span>
+                  <span id="gps-dist-front">135</span>
+                </div>
+                <div class="sub-dist-box" style="border-left: 1px solid var(--border-light); border-right: 1px solid var(--border-light);">
+                  <span class="sub-dist-lbl">Center</span>
+                  <span id="gps-dist-center" class="text-emerald">150</span>
+                </div>
+                <div class="sub-dist-box">
+                  <span class="sub-dist-lbl">Back</span>
+                  <span id="gps-dist-back">165</span>
+                </div>
+              </div>
+            </div>
+            <div class="gps-actions" style="flex-wrap: wrap; justify-content: flex-end; gap: 0.35rem;">
+              <button type="button" id="btn-gps-change-course" class="btn btn-secondary btn-xs">🗺️ Course</button>
+              <button type="button" id="btn-manual-timer-toggle" class="btn btn-secondary btn-xs">⏱️ Start Timer</button>
+              <button type="button" id="btn-gps-simulate" class="btn btn-secondary btn-xs">Simulate Walk</button>
+              <button type="button" id="btn-gps-refresh" class="btn btn-primary btn-xs">Sync GPS</button>
+            </div>
+
+            <!-- Course Mapper Panel -->
+            <details class="helper-accordion" id="mapper-accordion" style="margin-top: 1rem; border-top: 1px solid var(--border-light); padding-top: 0.75rem;">
+              <summary class="accordion-header" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-secondary); cursor: pointer; padding: 0.25rem 0;">
+                <span>🗺️ Course Mapper</span>
+                <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </summary>
+              <div class="accordion-content" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0;">
+                <div class="mapper-status-row" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-primary); flex-wrap: wrap; gap: 0.5rem;">
+                  <div>
+                    <strong>Tee Box:</strong> <span id="map-tee-coords" class="text-muted">Not Pinned</span>
+                  </div>
+                  <div>
+                    <strong>Green Center:</strong> <span id="map-green-coords" class="text-muted">Not Pinned</span>
+                  </div>
+                </div>
+                
+                <div class="mapper-actions-row" style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                  <button type="button" id="btn-map-pin-tee" class="btn btn-secondary btn-xs" style="flex: 1; padding: 0.4rem 0.25rem;">📍 Pin Tee Box</button>
+                  <button type="button" id="btn-map-pin-green" class="btn btn-primary btn-xs" style="flex: 1; padding: 0.4rem 0.25rem;">📍 Pin Green</button>
+                </div>
+                
+                <div id="mapper-distance-info" class="text-emerald" style="font-size: 0.75rem; font-weight: 600; text-align: center; display: none; margin-top: 0.25rem;">
+                  Hole Pinned Distance: <span id="map-pinned-dist">-</span> Yds
+                </div>
+              </div>
+            </details>
+          </section>
+
+          <!-- Main Dashboard View -->
+          <div id="dashboard-view" class="dashboard-grid">
+          
+          <!-- Column 2: Voice Interaction Panel (Placed first in HTML so it naturally renders above the fold on mobile) -->
+          <div class="voice-column">
+            <!-- Microphone Card -->
+            <section class="voice-card glass-card" aria-labelledby="voice-console-title" id="voice-card">
+              <div class="voice-card-header" id="voice-card-header">
+                <h2 id="voice-console-title" class="section-title">Voice Control Console</h2>
+                <button type="button" id="btn-voice-collapse" class="btn-icon" aria-label="Toggle Voice Control Card">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-chevron"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+              </div>
+              
+              <!-- Micro-animation mic activator -->
+              <div class="mic-glow-wrapper">
+                <button type="button" id="btn-voice-toggle" class="mic-btn" aria-label="Start Voice Recognition">
+                  <div class="mic-icon-inner">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mic-svg"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                  </div>
+                  <div class="pulse-wave wave-1"></div>
+                  <div class="pulse-wave wave-2"></div>
+                </button>
+                <div id="mic-status-label" class="mic-status-text">Tap to Speak</div>
+              </div>
+
+              <!-- Collapsible Section -->
+              <div class="voice-card-body" id="voice-card-body">
+                <div class="voice-card-body-inner">
+                  <!-- Live Transcript Box -->
+                  <div class="transcript-wrapper">
+                    <span class="transcript-header">Live Transcript</span>
+                    <div id="transcript-box" class="transcript-box">
+                      <p class="transcript-placeholder">Transcript will appear here in real-time. Try saying: <br><em>"Hole 1, score 4, 2 putts, fairway hit"</em></p>
+                    </div>
+                  </div>
+
+                  <!-- Command Helper Accordion -->
+                  <details class="helper-accordion">
+                    <summary class="accordion-header">
+                      <span>Show Voice Commands Cheat Sheet</span>
+                      <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </summary>
+                    <div class="accordion-content">
+                      <ul>
+                        <li><strong>Set Score &amp; Putts:</strong> <em>"Score 4, two putts"</em>, <em>"I shot a five with three putts"</em></li>
+                        <li><strong>Standard Golf terms:</strong> <em>"Parred the hole, one putt"</em>, <em>"Got a birdie, 2 putts"</em></li>
+                        <li><strong>Fairway &amp; GIR:</strong> <em>"Hit the fairway, missed the green"</em>, <em>"Missed fairway left, hit green"</em></li>
+                        <li><strong>Navigation:</strong> <em>"Next hole"</em>, <em>"Previous hole"</em>, <em>"Go to hole 6"</em></li>
+                        <li><strong>Add Notes:</strong> Speak any detail: <em>"approach shot was in the sand"</em>, <em>"sliced it right into the trees"</em></li>
+                      </ul>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            </section>
+
+            <!-- Caddie AI Assistant Card -->
+            <section class="assistant-card glass-card" aria-labelledby="assistant-title" id="assistant-card">
+              <div class="assistant-header" id="assistant-header">
+                <h2 id="assistant-title" class="section-title">Caddie AI Assistant</h2>
+                <button type="button" id="btn-assistant-collapse" class="btn-icon" aria-label="Toggle Assistant Card">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-chevron"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+              </div>
+              
+              <div class="assistant-body" id="assistant-body">
+                <div class="assistant-body-inner">
+                  <p class="form-help-text" style="margin-bottom: 1rem;">Ask your caddie about golf rules, penalty area relief, or shot execution tips.</p>
+                  
+                  <div class="assistant-input-group">
+                    <div class="assistant-search-row">
+                      <input type="text" id="assistant-input" class="form-input" placeholder="e.g. ball out of bounds red stake...">
+                      <button type="button" id="btn-assistant-voice" class="assistant-voice-btn" aria-label="Ask via Voice">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                      </button>
+                      <button type="button" id="btn-assistant-ask" class="btn btn-primary btn-sm">Ask</button>
+                    </div>
+                  </div>
+
+                  <!-- Live transcription status during voice prompt -->
+                  <div id="assistant-status" class="assistant-status-text hidden">Listening...</div>
+
+                  <div id="assistant-response-container" class="assistant-response-container hidden">
+                    <div class="assistant-response-header">
+                      <span>Caddie Answer</span>
+                      <button type="button" id="btn-assistant-speak" class="btn-icon" aria-label="Listen to Answer">🔊</button>
+                    </div>
+                    <div id="assistant-response-text" class="assistant-response-text"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+          </div>
+          
+          <!-- Column 1: Active Hole & Scorecard Tracking -->
+          <div class="tracker-column">
+            <!-- Dynamic Stats Bar -->
+            <section class="stats-overview-card" aria-label="Round Stats Overview">
+              <div class="stat-mini-box">
+                <span class="stat-lbl">Hole</span>
+                <span id="overview-hole" class="stat-val">1</span>
+              </div>
+              <div class="stat-mini-box">
+                <span class="stat-lbl">Score</span>
+                <span id="overview-score" class="stat-val">E</span>
+              </div>
+              <div class="stat-mini-box">
+                <span class="stat-lbl">Total Putts</span>
+                <span id="overview-putts" class="stat-val">0</span>
+              </div>
+              <div class="stat-mini-box">
+                <span class="stat-lbl">Fairways</span>
+                <span id="overview-fairways" class="stat-val">-</span>
+              </div>
+              <div class="stat-mini-box">
+                <span class="stat-lbl">GIR</span>
+                <span id="overview-gir" class="stat-val">-</span>
+              </div>
+            </section>
+
+            <!-- Match Play Standings Widget -->
+            <section id="match-play-card" class="glass-card hidden" style="margin-bottom: 1.5rem;">
+              <div class="card-header-simple" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+                <h3 class="section-title" style="margin: 0; font-size: 1.1rem; color: var(--emerald-glow);">🏆 Match Play Standings</h3>
+                <span id="match-play-status-pill" class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald-glow); font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm);">All Square</span>
+              </div>
+              <div id="match-play-standings-body">
+                <!-- Dynamically populated standings -->
+              </div>
+            </section>
+
+
+
+            <!-- Active Hole Detail Card -->
+            <section class="active-hole-section glass-card" aria-labelledby="active-hole-title">
+              <div class="active-hole-header">
+                <button id="btn-prev-hole" class="hole-nav-btn" aria-label="Previous Hole">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+                <h2 id="active-hole-title" class="active-hole-num">HOLE 1</h2>
+                <button id="btn-next-hole" class="hole-nav-btn" aria-label="Next Hole">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+              </div>
+
+              <!-- Main Stats Input Form (Syncs with Voice and Touch) -->
+              <div class="hole-inputs-grid">
+                <!-- Par -->
+                <div class="input-group">
+                  <label for="hole-par" class="input-label">Par</label>
+                  <select id="hole-par" class="form-select">
+                    <option value="3">Par 3</option>
+                    <option value="4" selected>Par 4</option>
+                    <option value="5">Par 5</option>
+                  </select>
+                </div>
+
+                <!-- Score -->
+                <div class="input-group">
+                  <label for="hole-score" class="input-label">Score</label>
+                  <div class="stepper-control">
+                    <button type="button" id="btn-score-minus" class="step-btn" aria-label="Decrease Score">-</button>
+                    <input type="number" id="hole-score" class="step-input" value="0" min="0" max="15">
+                    <button type="button" id="btn-score-plus" class="step-btn" aria-label="Increase Score">+</button>
+                  </div>
+                </div>
+
+                <!-- Putts -->
+                <div class="input-group">
+                  <label for="hole-putts" class="input-label">Putts</label>
+                  <div class="stepper-control">
+                    <button type="button" id="btn-putts-minus" class="step-btn" aria-label="Decrease Putts">-</button>
+                    <input type="number" id="hole-putts" class="step-input" value="0" min="0" max="10">
+                    <button type="button" id="btn-putts-plus" class="step-btn" aria-label="Increase Putts">+</button>
+                  </div>
+                </div>
+
+                <!-- Fairway -->
+                <div class="input-group">
+                  <span class="input-label">Fairway</span>
+                  <div class="toggle-group" role="radiogroup" aria-label="Fairway Status">
+                    <button type="button" class="toggle-btn" data-value="HIT" role="radio" aria-checked="false">Hit</button>
+                    <button type="button" class="toggle-btn" data-value="LEFT" role="radio" aria-checked="false">Left</button>
+                    <button type="button" class="toggle-btn" data-value="RIGHT" role="radio" aria-checked="false">Right</button>
+                    <button type="button" class="toggle-btn" data-value="OB" role="radio" aria-checked="false">OB</button>
+                    <button type="button" class="toggle-btn active" data-value="NA" role="radio" aria-checked="true">N/A</button>
+                  </div>
+                </div>
+
+                <!-- GIR (Green in Regulation) -->
+                <div class="input-group">
+                  <span class="input-label">GIR (Green in Regulation)</span>
+                  <div class="toggle-group" role="radiogroup" aria-label="Green in Regulation">
+                    <button type="button" class="toggle-btn" data-value="YES" role="radio" aria-checked="false">Yes</button>
+                    <button type="button" class="toggle-btn" data-value="NO" role="radio" aria-checked="false">No</button>
+                    <button type="button" class="toggle-btn active" data-value="NA" role="radio" aria-checked="true">N/A</button>
+                  </div>
+                </div>
+
+                <!-- Conceded Hole -->
+                <div class="input-group">
+                  <span class="input-label">Conceded Hole</span>
+                  <div class="toggle-group" role="radiogroup" aria-label="Conceded Status">
+                    <button type="button" class="toggle-btn" data-value="YES" role="radio" aria-checked="false">Yes</button>
+                    <button type="button" class="toggle-btn active" data-value="NO" role="radio" aria-checked="true">No</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Spoken notes list -->
+              <div class="notes-container">
+                <h3 class="notes-heading">Hole Notes &amp; Shots</h3>
+                <div id="hole-notes-list" class="notes-list-bubble">
+                  <p class="empty-notes-text">No notes recorded yet. Say things like "fairway approach shot" or "hit standard iron".</p>
+                </div>
+                <div class="notes-entry-manual">
+                  <input type="text" id="manual-note-input" class="form-input" placeholder="Type a note manually or edit...">
+                  <button type="button" id="btn-add-note" class="btn btn-primary btn-sm">Add</button>
+                </div>
+              </div>
+
+              <!-- Correction Tip Banner -->
+              <div class="correction-tip">
+                <span class="tip-icon">💡</span>
+                <p class="tip-text"><strong>Made a mistake?</strong> Overwrite stats by saying them again (e.g. <em>"score 4"</em>), edit values using the controls above, or tap any scorecard cell below to jump back and correct a hole.</p>
+              </div>
+            </section>
+
+            <!-- Complete Scorecard Grid -->
+            <section class="scorecard-section glass-card" aria-label="Complete Scorecard">
+              <h3 class="section-title">Scorecard</h3>
+              <div class="scorecard-wrapper">
+                <table class="scorecard-table">
+                  <thead>
+                    <tr id="scorecard-header-row">
+                      <th>Hole</th>
+                      <!-- Dynamically filled: 1 to 9/18 -->
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr id="scorecard-par-row">
+                      <td class="row-header">Par</td>
+                    </tr>
+                    <tr id="scorecard-score-row">
+                      <td class="row-header">Score</td>
+                    </tr>
+                    <tr id="scorecard-putts-row">
+                      <td class="row-header">Putts</td>
+                    </tr>
+                    <tr id="scorecard-fairway-row">
+                      <td class="row-header">Fairway</td>
+                    </tr>
+                    <tr id="scorecard-gir-row">
+                      <td class="row-header">GIR</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Finish Round Card -->
+            <section class="finish-round-card glass-card">
+              <h3>Finish Round</h3>
+              <p>Ready to see your analysis? Finalize your scorecard to calculate your full stats and review coaching insights.</p>
+              <button type="button" id="btn-complete-round" class="btn btn-success btn-lg btn-block">
+                Complete Round &amp; See Summary
+              </button>
+            </section>
+          </div>
+
+        </div>
+
+        <!-- End of Round Report View (Hidden by default, shown when complete) -->
+        <div id="report-view" class="report-view hidden">
+          <header class="report-header">
+            <button id="btn-back-to-round" class="btn btn-secondary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="5" y1="12" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+              <span>Back to Scoring</span>
+            </button>
+            <h2>ROUND PERFORMANCE REPORT</h2>
+            <button id="btn-report-start-new" class="btn btn-success">
+              <span>⛳ Start New Round</span>
+            </button>
+          </header>
+
+          <div class="report-layout-grid">
+            <!-- Left Panel: Large Stats & Graphs -->
+            <div class="report-main-stats">
+              <div class="total-score-hero">
+                <span class="hero-lbl">Final Score</span>
+                <span id="report-total-score" class="hero-val">72</span>
+                <span id="report-par-diff" class="hero-subval">Even Par</span>
+              </div>
+
+              <!-- Grid of Performance Cards -->
+              <div class="perf-cards-grid">
+                <!-- Putts Card -->
+                <div class="perf-card glass-card">
+                  <h4>Putting</h4>
+                  <div class="perf-data">
+                    <span id="report-avg-putts" class="perf-main-val">1.8</span>
+                    <span class="perf-sub-lbl">putts/hole</span>
+                  </div>
+                  <div class="perf-details-list">
+                    <div><span>Total Putts</span><span id="report-total-putts" class="val-bold">32</span></div>
+                    <div><span>3-Putts</span><span id="report-three-putts" class="val-bold">0</span></div>
+                    <div><span>1-Putts</span><span id="report-one-putts" class="val-bold">4</span></div>
+                  </div>
+                </div>
+
+                <!-- Accuracy Card -->
+                <div class="perf-card glass-card">
+                  <h4>Accuracy</h4>
+                  <div class="perf-data">
+                    <span id="report-fairways-hit" class="perf-main-val">64%</span>
+                    <span class="perf-sub-lbl">fairways hit</span>
+                  </div>
+                  <div class="perf-details-list">
+                    <div><span>GIR %</span><span id="report-gir-percentage" class="val-bold">50%</span></div>
+                    <div><span>Missed Left</span><span id="report-fairway-left" class="val-bold">2</span></div>
+                    <div><span>Missed Right</span><span id="report-fairway-right" class="val-bold">3</span></div>
+                    <div><span>Out of Bounds</span><span id="report-fairway-ob" class="val-bold">0</span></div>
+                  </div>
+                </div>
+
+                <!-- Scoring Distribution -->
+                <div class="perf-card glass-card">
+                  <h4>Scoring Distribution</h4>
+                  <div class="scoring-bars">
+                    <div class="score-bar-row">
+                      <span class="score-lbl">Eagles+</span>
+                      <div class="bar-container"><div id="bar-eagles" class="bar bg-gold" style="width: 0%"></div></div>
+                      <span id="count-eagles" class="score-count">0</span>
+                    </div>
+                    <div class="score-bar-row">
+                      <span class="score-lbl">Birdies</span>
+                      <div class="bar-container"><div id="bar-birdies" class="bar bg-green" style="width: 0%"></div></div>
+                      <span id="count-birdies" class="score-count">0</span>
+                    </div>
+                    <div class="score-bar-row">
+                      <span class="score-lbl">Pars</span>
+                      <div class="bar-container"><div id="bar-pars" class="bar bg-blue" style="width: 0%"></div></div>
+                      <span id="count-pars" class="score-count">0</span>
+                    </div>
+                    <div class="score-bar-row">
+                      <span class="score-lbl">Bogeys</span>
+                      <div class="bar-container"><div id="bar-bogeys" class="bar bg-orange" style="width: 0%"></div></div>
+                      <span id="count-bogeys" class="score-count">0</span>
+                    </div>
+                    <div class="score-bar-row">
+                      <span class="score-lbl">Doubles+</span>
+                      <div class="bar-container"><div id="bar-doubles" class="bar bg-red" style="width: 0%"></div></div>
+                      <span id="count-doubles" class="score-count">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Panel: AI Coach Insights & Round Summaries -->
+            <div class="report-coach-panel">
+              <div class="glass-card coach-box">
+                <div class="coach-title-area">
+                  <span class="coach-avatar">🏌️‍♂️</span>
+                  <h3>AI Coach Assessment</h3>
+                </div>
+                
+                <div id="coach-loading-spinner" class="spinner-container hidden">
+                  <div class="spinner"></div>
+                  <span>Analyzing your round details...</span>
+                </div>
+
+                <div id="coach-response" class="coach-content-area">
+                  <!-- Generated response goes here -->
+                  <p>Provide a Gemini API Key in Settings to unlock custom professional coaching summaries, or read the local structural summary below.</p>
+                </div>
+              </div>
+
+              <!-- Local Hole-by-Hole Review -->
+              <div class="glass-card round-log-review">
+                <h3>Round Log Review</h3>
+                <div id="report-hole-by-hole-log" class="hole-logs-review-list">
+                  <!-- Filled programmatically -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- History & Handicap Tab Content -->
+        <div id="history-tab-content" class="tab-content hidden">
+          <!-- Handicap Index Hero Card -->
+          <div class="handicap-hero-card">
+            <span class="handicap-label">Handicap Index</span>
+            <div id="handicap-badge-val" class="handicap-value-badge">NH</div>
+            <p id="handicap-description" class="switch-subtext">Play at least 1 round to establish your GolfCaddie handicap.</p>
+            <div class="handicap-sub-stats">
+              <div class="handicap-sub-stat-item">
+                <span class="handicap-sub-stat-lbl">Rounds</span>
+                <span id="handicap-total-rounds" class="handicap-sub-stat-val">0</span>
+              </div>
+              <div class="handicap-sub-stat-item" style="border-left: 1px solid var(--border-light); padding-left: 2rem;">
+                <span class="handicap-sub-stat-lbl">Avg Score</span>
+                <span id="handicap-avg-score" class="handicap-sub-stat-val">-</span>
+              </div>
+              <div class="handicap-sub-stat-item" style="border-left: 1px solid var(--border-light); padding-left: 2rem;">
+                <span class="handicap-sub-stat-lbl">Avg Putts</span>
+                <span id="handicap-avg-putts" class="handicap-sub-stat-val">-</span>
+              </div>
+            </div>
+            <button type="button" id="btn-history-start-new" class="btn btn-success btn-md" style="margin-top: 1.5rem; width: 100%; max-width: 250px;">
+              ⛳ Start New Round
+            </button>
+          </div>
+
+          <!-- Match Play Stats Search Card -->
+          <div class="glass-card matchplay-stats-card" style="margin-top: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem;">
+            <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--gold); display: flex; align-items: center; gap: 0.5rem;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+              <span>Head-to-Head &amp; Match Stats</span>
+            </h3>
+            <p class="form-help-text" style="margin-bottom: 0.75rem;">Analyze historical matches and stats between you and another golfer.</p>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <input type="text" id="matchplay-lookup-username" class="form-input" placeholder="Enter opponent username (e.g. trey)" style="flex: 1; text-transform: lowercase;">
+              <button type="button" id="btn-matchplay-lookup" class="btn btn-primary btn-sm" style="flex-shrink: 0; padding: 0.5rem 1rem;">Analyze</button>
+            </div>
+            <div id="matchplay-lookup-results" class="hidden" style="background: rgba(0,0,0,0.25); border-radius: var(--radius-md); padding: 1rem; border: 1px solid var(--border-light); margin-top: 0.75rem;">
+              <!-- Stats summary results populate dynamically -->
+            </div>
+          </div>
+
+          <!-- Rounds List Section -->
+          <section class="history-list-section">
+            <h2 class="section-title">Past Rounds</h2>
+            <div id="history-rounds-list" class="history-rounds-grid">
+              <!-- Dynamically populated with completed round cards -->
+              <p class="empty-notes-text" style="padding: 3rem 1rem; text-align: center;">No completed rounds found. Go back to scoring and finish a round to save it here!</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- Community Tab Content -->
+        <div id="community-tab-content" class="tab-content hidden" style="padding: 1rem 0;">
+          <!-- Feed Filter Bar -->
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-light); padding-bottom: 0.75rem;">
+            <button type="button" id="btn-feed-filter-all" class="btn btn-sm btn-primary" style="flex: 1; padding: 0.45rem 0.75rem; font-weight: 600;">👥 All Feed</button>
+            <button type="button" id="btn-feed-filter-tagged" class="btn btn-sm btn-secondary" style="flex: 1; padding: 0.45rem 0.75rem; font-weight: 600;">🏷️ Tagged Posts</button>
+          </div>
+
+          <!-- Create Post Card -->
+          <div class="glass-card community-create-post-card" style="margin-bottom: 1.5rem; padding: 1.25rem; position: relative;">
+            
+            <!-- User Profile Header (Mockup Style) -->
+            <div class="post-creator-profile" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+              <div class="post-creator-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--emerald-gradient); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; box-shadow: var(--shadow-glow); border: 2px solid rgba(255,255,255,0.1);" id="creator-profile-avatar">GC</div>
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 0.95rem; font-weight: 600; color: var(--color-primary);" id="creator-profile-name">You</span>
+                <span style="font-size: 0.72rem; color: var(--emerald-glow); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Premium Member</span>
+              </div>
+            </div>
+
+            <textarea id="community-post-text" placeholder="Create a new post... What's on your mind today?" class="form-input" style="width: 100%; min-height: 90px; resize: none; margin-bottom: 1rem; border-radius: 8px; padding: 0.75rem; background: rgba(0,0,0,0.25);" maxlength="500"></textarea>
+            
+            <!-- Autocomplete Tag Suggestions (Absolute overlay) -->
+            <div id="community-tag-suggestions" class="hidden" style="position: absolute; left: 1.25rem; right: 1.25rem; background: rgba(18, 18, 18, 0.98); border: 1px solid var(--border-focus); border-radius: 8px; max-height: 150px; overflow-y: auto; z-index: 1000; box-shadow: var(--shadow-glow); margin-top: -0.75rem;">
+              <!-- Dynamically populated with options -->
+            </div>
+            
+            <!-- Admin Options (Hidden by default, shown if state.isAdmin is true) -->
+            <div id="community-admin-options" class="hidden" style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(245, 158, 11, 0.05); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; display: flex; flex-direction: column; gap: 0.75rem;">
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <label for="community-post-as-handle" style="font-size: 0.8rem; color: var(--gold); font-weight: 600; min-width: 80px;">POST AS:</label>
+                <select id="community-post-as-handle" class="form-input" style="flex: 1; height: 32px; padding: 0.2rem 0.5rem; font-size: 0.85rem; background: rgba(0,0,0,0.4);">
+                  <option value="current">Your Username</option>
+                  <option value="GolfCaddie_AI">@GolfCaddie_AI (Official)</option>
+                  <option value="System">@System (Announcement)</option>
+                </select>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label style="flex: 1; font-size: 0.85rem; color: var(--gold); font-weight: 600;">PIN TO TOP</label>
+                <label class="toggle-switch" style="margin: 0;">
+                  <input type="checkbox" id="community-post-pin">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="post-actions-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <!-- Image Upload Button & Mock Actions -->
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <label for="community-post-image-input" class="btn btn-secondary btn-xs" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; padding: 0.45rem 0.75rem; border-radius: 6px; font-size: 0.8rem;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                  <span>Add Photo</span>
+                </label>
+                <input type="file" id="community-post-image-input" accept="image/*" style="display: none;">
+
+                <!-- Decorative premium buttons matching mockup -->
+                <button type="button" class="btn btn-secondary btn-xs" style="padding: 0.45rem 0.75rem; border-radius: 6px; display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; opacity: 0.85; cursor: default;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                  <span>Camera</span>
+                </button>
+                <button type="button" class="btn btn-secondary btn-xs" style="padding: 0.45rem 0.75rem; border-radius: 6px; display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; opacity: 0.85; cursor: default;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 0-5 5v3H3v10h18V10h-4V7a5 5 0 0 0-5-5z"></path></svg>
+                  <span>Tag Friend</span>
+                </button>
+                
+                <!-- Small thumbnail preview -->
+                <div id="community-post-image-preview-container" style="display: none; position: relative;">
+                  <img id="community-post-image-preview" src="" style="width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-light);">
+                  <button type="button" id="btn-clear-post-image" style="position: absolute; top: -5px; right: -5px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">&times;</button>
+                </div>
+              </div>
+              
+              <button type="button" id="btn-submit-post" class="btn btn-primary btn-sm" style="padding: 0.5rem 1.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.85rem; border-radius: 6px; box-shadow: var(--shadow-glow);">
+                Post
+              </button>
+            </div>
+          </div>
+          
+          <!-- Community Feed Section -->
+          <div class="community-feed-section">
+            <h3 style="margin-bottom: 1rem; font-size: 1.1rem; opacity: 0.9;">Recent Activity</h3>
+            <div id="community-feed-list" class="community-feed-grid">
+              <!-- Dynamically populated via real-time Firestore listener -->
+              <p class="empty-notes-text" style="padding: 3rem 1rem; text-align: center;">Loading community activity...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Us Tab Content -->
+        <div id="contact-tab-content" class="tab-content hidden" style="padding: 1rem 0;">
+          <div class="glass-card" style="max-width: 600px; margin: 0 auto; padding: 1.75rem;">
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem; color: var(--color-primary); font-weight: 700; text-align: center;">✉️ Contact Us &amp; Feedback</h2>
+            <p style="color: var(--color-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; text-align: center; line-height: 1.4;">
+              Have questions, issues, or ideas for new features? Let us know! We collect all feedback to continuously improve your Golf Caddie experience.
+            </p>
+
+            <form id="contact-feedback-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div class="form-group-block" style="margin-bottom: 0;">
+                <label for="contact-name" class="form-section-title" style="margin-bottom: 0.35rem;">Name</label>
+                <input type="text" id="contact-name" class="form-input" placeholder="Your Name" required style="width: 100%; border-radius: 8px;">
+              </div>
+
+              <div class="form-group-block" style="margin-bottom: 0;">
+                <label for="contact-email" class="form-section-title" style="margin-bottom: 0.35rem;">Email Address</label>
+                <input type="email" id="contact-email" class="form-input" placeholder="you@example.com" required style="width: 100%; border-radius: 8px;">
+              </div>
+
+              <div class="form-group-block" style="margin-bottom: 0;">
+                <label for="contact-type" class="form-section-title" style="margin-bottom: 0.35rem;">Feedback Type</label>
+                <select id="contact-type" class="form-input" style="width: 100%; border-radius: 8px; background: rgba(0,0,0,0.4);">
+                  <option value="feature">💡 Feature Request</option>
+                  <option value="bug">🐛 Bug Report / Issue</option>
+                  <option value="question">❓ General Inquiry / Question</option>
+                  <option value="other">💬 Other Feedback</option>
+                </select>
+              </div>
+
+              <div class="form-group-block" style="margin-bottom: 0;">
+                <label for="contact-message" class="form-section-title" style="margin-bottom: 0.35rem;">Message</label>
+                <textarea id="contact-message" placeholder="Please describe your feedback, request, or issue in detail..." class="form-input" style="width: 100%; min-height: 120px; resize: vertical; border-radius: 8px; padding: 0.75rem;" required maxlength="1000"></textarea>
+              </div>
+
+              <button type="submit" id="btn-submit-feedback" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-weight: 600; font-size: 1rem; border-radius: 8px; margin-top: 0.5rem; transition: all 0.2s ease;">
+                Submit Feedback
+              </button>
+            </form>
+            
+            <div id="contact-success-msg" class="hidden" style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; text-align: center; color: var(--emerald-glow);">
+              <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">✓</div>
+              <strong style="font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">Feedback Submitted!</strong>
+              <span style="font-size: 0.8rem; opacity: 0.9;">Thank you. Our team has received your submission and will review it shortly.</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Settings & Course Setup Modal (Standard semantic dialog) -->
+      <dialog id="settings-dialog" class="settings-modal glass-modal">
+        <div class="modal-header">
+          <h2>Round &amp; Course Settings</h2>
+          <button id="btn-close-settings" class="btn-close-modal" aria-label="Close settings">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="settings-form">
+            <!-- Holes Count -->
+            <div class="form-group-block">
+              <label class="form-section-title">Course Length</label>
+              <div class="segmented-control" role="radiogroup" aria-label="Course Holes">
+                <input type="radio" id="holes-9" name="course-holes" value="9" checked>
+                <label for="holes-9">9 Holes</label>
+                
+                <input type="radio" id="holes-18" name="course-holes" value="18">
+                <label for="holes-18">18 Holes</label>
+              </div>
+            </div>
+
+            <!-- Game Mode -->
+            <div class="form-group-block">
+              <label class="form-section-title">Game Mode</label>
+              <div class="segmented-control" role="radiogroup" aria-label="Game Mode">
+                <input type="radio" id="mode-individual" name="game-mode" value="individual" checked>
+                <label for="mode-individual">Individual</label>
+                
+                <input type="radio" id="mode-match" name="game-mode" value="match">
+                <label for="mode-match">Match Play</label>
+              </div>
+            </div>
+
+            <!-- Match Play Players Configuration -->
+            <div id="match-play-setup-section" class="form-group-block hidden">
+              <label class="form-section-title">Match Type</label>
+              <div class="segmented-control" role="radiogroup" aria-label="Match Type" style="margin-bottom: 1rem;">
+                <input type="radio" id="match-type-leaderboard" name="match-type" value="leaderboard" checked>
+                <label for="match-type-leaderboard">Leaderboard / Individual</label>
+                
+                <input type="radio" id="match-type-team" name="match-type" value="team">
+                <label for="match-type-team">2-on-2 Team Match</label>
+              </div>
+
+              <label class="form-section-title" id="match-players-title">Match Play Players</label>
+              <p class="form-help-text" id="match-players-help">Enter player names. Leaving names blank will exclude them.</p>
+              <div class="match-players-inputs">
+                <div class="player-input-row">
+                  <span class="player-label" id="player-1-label">Player 1:</span>
+                  <input type="text" id="player-1-name" class="form-input" value="You" readonly>
+                </div>
+                <div class="player-input-row">
+                  <span class="player-label" id="player-2-label">Player 2:</span>
+                  <input type="text" id="player-2-name" class="form-input" placeholder="Enter player name/alias..." list="player-aliases-list">
+                </div>
+                <div class="player-input-row">
+                  <span class="player-label" id="player-3-label">Player 3:</span>
+                  <input type="text" id="player-3-name" class="form-input" placeholder="Enter player name/alias..." list="player-aliases-list">
+                </div>
+                <div class="player-input-row">
+                  <span class="player-label" id="player-4-label">Player 4:</span>
+                  <input type="text" id="player-4-name" class="form-input" placeholder="Enter player name/alias..." list="player-aliases-list">
+                </div>
+              </div>
+              <datalist id="player-aliases-list"></datalist>
+
+              <!-- Custom Team Names (Only visible when 2-on-2 Team Match is selected) -->
+              <div id="team-names-setup" class="hidden" style="margin-top: 1rem; border-top: 1px dashed var(--border-light); padding-top: 1rem;">
+                <label class="form-section-title">Team Names</label>
+                <p class="form-help-text">Customize team names for matching results and standings.</p>
+                <div class="player-input-row" style="margin-bottom: 0.5rem;">
+                  <span class="player-label" style="min-width: 70px;">Team 1:</span>
+                  <input type="text" id="team-1-name" class="form-input" placeholder="Team A">
+                </div>
+                <div class="player-input-row">
+                  <span class="player-label" style="min-width: 70px;">Team 2:</span>
+                  <input type="text" id="team-2-name" class="form-input" placeholder="Team B">
+                </div>
+              </div>
+            </div>
+
+            <!-- Cloud Database Sync (Firebase Auth status) -->
+            <div class="form-group-block" id="auth-section">
+              <label class="form-section-title">Cloud Sync &amp; Account</label>
+              
+              <!-- Logged-In Container -->
+              <div id="auth-logged-in" class="auth-container">
+                <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid var(--border-focus); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--border-focus);">
+                    <span style="font-size: 1.25rem;">✓</span>
+                    <span style="font-weight: bold; font-size: 0.9rem;">Cloud Sync Active</span>
+                  </div>
+                  <p id="auth-user-email" class="form-help-text" style="margin-bottom: 0.75rem; color: var(--color-primary); font-weight: 500;"></p>
+                  
+                  <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                    <label style="font-size: 0.75rem; color: var(--color-secondary); text-transform: uppercase; font-weight: bold;">Sync / User ID</label>
+                    <div class="sync-id-row" style="display: flex; gap: 0.5rem;">
+                      <input type="text" id="auth-uid-input" class="form-input" readonly style="font-family: monospace; font-size: 0.8rem; padding: 0.4rem 0.6rem; background-color: rgba(9, 12, 15, 0.5);">
+                      <button type="button" id="btn-copy-uid" class="btn btn-secondary btn-sm" style="flex-shrink: 0; padding: 0.4rem 0.6rem;">📋 Copy</button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.75rem;">
+                  <button type="button" id="btn-auth-logout" class="btn btn-secondary btn-sm" style="flex: 1;">Log Out</button>
+                  <button type="button" id="btn-auth-delete-account" class="btn btn-danger btn-sm" style="flex: 1;">Delete Account</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Gemini AI Key -->
+            <div class="form-group-block">
+              <label for="gemini-api-key" class="form-section-title">Gemini API Key (Optional)</label>
+              <p class="form-help-text">Add your Google Gemini API Key for deep personal coaching and summary details at the end of the round. Key is saved locally on your browser.</p>
+              <input type="password" id="gemini-api-key" class="form-input" placeholder="AIzaSy...">
+            </div>
+
+            <!-- OpenAI API Key for Whisper -->
+            <div class="form-group-block">
+              <label for="openai-api-key" class="form-section-title">OpenAI API Key for Whisper (Optional)</label>
+              <p class="form-help-text">Use OpenAI's Whisper AI to transcribe voice controls. Recommended for superior voice recognition and handling of accents/diction. Key is saved locally.</p>
+              <input type="password" id="openai-api-key" class="form-input" placeholder="sk-proj-...">
+            </div>
+
+            <!-- Voice Control Options (Moved from Dashboard Voice Card) -->
+            <div class="form-group-block">
+              <label class="form-section-title">Voice Control Options</label>
+              
+              <div class="settings-row flex-between" style="border-top: none; padding: 0.5rem 0;">
+                <label for="switch-continuous" class="switch-label">
+                  <span>Keep microphone listening</span>
+                  <small class="switch-subtext">Ideal for keeping device open on a stand or cart</small>
+                </label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="switch-continuous">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="settings-row flex-between" style="border-top: 1px solid var(--border-light); padding: 0.75rem 0 0.5rem;">
+                <label for="switch-audio-feedback" class="switch-label">
+                  <span>Voice confirmation (Speak back)</span>
+                  <small class="switch-subtext">App reads back score details after hearing them</small>
+                </label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="switch-audio-feedback" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Live Spectator Mode -->
+            <div class="form-group-block">
+              <label class="form-section-title">Live Spectator &amp; Collaborative Mode</label>
+              <p class="form-help-text">Enter another player's Sync ID to view or edit their active round in real-time.</p>
+              
+              <div class="segmented-control" role="radiogroup" aria-label="Spectator Role" style="margin-bottom: 0.75rem;">
+                <input type="radio" id="spectator-role-viewer" name="spectator-role" value="viewer" checked>
+                <label for="spectator-role-viewer">Viewer (Read-Only)</label>
+                
+                <input type="radio" id="spectator-role-collaborator" name="spectator-role" value="collaborator">
+                <label for="spectator-role-collaborator">Co-Scorer (Collaborator)</label>
+              </div>
+
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="spectate-sync-id" class="form-input" placeholder="e.g. caddie-xxxxxxxxxxxx">
+                <button type="button" id="btn-spectate-join" class="btn btn-primary" style="flex-shrink: 0; padding: 0.5rem 1rem;">Join Live</button>
+              </div>
+              <div id="spectate-status-container" class="hidden" style="margin-top: 0.5rem; display: flex; align-items: center; justify-content: space-between; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);">
+                <span id="spectate-status-text" style="font-size: 0.85rem; color: #60a5fa; font-weight: 500;">👁️ Spectating: None</span>
+                <button type="button" id="btn-spectate-stop" class="btn btn-danger btn-xs" style="padding: 0.25rem 0.5rem;">Disconnect</button>
+              </div>
+            </div>
+
+            <!-- Course Autocomplete Search & GolfAPI.io Key -->
+            <div class="form-group-block">
+              <label class="form-section-title">Search &amp; Load Golf Course</label>
+              <p class="form-help-text">Type to search courses. If no API Key is added, world-class mock courses will be suggested.</p>
+              <div class="course-search-container" style="position: relative;">
+                <input type="text" id="course-search-input" class="form-input" placeholder="Search course (e.g. Pebble Beach)..." autocomplete="off">
+                <div id="course-search-results" class="search-results-dropdown hidden"></div>
+              </div>
+            </div>
+
+            <div class="form-group-block">
+              <label for="golfapi-key" class="form-section-title">GolfCourseAPI.com API Key (Optional)</label>
+              <p class="form-help-text">Connect to the GolfCourseAPI.com database for live course search. Requires an Authorization Key.</p>
+              <input type="password" id="golfapi-key" class="form-input" placeholder="Key YOUR_API_KEY...">
+            </div>
+
+            <!-- Custom Pars Configurator -->
+            <div class="form-group-block">
+              <label class="form-section-title">Customize Hole Pars</label>
+              <div id="pars-config-grid" class="pars-config-grid">
+                <!-- Dynamically generated list of hole inputs -->
+              </div>
+            </div>
+
+            <!-- Replay Guided Tour Option -->
+            <div class="form-group-block" style="border-top: 1px solid var(--border-light); padding-top: 1rem;">
+              <div class="settings-row flex-between" style="border-top: none; padding: 0.25rem 0;">
+                <div class="switch-label">
+                  <span>Replay Guided Tour</span>
+                  <small class="switch-subtext">Restart the interactive walkthrough of the app's features</small>
+                </div>
+                <button type="button" id="btn-replay-tutorial" class="btn btn-secondary btn-xs" style="padding: 0.4rem 0.75rem;">Start Tour</button>
+              </div>
+            </div>
+
+            <div class="modal-footer-actions">
+              <button type="submit" id="btn-save-settings" class="btn btn-primary btn-block">Save Course Settings</button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <!-- Save Completed Round Modal Dialog -->
+      <dialog id="complete-round-dialog" class="settings-modal glass-modal">
+        <div class="modal-header">
+          <h2>Save Completed Round</h2>
+          <button id="btn-close-complete" class="btn-close-modal" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="complete-round-form">
+            <div class="form-group-block">
+              <label for="save-course-name" class="form-section-title">Golf Course Name</label>
+              <input type="text" id="save-course-name" class="form-input" placeholder="e.g. Pebble Beach Golf Links" required>
+            </div>
+            <div class="form-group-block">
+              <label for="save-round-date" class="form-section-title">Date of Play</label>
+              <input type="date" id="save-round-date" class="form-input" required>
+            </div>
+            <div class="modal-footer-actions">
+              <button type="submit" class="btn btn-success btn-block btn-lg">Save Round &amp; View Analysis</button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <!-- GPS Help Modal Dialog -->
+      <dialog id="gps-help-dialog" class="settings-modal glass-modal">
+        <div class="modal-header">
+          <h2>How to Unblock GPS</h2>
+          <button id="btn-close-gps-help" class="btn-close-modal" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body" style="line-height: 1.6; font-size: 0.95rem; color: var(--color-primary);">
+          <p style="margin-bottom: 1rem; font-weight: 600; color: var(--color-primary);">To use the GPS rangefinder, you must allow location permissions. Follow these steps:</p>
+          
+          <div style="margin-bottom: 1.25rem;">
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone Home Screen Bookmarks</h3>
+            <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
+              <li>Open your iPhone's main <strong>Settings</strong> app.</li>
+              <li>Go to <strong>Privacy & Security</strong> &gt; <strong>Location Services</strong>.</li>
+              <li>Find <strong>"GolfCaddie AI"</strong> (or the bookmark's title) or your browser (like <strong>Safari Websites</strong> or <strong>Chrome</strong>) in the list.</li>
+              <li>Ensure location access is set to <strong>While Using the App</strong> or <strong>Ask Next Time</strong>.</li>
+              <li>Force-close the Home Screen app (swipe it up/away), then re-open it.</li>
+              <li>Tap the red <strong>GPS Offline</strong> badge to trigger the permission prompt and sync location!</li>
+            </ol>
+            <p style="margin-top: 0.65rem; font-size: 0.85rem; color: var(--color-primary); opacity: 0.85; padding-left: 0.5rem; border-left: 2px solid var(--emerald-glow);">
+              ⚠️ <strong>Stuck Permissions?</strong> If iOS refuses to show the location popup after tapping the badge, go to your iPhone's <strong>Settings</strong> &gt; <strong>General</strong> &gt; <strong>Transfer or Reset iPhone</strong> &gt; <strong>Reset</strong> and tap <strong>Reset Location & Privacy</strong>, then reopen the app.
+            </p>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone (Safari Browser)</h3>
+            <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
+              <li>Tap the <strong>aA</strong> icon in the address bar search box.</li>
+              <li>Select <strong>Website Settings</strong>.</li>
+              <li>Set <strong>Location</strong> to <strong>Allow</strong>.</li>
+              <li>Refresh the page!</li>
+            </ol>
+          </div>
+          
+          <div style="margin-bottom: 1.25rem;">
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">📱 iPhone (Chrome Browser)</h3>
+            <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
+              <li>Open your iPhone's main <strong>Settings</strong> app.</li>
+              <li>Scroll down through your apps list and tap <strong>Chrome</strong>.</li>
+              <li>Tap <strong>Location</strong> and select <strong>While Using the App</strong>.</li>
+              <li>Return to Chrome and refresh the page!</li>
+            </ol>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <h3 style="color: var(--emerald-glow); font-size: 1.05rem; margin-bottom: 0.35rem; text-transform: uppercase;">💻 Desktop (Chrome)</h3>
+            <ol style="margin-left: 1.25rem; list-style-type: decimal; display: flex; flex-direction: column; gap: 0.25rem;">
+              <li>Click the <strong>settings/padlock icon</strong> to the left of the URL.</li>
+              <li>Set <strong>Location</strong> to <strong>Allow</strong>.</li>
+              <li>Reload the page!</li>
+            </ol>
+          </div>
+        </div>
+      </dialog>
+
+      <!-- Footer -->
+      <footer class="app-footer">
+        <p>&copy; 2026 GolfCaddie AI. Hands-free tracking for better games.</p>
+      </footer>
+    </div>
+
+    <!-- Full-screen Login/Signup Gate Overlay -->
+    <div id="auth-gate-overlay" class="auth-gate-overlay">
+      <div class="auth-gate-card glass-modal">
+        <div class="auth-gate-header">
+          <div class="auth-gate-logo" style="font-size: 2rem; margin-bottom: 0.5rem;">🟢</div>
+          <h2>Welcome to GolfCaddie AI</h2>
+          <p class="auth-gate-subtitle" style="font-size: 0.85rem; color: var(--color-secondary); margin-top: 0.25rem;">Your voice-controlled personal caddie and yardage guide.</p>
+        </div>
+        
+        <div class="auth-gate-body" style="padding-top: 1rem;">
+          <p class="form-help-text" style="text-align: center; margin-bottom: 1.25rem;">Sign in or create an account to start tracking your rounds.</p>
+          
+          <!-- Tab toggles -->
+          <div id="gate-auth-tabs" class="auth-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+            <button type="button" id="gate-tab-login" class="btn btn-secondary btn-sm active-tab" style="flex: 1; padding: 0.6rem;">Log In</button>
+            <button type="button" id="gate-tab-signup" class="btn btn-secondary btn-sm" style="flex: 1; padding: 0.6rem;">Create Account</button>
+          </div>
+
+          <!-- Forgot password helper instructions -->
+          <p id="gate-auth-forgot-helper" style="font-size: 0.85rem; color: var(--color-secondary); margin-bottom: 1.25rem; display: none; text-align: center;">Enter your email address and we will send you a password reset link.</p>
+
+          <!-- Form fields -->
+          <div class="auth-form-fields" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
+            <div id="gate-auth-username-wrapper" style="display: none;">
+              <label for="gate-auth-username" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Username</label>
+              <input type="text" id="gate-auth-username" class="form-input" placeholder="Choose username (e.g. golfer1)" autocomplete="username">
+            </div>
+            <div>
+              <label for="gate-auth-email" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Email Address</label>
+              <input type="email" id="gate-auth-email" class="form-input" placeholder="name@domain.com" autocomplete="email">
+            </div>
+            <div id="gate-auth-password-wrapper">
+              <label for="gate-auth-password" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Password</label>
+              <input type="password" id="gate-auth-password" class="form-input" placeholder="••••••••" autocomplete="current-password">
+              <div style="text-align: right; margin-top: 0.4rem;">
+                <span id="btn-gate-forgot-password" style="font-size: 0.8rem; color: var(--color-primary); cursor: pointer; text-decoration: underline;">Forgot Password?</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Auth error display -->
+          <div id="gate-auth-error-msg" class="auth-error-text" style="color: var(--color-danger, #ef4444); font-size: 0.85rem; margin-bottom: 1.25rem; display: none;"></div>
+
+          <!-- Action button -->
+          <button type="button" id="btn-gate-auth-submit" class="btn btn-primary btn-lg btn-block" style="font-weight: bold;">Log In</button>
+
+          <!-- Back to login toggle -->
+          <div id="gate-back-to-login-wrapper" style="text-align: center; margin-top: 1rem; display: none;">
+            <span id="btn-gate-back-to-login" style="font-size: 0.85rem; color: var(--color-primary); cursor: pointer; text-decoration: underline;">Back to Log In</span>
+          </div>
+
+          <!-- Toggle to use Legacy Sync ID -->
+          <details style="margin-top: 1.5rem;">
+            <summary style="font-size: 0.8rem; color: var(--color-secondary); cursor: pointer; user-select: none; padding: 0.2rem 0; text-align: center;">Have a legacy Sync ID?</summary>
+            <div style="margin-top: 0.5rem; padding: 0.75rem; border: 1px solid var(--border-light); border-radius: var(--radius-sm); background-color: rgba(9, 12, 15, 0.4);">
+              <p class="form-help-text" style="margin-bottom: 0.5rem;">Enter your legacy Sync ID to load your history locally, then sign up to migrate it.</p>
+              <div class="sync-id-row" style="display: flex; gap: 0.5rem;">
+                <input type="text" id="gate-sync-id-input" class="form-input" placeholder="caddie-..." style="font-family: monospace; font-size: 0.85rem; padding: 0.5rem;">
+                <button type="button" id="btn-gate-connect-sync" class="btn btn-secondary btn-sm" style="flex-shrink: 0;">Connect</button>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <!-- Guided Onboarding Tutorial Overlay -->
+    <div id="tutorial-overlay" class="tutorial-overlay hidden">
+      <div id="tutorial-card" class="tutorial-card glass-card">
+        <div class="tutorial-card-body">
+          <h3 id="tutorial-step-title" class="tutorial-step-title">Welcome to GolfCaddie AI! ⛳</h3>
+          <p id="tutorial-step-text" class="tutorial-step-text">Let’s take a quick 1-minute tour of your new AI-powered golf caddie.</p>
+        </div>
+        <div class="tutorial-card-footer">
+          <button type="button" id="btn-tutorial-skip" class="btn btn-secondary btn-xs" style="padding: 0.4rem 0.65rem;">Skip Tour</button>
+          <div class="tutorial-stepper" id="tutorial-stepper">
+            <!-- Stepper dots filled dynamically -->
+          </div>
+          <div style="display: flex; gap: 0.25rem;">
+            <button type="button" id="btn-tutorial-prev" class="btn btn-secondary btn-xs hidden" style="padding: 0.4rem 0.65rem;">Back</button>
+            <button type="button" id="btn-tutorial-next" class="btn btn-primary btn-xs" style="padding: 0.4rem 0.65rem;">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

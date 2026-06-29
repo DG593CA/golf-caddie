@@ -1,0 +1,17 @@
+{
+  "name": "GolfCaddie AI",
+  "short_name": "GolfCaddie",
+  "description": "Voice-controlled golf scorecard tracker and GPS rangefinder.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f0d",
+  "theme_color": "#10b981",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
