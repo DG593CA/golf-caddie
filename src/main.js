@@ -1893,7 +1893,10 @@ function initUI() {
     // Hide all tab content sections
     const contents = [activeRoundContent, historyContent, communityContent, contactContent];
     contents.forEach(content => {
-      if (content) content.classList.add('hidden');
+      if (content) {
+        content.classList.add('hidden');
+        content.style.setProperty('display', 'none', 'important');
+      }
     });
 
     // Unsubscribe from community updates if moving away
@@ -1905,15 +1908,18 @@ function initUI() {
     // Toggle specific tab view contents
     if (tabId === 'tab-active-round' && activeRoundContent) {
       activeRoundContent.classList.remove('hidden');
+      activeRoundContent.style.setProperty('display', 'block', 'important');
       const dashView = document.getElementById('dashboard-view');
       const repView = document.getElementById('report-view');
       if (dashView) dashView.classList.remove('hidden');
       if (repView) repView.classList.add('hidden');
     } else if (tabId === 'tab-history' && historyContent) {
       historyContent.classList.remove('hidden');
+      historyContent.style.setProperty('display', 'block', 'important');
       renderHistoryTab();
     } else if (tabId === 'tab-community' && communityContent) {
       communityContent.classList.remove('hidden');
+      communityContent.style.setProperty('display', 'block', 'important');
       
       // Toggle admin options container visibility
       const adminOptions = document.getElementById('community-admin-options');
@@ -1933,6 +1939,7 @@ function initUI() {
       initCommunityFeedListener();
     } else if (tabId === 'tab-contact' && contactContent) {
       contactContent.classList.remove('hidden');
+      contactContent.style.setProperty('display', 'block', 'important');
     }
   });
 

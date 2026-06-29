@@ -38,6 +38,44 @@
             showOverlay('Resource Load Error', 'Failed to load: ' + (event.target.src || event.target.href));
           }
         }, true);
+
+        // Failsafe Tab Switcher (Runs instantly even if main module fails to load or execute)
+        document.addEventListener('click', function(e) {
+          var btn = e.target.closest('.nav-tab');
+          if (!btn) return;
+          
+          var tabId = btn.id;
+          var tabs = ['tab-active-round', 'tab-history', 'tab-community', 'tab-contact'];
+          var contents = ['active-round-tab-content', 'history-tab-content', 'community-tab-content', 'contact-tab-content'];
+          
+          var targetContentId = tabId.replace('tab-', '') + '-tab-content';
+          if (tabId === 'tab-active-round') targetContentId = 'active-round-tab-content';
+          
+          tabs.forEach(function(tId) {
+            var tEl = document.getElementById(tId);
+            if (tEl) {
+              tEl.classList.remove('active');
+              tEl.setAttribute('aria-selected', 'false');
+            }
+          });
+          
+          btn.classList.add('active');
+          btn.setAttribute('aria-selected', 'true');
+          
+          contents.forEach(function(cId) {
+            var cEl = document.getElementById(cId);
+            if (cEl) {
+              cEl.classList.add('hidden');
+              cEl.style.setProperty('display', 'none', 'important');
+            }
+          });
+          
+          var targetEl = document.getElementById(targetContentId);
+          if (targetEl) {
+            targetEl.classList.remove('hidden');
+            targetEl.style.setProperty('display', 'block', 'important');
+          }
+        }, true);
       })();
     </script>
     <!-- PWA Config -->
@@ -51,7 +89,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index--25JEoMN.js"></script>
+    <script type="module" crossorigin src="./assets/index-QSpVqL7f.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-TPlDf8Bg.css">
   </head>
   <body>
