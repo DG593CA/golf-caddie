@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
-import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { initializeAuth, browserLocalPersistence } from "firebase/auth";
 
 const firebaseConfig = {
   projectId: "golfcaddie-e3e0e",
@@ -13,11 +13,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+const db = getFirestore(app);
 
 // Use stable browserLocalPersistence (localStorage) exclusively to avoid indexedDB hangs on iOS WebView
 const auth = initializeAuth(app, {
