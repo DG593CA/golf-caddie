@@ -89,8 +89,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-QSpVqL7f.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-TPlDf8Bg.css">
+    <script type="module" crossorigin src="./assets/index-BB2hCP18.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CQ9Rd5Ef.css">
   </head>
   <body>
     <div id="app">
@@ -462,6 +462,9 @@
                     <tr id="scorecard-par-row">
                       <td class="row-header">Par</td>
                     </tr>
+                    <tr id="scorecard-yards-row">
+                      <td class="row-header">Yards</td>
+                    </tr>
                     <tr id="scorecard-score-row">
                       <td class="row-header">Score</td>
                     </tr>
@@ -796,6 +799,20 @@
           </div>
         </div>
       </main>
+
+      <!-- Tee Selector Dialog -->
+      <dialog id="tee-select-dialog" class="settings-modal glass-modal" style="max-width: 420px;">
+        <div class="modal-header">
+          <h2>Select Tee Box</h2>
+          <button id="btn-close-tee-select" class="btn-close-modal" aria-label="Close tee selector">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1rem 1.25rem 1.5rem;">
+          <p class="form-help-text" style="margin-bottom: 1rem;">Choose the tee box you are playing for this round:</p>
+          <div id="tee-select-list" class="tee-select-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <!-- Filled dynamically -->
+          </div>
+        </div>
+      </dialog>
 
       <!-- Settings & Course Setup Modal (Standard semantic dialog) -->
       <dialog id="settings-dialog" class="settings-modal glass-modal">

@@ -2816,3 +2816,78 @@ a:hover {
 .tag-suggestion-username {
   font-weight: 600;
 }
+
+/* Tee Selector Dialog Styles */
+.tee-select-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tee-select-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--emerald-glow);
+  transform: translateY(-1px);
+}
+
+.tee-select-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tee-select-item-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-primary);
+}
+
+.tee-select-item-yards {
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+}
+
+.tee-select-item-right {
+  text-align: right;
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+}
+
+.bg-tee-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Tee Box Specific Colors */
+.bg-tee-black { background-color: #000000; border-color: rgba(255, 255, 255, 0.6); }
+.bg-tee-blue { background-color: #2563eb; }
+.bg-tee-gold { background-color: #eab308; }
+.bg-tee-white { background-color: #ffffff; border-color: rgba(0, 0, 0, 0.2); }
+.bg-tee-green { background-color: #16a34a; }
+.bg-tee-yellow { background-color: #fde047; }
+.bg-tee-red { background-color: #dc2626; }
+.bg-tee-standard { background-color: #6b7280; }
+
+/* Scorecard Yards Row Styling */
+#scorecard-yards-row td {
+  color: var(--color-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+#scorecard-yards-row .row-header {
+  font-weight: 700;
+  background-color: var(--bg-dark);
+}
+

@@ -82,6 +82,79 @@ if (typeof window !== 'undefined' && 'caches' in window) {
 // Mock Golf Courses Database
 const MOCK_COURSES = [
   {
+    id: "mock_gorgevale",
+    name: "Gorge Vale Golf Club",
+    city: "Victoria",
+    state: "BC",
+    rating: 72.2,
+    slope: 133,
+    holesCount: 18,
+    pars: [4, 3, 4, 4, 4, 4, 5, 5, 4, 3, 5, 4, 4, 3, 5, 3, 4, 4],
+    coordinates: { lat: 48.441807, lng: -123.402657 },
+    holeCoordinates: [
+      { lat: 48.4411, lng: -123.4055 },
+      { lat: 48.4405, lng: -123.4072 },
+      { lat: 48.4395, lng: -123.4065 },
+      { lat: 48.4398, lng: -123.4042 },
+      { lat: 48.4412, lng: -123.4038 },
+      { lat: 48.4422, lng: -123.4048 },
+      { lat: 48.4428, lng: -123.4068 },
+      { lat: 48.4442, lng: -123.4058 },
+      { lat: 48.4428, lng: -123.4032 },
+      { lat: 48.4418, lng: -123.4012 },
+      { lat: 48.4432, lng: -123.4005 },
+      { lat: 48.4445, lng: -123.3995 },
+      { lat: 48.4438, lng: -123.3982 },
+      { lat: 48.4425, lng: -123.3992 },
+      { lat: 48.4408, lng: -123.3998 },
+      { lat: 48.4395, lng: -123.4005 },
+      { lat: 48.4402, lng: -123.4022 },
+      { lat: 48.4415, lng: -123.4025 }
+    ],
+    tees: [
+      {
+        name: "Black",
+        rating: 73.5,
+        slope: 138,
+        yards: 6820,
+        pars: [4, 3, 4, 4, 4, 4, 5, 5, 4, 3, 5, 4, 4, 3, 5, 3, 4, 4],
+        holeYardages: [359, 187, 336, 426, 368, 324, 514, 601, 410, 164, 534, 423, 400, 166, 541, 208, 412, 447]
+      },
+      {
+        name: "Blue",
+        rating: 72.2,
+        slope: 133,
+        yards: 6495,
+        pars: [4, 3, 4, 4, 4, 4, 5, 5, 4, 3, 5, 4, 4, 3, 5, 3, 4, 4],
+        holeYardages: [344, 176, 311, 409, 354, 314, 492, 575, 397, 149, 509, 410, 382, 152, 526, 185, 384, 426]
+      },
+      {
+        name: "White",
+        rating: 69.9,
+        slope: 127,
+        yards: 6057,
+        pars: [4, 3, 4, 4, 4, 4, 5, 5, 4, 3, 5, 4, 4, 3, 5, 3, 4, 4],
+        holeYardages: [328, 158, 305, 398, 340, 308, 474, 501, 353, 133, 485, 393, 337, 129, 490, 159, 361, 405]
+      },
+      {
+        name: "Green",
+        rating: 66.4,
+        slope: 123,
+        yards: 5336,
+        pars: [4, 3, 4, 4, 4, 4, 5, 5, 4, 3, 5, 4, 4, 3, 5, 3, 4, 4],
+        holeYardages: [314, 112, 295, 289, 274, 245, 453, 462, 321, 112, 460, 348, 297, 98, 454, 140, 344, 318]
+      },
+      {
+        name: "Yellow",
+        rating: 62.5,
+        slope: 111,
+        yards: 4503,
+        pars: [4, 3, 3, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 3, 4, 3, 4, 4],
+        holeYardages: [260, 112, 205, 289, 274, 245, 355, 399, 265, 83, 365, 255, 240, 98, 355, 120, 265, 318]
+      }
+    ]
+  },
+  {
     id: "mock_juandefuca",
     name: "Juan de Fuca Golf Course",
     city: "Victoria",
@@ -92,15 +165,25 @@ const MOCK_COURSES = [
     pars: [3, 3, 3, 3, 3, 3, 3, 3, 3],
     coordinates: { lat: 48.4469, lng: -123.4648 },
     holeCoordinates: [
-      { lat: 48.4468, lng: -123.4624 }, // H1: 145 yd
-      { lat: 48.4456, lng: -123.4613 }, // H2: 97 yd
-      { lat: 48.4447, lng: -123.4620 }, // H3: 116 yd
-      { lat: 48.4445, lng: -123.4632 }, // H4: 135 yd
-      { lat: 48.4446, lng: -123.4640 }, // H5: 143 yd
-      { lat: 48.4452, lng: -123.4633 }, // H6: 79 yd
-      { lat: 48.4467, lng: -123.4637 }, // H7: 170 yd
-      { lat: 48.4465, lng: -123.4628 }, // H8: 106 yd
-      { lat: 48.4456, lng: -123.4643 }  // H9: 145 yd
+      { lat: 48.4468, lng: -123.4624 },
+      { lat: 48.4456, lng: -123.4613 },
+      { lat: 48.4447, lng: -123.4620 },
+      { lat: 48.4445, lng: -123.4632 },
+      { lat: 48.4446, lng: -123.4640 },
+      { lat: 48.4452, lng: -123.4633 },
+      { lat: 48.4467, lng: -123.4637 },
+      { lat: 48.4465, lng: -123.4628 },
+      { lat: 48.4456, lng: -123.4643 }
+    ],
+    tees: [
+      {
+        name: "Standard",
+        rating: 27.0,
+        slope: 113,
+        yards: 1197,
+        pars: [3, 3, 3, 3, 3, 3, 3, 3, 3],
+        holeYardages: [145, 97, 116, 135, 143, 79, 170, 106, 145]
+      }
     ]
   },
   {
@@ -112,7 +195,41 @@ const MOCK_COURSES = [
     slope: 145,
     holesCount: 18,
     pars: [4, 5, 4, 4, 3, 5, 3, 4, 4, 4, 4, 3, 4, 5, 4, 4, 3, 5],
-    coordinates: { lat: 36.5684, lng: -121.9507 }
+    coordinates: { lat: 36.5684, lng: -121.9507 },
+    tees: [
+      {
+        name: "Blue",
+        rating: 75.5,
+        slope: 145,
+        yards: 6828,
+        pars: [4, 5, 4, 4, 3, 5, 3, 4, 4, 4, 4, 3, 4, 5, 4, 4, 3, 5],
+        holeYardages: [376, 502, 397, 327, 188, 506, 106, 418, 481, 446, 373, 201, 393, 572, 397, 403, 178, 543]
+      },
+      {
+        name: "Gold",
+        rating: 74.3,
+        slope: 140,
+        yards: 6445,
+        pars: [4, 5, 4, 4, 3, 5, 3, 4, 4, 4, 4, 3, 4, 5, 4, 4, 3, 5],
+        holeYardages: [346, 484, 370, 310, 142, 486, 98, 400, 460, 425, 355, 185, 370, 560, 380, 385, 170, 523]
+      },
+      {
+        name: "White",
+        rating: 71.3,
+        slope: 130,
+        yards: 6116,
+        pars: [4, 5, 4, 4, 3, 5, 3, 4, 4, 4, 4, 3, 4, 5, 4, 4, 3, 5],
+        holeYardages: [325, 461, 348, 280, 135, 460, 90, 375, 430, 395, 330, 160, 350, 535, 365, 360, 160, 497]
+      },
+      {
+        name: "Red",
+        rating: 71.8,
+        slope: 125,
+        yards: 5198,
+        pars: [4, 5, 4, 4, 3, 5, 3, 4, 4, 4, 4, 3, 4, 5, 4, 4, 3, 5],
+        holeYardages: [285, 415, 305, 230, 110, 420, 80, 340, 380, 345, 290, 130, 310, 480, 315, 320, 140, 442]
+      }
+    ]
   },
   {
     id: "mock_augusta",
@@ -123,7 +240,25 @@ const MOCK_COURSES = [
     slope: 148,
     holesCount: 18,
     pars: [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4],
-    coordinates: { lat: 33.5021, lng: -82.0220 }
+    coordinates: { lat: 33.5021, lng: -82.0220 },
+    tees: [
+      {
+        name: "Masters",
+        rating: 76.2,
+        slope: 148,
+        yards: 7475,
+        pars: [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4],
+        holeYardages: [445, 575, 350, 240, 495, 180, 450, 570, 460, 495, 505, 155, 510, 440, 530, 170, 440, 465]
+      },
+      {
+        name: "Members",
+        rating: 74.1,
+        slope: 142,
+        yards: 6985,
+        pars: [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4],
+        holeYardages: [415, 535, 330, 210, 455, 165, 410, 530, 420, 455, 465, 145, 475, 410, 500, 150, 410, 430]
+      }
+    ]
   },
   {
     id: "mock_standrews",
@@ -134,7 +269,25 @@ const MOCK_COURSES = [
     slope: 129,
     holesCount: 18,
     pars: [4, 4, 4, 4, 5, 4, 4, 3, 4, 4, 3, 4, 4, 5, 4, 4, 4, 4],
-    coordinates: { lat: 56.3429, lng: -2.8021 }
+    coordinates: { lat: 56.3429, lng: -2.8021 },
+    tees: [
+      {
+        name: "Black",
+        rating: 73.1,
+        slope: 129,
+        yards: 7305,
+        pars: [4, 4, 4, 4, 5, 4, 4, 3, 4, 4, 3, 4, 4, 5, 4, 4, 4, 4],
+        holeYardages: [376, 453, 397, 480, 568, 412, 388, 175, 352, 386, 174, 348, 465, 618, 455, 381, 495, 357]
+      },
+      {
+        name: "Blue",
+        rating: 71.4,
+        slope: 125,
+        yards: 6721,
+        pars: [4, 4, 4, 4, 5, 4, 4, 3, 4, 4, 3, 4, 4, 5, 4, 4, 4, 4],
+        holeYardages: [339, 411, 370, 419, 514, 374, 359, 166, 307, 340, 150, 314, 407, 560, 410, 351, 455, 345]
+      }
+    ]
   },
   {
     id: "mock_sawgrass",
@@ -145,7 +298,25 @@ const MOCK_COURSES = [
     slope: 155,
     holesCount: 18,
     pars: [4, 5, 4, 4, 4, 4, 4, 3, 5, 4, 5, 4, 3, 4, 4, 5, 3, 4],
-    coordinates: { lat: 30.2016, lng: -81.3653 }
+    coordinates: { lat: 30.2016, lng: -81.3653 },
+    tees: [
+      {
+        name: "Championship",
+        rating: 76.8,
+        slope: 155,
+        yards: 7215,
+        pars: [4, 5, 4, 4, 4, 4, 4, 3, 5, 4, 5, 4, 3, 4, 4, 5, 3, 4],
+        holeYardages: [395, 532, 377, 384, 471, 393, 442, 237, 583, 424, 558, 358, 181, 481, 449, 523, 137, 462]
+      },
+      {
+        name: "Blue",
+        rating: 74.0,
+        slope: 145,
+        yards: 6616,
+        pars: [4, 5, 4, 4, 4, 4, 4, 3, 5, 4, 5, 4, 3, 4, 4, 5, 3, 4],
+        holeYardages: [362, 505, 357, 358, 436, 360, 389, 200, 538, 381, 508, 332, 161, 439, 422, 497, 128, 443]
+      }
+    ]
   },
   {
     id: "mock_cypress",
@@ -156,7 +327,17 @@ const MOCK_COURSES = [
     slope: 139,
     holesCount: 18,
     pars: [4, 5, 4, 4, 5, 3, 4, 4, 4, 4, 4, 3, 4, 4, 5, 3, 4, 4],
-    coordinates: { lat: 36.5794, lng: -121.9740 }
+    coordinates: { lat: 36.5794, lng: -121.9740 },
+    tees: [
+      {
+        name: "Championship",
+        rating: 74.9,
+        slope: 139,
+        yards: 6524,
+        pars: [4, 5, 4, 4, 5, 3, 4, 4, 4, 4, 4, 3, 4, 4, 5, 3, 4, 4],
+        holeYardages: [418, 547, 368, 384, 489, 165, 344, 363, 289, 487, 431, 146, 356, 393, 538, 231, 392, 343]
+      }
+    ]
   }
 ];
 
@@ -183,7 +364,8 @@ let state = {
   hiddenRoundIds: [],
   isAdmin: false,
   team1Name: '',
-  team2Name: ''
+  team2Name: '',
+  selectedTee: ''
 };
 
 // Speech Recognition Variables
@@ -254,6 +436,7 @@ function loadState() {
       if (state.matchType === undefined) state.matchType = 'leaderboard';
       if (!state.players || !state.players.length) state.players = ['You'];
       if (!state.playerAliases) state.playerAliases = [];
+      if (state.selectedTee === undefined) state.selectedTee = '';
     } catch (e) {
       console.error('Failed to parse saved state, loading defaults', e);
       initDefaultState();
@@ -271,6 +454,7 @@ function initDefaultState() {
   state.golfApiKey = 'JU7TE2S574463W653KOETCNKH4';
   state.openaiApiKey = '';
   state.selectedCourse = MOCK_COURSES[0];
+  state.selectedTee = '';
   state.useSpeechSynthesis = true;
   state.isListening = false;
   state.continuous = false;
@@ -1361,6 +1545,22 @@ function initUI() {
   });
 
 
+
+  const teeSelectDialog = document.getElementById('tee-select-dialog');
+  const btnCloseTeeSelect = document.getElementById('btn-close-tee-select');
+  if (btnCloseTeeSelect && teeSelectDialog) {
+    btnCloseTeeSelect.addEventListener('click', () => {
+      teeSelectDialog.close();
+    });
+    teeSelectDialog.addEventListener('click', (e) => {
+      const rect = teeSelectDialog.getBoundingClientRect();
+      const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+      if (!isInDialog) {
+        teeSelectDialog.close();
+      }
+    });
+  }
 
   document.getElementById('btn-close-settings').addEventListener('click', () => {
     settingsDialog.close();
@@ -3173,6 +3373,7 @@ function renderNotesList(activeHole) {
 function renderScorecard() {
   const headerRow = document.getElementById('scorecard-header-row');
   const parRow = document.getElementById('scorecard-par-row');
+  const yardsRow = document.getElementById('scorecard-yards-row');
   const scoreRow = document.getElementById('scorecard-score-row');
   const puttsRow = document.getElementById('scorecard-putts-row');
   const fairwayRow = document.getElementById('scorecard-fairway-row');
@@ -3182,6 +3383,7 @@ function renderScorecard() {
   // Clear previous columns except header row first cell
   headerRow.innerHTML = '<th>Hole</th>';
   parRow.innerHTML = '<td class="row-header">Par</td>';
+  if (yardsRow) yardsRow.innerHTML = '<td class="row-header">Yards</td>';
   scoreRow.innerHTML = '<td class="row-header">Score</td>';
   puttsRow.innerHTML = '<td class="row-header">Putts</td>';
   fairwayRow.innerHTML = '<td class="row-header">Fairway</td>';
@@ -3228,6 +3430,17 @@ function renderScorecard() {
     if (isCurrent) tdPar.className = 'active-col';
     tdPar.textContent = hole.par;
     parRow.appendChild(tdPar);
+
+    // Yards
+    if (yardsRow) {
+      const tdYards = document.createElement('td');
+      if (isCurrent) tdYards.className = 'active-col';
+      const course = state.selectedCourse || MOCK_COURSES[0];
+      const yardage = (course.holeYardages && course.holeYardages[index]) || '-';
+      tdYards.textContent = yardage;
+      tdYards.addEventListener('click', () => navigateHole(index));
+      yardsRow.appendChild(tdYards);
+    }
 
     // If Match Mode, determine the hole winner or team winner
     let holeWinner = null;
@@ -5411,54 +5624,48 @@ async function handleCourseSelection(course) {
       });
       if (response.ok) {
         const details = await response.json();
+        const courseDetail = details.course || details;
         
-        let rating = 72.0;
-        let slope = 113;
-        let holesCount = 18;
-        let pars = [];
+        const tees = courseDetail.tees || {};
+        const teeList = [...(tees.male || []), ...(tees.female || [])];
         
-        const tees = details.tees || {};
-        const teeList = tees.male || tees.female || [];
-        if (teeList.length > 0) {
-          const tee = teeList[0];
-          rating = tee.course_rating || 72.0;
-          slope = tee.slope_rating || 113;
-          holesCount = tee.number_of_holes || 18;
-          
-          if (tee.holes && tee.holes.length > 0) {
-            pars = tee.holes.map(h => h.par || 4);
-          } else {
-            pars = Array(holesCount).fill(4);
-          }
-        } else {
-          pars = Array(holesCount).fill(4);
-        }
+        // Map API tees to our standard format
+        const mappedTees = teeList.map(t => {
+          return {
+            name: t.tee_name || 'Standard',
+            rating: t.course_rating || 72.0,
+            slope: t.slope_rating || 113,
+            yards: t.total_yards || 0,
+            pars: t.holes && t.holes.length > 0 ? t.holes.map(h => h.par || 4) : Array(t.number_of_holes || 18).fill(4),
+            holeYardages: t.holes && t.holes.length > 0 ? t.holes.map(h => h.yardage || 0) : Array(t.number_of_holes || 18).fill(0)
+          };
+        });
         
         let coordinates = { lat: 36.5684, lng: -121.9507 };
-        if (details.location && details.location.latitude && details.location.longitude) {
+        if (courseDetail.location && courseDetail.location.latitude && courseDetail.location.longitude) {
           coordinates = {
-            lat: parseFloat(details.location.latitude),
-            lng: parseFloat(details.location.longitude)
+            lat: parseFloat(courseDetail.location.latitude),
+            lng: parseFloat(courseDetail.location.longitude)
           };
         }
         
-        state.selectedCourse = {
-          id: details.id,
-          name: details.course_name || details.club_name,
-          city: (details.location && details.location.city) || '',
-          state: (details.location && details.location.state) || '',
-          rating: rating,
-          slope: slope,
-          holesCount: holesCount,
-          pars: pars,
-          coordinates: coordinates
+        const parsedCourse = {
+          id: courseDetail.id,
+          name: courseDetail.course_name || courseDetail.club_name,
+          city: (courseDetail.location && courseDetail.location.city) || '',
+          state: (courseDetail.location && courseDetail.location.state) || '',
+          holesCount: courseDetail.number_of_holes || (teeList[0] && teeList[0].number_of_holes) || 18,
+          coordinates: coordinates,
+          tees: mappedTees
         };
+        
+        showTeeSelector(parsedCourse);
       } else {
         throw new Error('Failed to fetch details response');
       }
     } catch (e) {
       console.error('Failed to fetch remote course details, using basic info', e);
-      state.selectedCourse = {
+      const parsedCourse = {
         id: course.id,
         name: course.name,
         city: course.city || '',
@@ -5467,22 +5674,115 @@ async function handleCourseSelection(course) {
         slope: 113,
         holesCount: 18,
         pars: Array(18).fill(4),
-        coordinates: { lat: 36.5684, lng: -121.9507 }
+        coordinates: { lat: 36.5684, lng: -121.9507 },
+        tees: []
       };
+      showTeeSelector(parsedCourse);
     }
   } else {
-    state.selectedCourse = course;
+    showTeeSelector(course);
+  }
+}
+
+// Render Tee Box Dialog Options
+function showTeeSelector(course) {
+  const teeListContainer = document.getElementById('tee-select-list');
+  if (!teeListContainer) return;
+  teeListContainer.innerHTML = '';
+  
+  const tees = course.tees || course.availableTees || [];
+  if (tees.length === 0) {
+    // If no tees are defined, bypass select list and set standard defaults
+    selectTee(course, {
+      name: "Standard",
+      rating: course.rating || 72.0,
+      slope: course.slope || 113,
+      yards: 0,
+      pars: course.pars || Array(course.holesCount || 18).fill(4),
+      holeYardages: course.holeYardages || Array(course.holesCount || 18).fill(0)
+    });
+    return;
   }
   
-  applySelectedCourse();
+  tees.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'tee-select-item';
+    
+    // Choose color dot matching tee name
+    const nameLower = t.name.toLowerCase();
+    let dotClass = 'bg-tee-standard';
+    if (nameLower.includes('black')) dotClass = 'bg-tee-black';
+    else if (nameLower.includes('blue')) dotClass = 'bg-tee-blue';
+    else if (nameLower.includes('gold')) dotClass = 'bg-tee-gold';
+    else if (nameLower.includes('white')) dotClass = 'bg-tee-white';
+    else if (nameLower.includes('green')) dotClass = 'bg-tee-green';
+    else if (nameLower.includes('yellow')) dotClass = 'bg-tee-yellow';
+    else if (nameLower.includes('red')) dotClass = 'bg-tee-red';
+    
+    const yardsText = t.yards || t.total_yards ? `${t.yards || t.total_yards} Yds` : '';
+    const ratingVal = t.course_rating || t.rating || 72.0;
+    const slopeVal = t.slope_rating || t.slope || 113;
+    
+    item.innerHTML = `
+      <div class="tee-select-item-left">
+        <span class="bg-tee-dot ${dotClass}"></span>
+        <div style="display: flex; flex-direction: column;">
+          <span class="tee-select-item-name">${escapeHTML(t.name)}</span>
+          <span class="tee-select-item-yards">${yardsText}</span>
+        </div>
+      </div>
+      <div class="tee-select-item-right">
+        Rating: ${ratingVal}<br>Slope: ${slopeVal}
+      </div>
+    `;
+    
+    item.addEventListener('click', () => {
+      selectTee(course, t);
+    });
+    
+    teeListContainer.appendChild(item);
+  });
+  
+  const teeSelectDialog = document.getElementById('tee-select-dialog');
+  if (teeSelectDialog) {
+    teeSelectDialog.showModal();
+  }
+}
+
+// Select active tee box, update course configuration and start round
+function selectTee(course, tee) {
+  state.selectedTee = tee.name || '';
+  
+  state.selectedCourse = {
+    id: course.id,
+    name: course.name,
+    city: course.city || '',
+    state: course.state || '',
+    rating: tee.course_rating || tee.rating || 72.0,
+    slope: tee.slope_rating || tee.slope || 113,
+    yards: tee.yards || tee.total_yards || 0,
+    holesCount: course.holesCount || tee.number_of_holes || 18,
+    pars: tee.pars || (tee.holes ? tee.holes.map(h => h.par || 4) : Array(course.holesCount || 18).fill(4)),
+    holeYardages: tee.holeYardages || (tee.holes ? tee.holes.map(h => h.yardage || 0) : Array(course.holesCount || 18).fill(0)),
+    coordinates: course.coordinates || { lat: 36.5684, lng: -121.9507 },
+    holeCoordinates: course.holeCoordinates,
+    availableTees: course.tees || course.availableTees || []
+  };
+  
+  state.numHoles = state.selectedCourse.holesCount;
+  
+  // Re-initialize round with active tee pars
   initActiveRound();
   saveState();
   updateUI();
   updateGPSWidget();
-  renderParsConfig(); // re-draw Settings par inputs
+  renderParsConfig();
   
   const searchInput = document.getElementById('course-search-input');
   if (searchInput) searchInput.value = state.selectedCourse.name;
+  
+  const teeSelectDialog = document.getElementById('tee-select-dialog');
+  if (teeSelectDialog) teeSelectDialog.close();
 }
 
 // Show suggested nearest courses using geolocation
@@ -5646,7 +5946,8 @@ function updateGPSWidget() {
   
   const currentHole = state.holes[state.currentHoleIndex];
   const parVal = currentHole ? currentHole.par : 4;
-  detailsEl.innerHTML = `Hole ${holeNum} &bull; Par ${parVal} &bull; Rating: ${course.rating} &bull; Slope: ${course.slope}`;
+  const teeText = state.selectedTee ? `${state.selectedTee} ${course.yards ? `(${course.yards} Yds) ` : ''}&bull; ` : '';
+  detailsEl.innerHTML = `Hole ${holeNum} &bull; Par ${parVal} &bull; ${teeText}Rating: ${course.rating} &bull; Slope: ${course.slope}`;
   
   const badge = statusLbl ? statusLbl.parentElement : null;
 
