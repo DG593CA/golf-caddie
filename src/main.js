@@ -159,8 +159,8 @@ const MOCK_COURSES = [
     name: "Juan de Fuca Golf Course",
     city: "Victoria",
     state: "BC",
-    rating: 27.0,
-    slope: 113,
+    rating: 31.0,
+    slope: 108,
     holesCount: 9,
     pars: [3, 3, 3, 3, 3, 3, 3, 3, 3],
     coordinates: { lat: 48.4469, lng: -123.4648 },
@@ -177,10 +177,18 @@ const MOCK_COURSES = [
     ],
     tees: [
       {
-        name: "Standard",
-        rating: 27.0,
-        slope: 113,
-        yards: 1197,
+        name: "White",
+        rating: 31.0,
+        slope: 108,
+        yards: 1136,
+        pars: [3, 3, 3, 3, 3, 3, 3, 3, 3],
+        holeYardages: [145, 97, 116, 135, 143, 79, 170, 106, 145]
+      },
+      {
+        name: "White (L)",
+        rating: 31.0,
+        slope: 108,
+        yards: 1136,
         pars: [3, 3, 3, 3, 3, 3, 3, 3, 3],
         holeYardages: [145, 97, 116, 135, 143, 79, 170, 106, 145]
       }
