@@ -6552,6 +6552,30 @@ function initCommunityUI() {
   const btnSubmitPost = document.getElementById('btn-submit-post');
   const postTextarea = document.getElementById('community-post-text');
 
+  // Expand / Collapse functionality for Create Post box
+  const postHeader = document.getElementById('community-post-header');
+  const postBody = document.getElementById('community-post-body');
+  const toggleIcon = document.getElementById('community-post-toggle-icon');
+  let isCollapsed = true;
+
+  const setPostBoxState = (collapsed) => {
+    isCollapsed = collapsed;
+    if (isCollapsed) {
+      if (postBody) postBody.style.display = 'none';
+      if (toggleIcon) toggleIcon.textContent = '▼';
+    } else {
+      if (postBody) postBody.style.display = '';
+      if (toggleIcon) toggleIcon.textContent = '▲';
+    }
+  };
+
+  if (postHeader && postBody && toggleIcon) {
+    setPostBoxState(true);
+    postHeader.addEventListener('click', () => {
+      setPostBoxState(!isCollapsed);
+    });
+  }
+
   if (postImageInput) {
     postImageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -6603,6 +6627,11 @@ function initCommunityUI() {
         if (postImageInput) postImageInput.value = '';
         if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
         if (imagePreview) imagePreview.src = '';
+
+        // Collapse post box on success
+        if (postHeader && postBody && toggleIcon) {
+          setPostBoxState(true);
+        }
       } catch (error) {
         console.error("Failed to share post:", error);
         alert("Failed to share post: " + error.message);

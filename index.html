@@ -675,70 +675,81 @@
           <!-- Create Post Card -->
           <div class="glass-card community-create-post-card" style="margin-bottom: 1.5rem; padding: 1.25rem; position: relative;">
             
-            <!-- User Profile Header (Mockup Style) -->
-            <div class="post-creator-profile" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-              <div class="post-creator-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--emerald-gradient); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; box-shadow: var(--shadow-glow); border: 2px solid rgba(255,255,255,0.1);" id="creator-profile-avatar">GC</div>
-              <div style="display: flex; flex-direction: column;">
-                <span style="font-size: 0.95rem; font-weight: 600; color: var(--color-primary);" id="creator-profile-name">You</span>
-                <span style="font-size: 0.72rem; color: var(--emerald-glow); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Premium Member</span>
-              </div>
+            <!-- Collapsible Header -->
+            <div id="community-post-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
+              <h3 style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-primary); font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                ✍️ Share an Update
+              </h3>
+              <span id="community-post-toggle-icon" style="color: var(--color-secondary); font-size: 0.85rem; transition: transform var(--transition-fast);">▼</span>
             </div>
 
-            <textarea id="community-post-text" placeholder="Create a new post... What's on your mind today?" class="form-input" style="width: 100%; min-height: 90px; resize: none; margin-bottom: 1rem; border-radius: 8px; padding: 0.75rem; background: rgba(0,0,0,0.25);" maxlength="500"></textarea>
-            
-            <!-- Autocomplete Tag Suggestions (Absolute overlay) -->
-            <div id="community-tag-suggestions" class="hidden" style="position: absolute; left: 1.25rem; right: 1.25rem; background: rgba(18, 18, 18, 0.98); border: 1px solid var(--border-focus); border-radius: 8px; max-height: 150px; overflow-y: auto; z-index: 1000; box-shadow: var(--shadow-glow); margin-top: -0.75rem;">
-              <!-- Dynamically populated with options -->
-            </div>
-            
-            <!-- Admin Options (Hidden by default, shown if state.isAdmin is true) -->
-            <div id="community-admin-options" class="hidden" style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(245, 158, 11, 0.05); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; display: flex; flex-direction: column; gap: 0.75rem;">
-              <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <label for="community-post-as-handle" style="font-size: 0.8rem; color: var(--gold); font-weight: 600; min-width: 80px;">POST AS:</label>
-                <select id="community-post-as-handle" class="form-input" style="flex: 1; height: 32px; padding: 0.2rem 0.5rem; font-size: 0.85rem; background: rgba(0,0,0,0.4);">
-                  <option value="current">Your Username</option>
-                  <option value="GolfCaddie_AI">@GolfCaddie_AI (Official)</option>
-                  <option value="System">@System (Announcement)</option>
-                </select>
-              </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <label style="flex: 1; font-size: 0.85rem; color: var(--gold); font-weight: 600;">PIN TO TOP</label>
-                <label class="toggle-switch" style="margin: 0;">
-                  <input type="checkbox" id="community-post-pin">
-                  <span class="slider round"></span>
-                </label>
-              </div>
-            </div>
-
-            <div class="post-actions-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-              <!-- Image Upload Button & Mock Actions -->
-              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <label for="community-post-image-input" class="btn btn-secondary btn-xs" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; padding: 0.45rem 0.75rem; border-radius: 6px; font-size: 0.8rem;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                  <span>Add Photo</span>
-                </label>
-                <input type="file" id="community-post-image-input" accept="image/*" style="display: none;">
-
-                <!-- Decorative premium buttons matching mockup -->
-                <button type="button" class="btn btn-secondary btn-xs" style="padding: 0.45rem 0.75rem; border-radius: 6px; display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; opacity: 0.85; cursor: default;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                  <span>Camera</span>
-                </button>
-                <button type="button" class="btn btn-secondary btn-xs" style="padding: 0.45rem 0.75rem; border-radius: 6px; display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; opacity: 0.85; cursor: default;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 0-5 5v3H3v10h18V10h-4V7a5 5 0 0 0-5-5z"></path></svg>
-                  <span>Tag Friend</span>
-                </button>
-                
-                <!-- Small thumbnail preview -->
-                <div id="community-post-image-preview-container" style="display: none; position: relative;">
-                  <img id="community-post-image-preview" src="" style="width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-light);">
-                  <button type="button" id="btn-clear-post-image" style="position: absolute; top: -5px; right: -5px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">&times;</button>
+            <!-- Collapsible Body -->
+            <div id="community-post-body" style="margin-top: 1rem;">
+              <!-- User Profile Header (Mockup Style) -->
+              <div class="post-creator-profile" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="post-creator-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--emerald-gradient); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; box-shadow: var(--shadow-glow); border: 2px solid rgba(255,255,255,0.1);" id="creator-profile-avatar">GC</div>
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 0.95rem; font-weight: 600; color: var(--color-primary);" id="creator-profile-name">You</span>
+                  <span style="font-size: 0.72rem; color: var(--emerald-glow); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Premium Member</span>
                 </div>
               </div>
+
+              <textarea id="community-post-text" placeholder="Create a new post... What's on your mind today?" class="form-input" style="width: 100%; min-height: 90px; resize: none; margin-bottom: 1rem; border-radius: 8px; padding: 0.75rem; background: rgba(0,0,0,0.25);" maxlength="500"></textarea>
               
-              <button type="button" id="btn-submit-post" class="btn btn-primary btn-sm" style="padding: 0.5rem 1.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.85rem; border-radius: 6px; box-shadow: var(--shadow-glow);">
-                Post
-              </button>
+              <!-- Autocomplete Tag Suggestions (Absolute overlay) -->
+              <div id="community-tag-suggestions" class="hidden" style="position: absolute; left: 1.25rem; right: 1.25rem; background: rgba(18, 18, 18, 0.98); border: 1px solid var(--border-focus); border-radius: 8px; max-height: 150px; overflow-y: auto; z-index: 1000; box-shadow: var(--shadow-glow); margin-top: -0.75rem;">
+                <!-- Dynamically populated with options -->
+              </div>
+              
+              <!-- Admin Options (Hidden by default, shown if state.isAdmin is true) -->
+              <div id="community-admin-options" class="hidden" style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(245, 158, 11, 0.05); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <label for="community-post-as-handle" style="font-size: 0.8rem; color: var(--gold); font-weight: 600; min-width: 80px;">POST AS:</label>
+                  <select id="community-post-as-handle" class="form-input" style="flex: 1; height: 32px; padding: 0.2rem 0.5rem; font-size: 0.85rem; background: rgba(0,0,0,0.4);">
+                    <option value="current">Your Username</option>
+                    <option value="GolfCaddie_AI">@GolfCaddie_AI (Official)</option>
+                    <option value="System">@System (Announcement)</option>
+                  </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <label style="flex: 1; font-size: 0.85rem; color: var(--gold); font-weight: 600;">PIN TO TOP</label>
+                  <label class="toggle-switch" style="margin: 0;">
+                    <input type="checkbox" id="community-post-pin">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="post-actions-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                <!-- Image Upload Button & Mock Actions -->
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <label for="community-post-image-input" class="btn btn-secondary btn-xs" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; padding: 0.45rem 0.75rem; border-radius: 6px; font-size: 0.8rem;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <span>Add Photo</span>
+                  </label>
+                  <input type="file" id="community-post-image-input" accept="image/*" style="display: none;">
+
+                  <!-- Decorative premium buttons matching mockup -->
+                  <button type="button" class="btn btn-secondary btn-xs" style="padding: 0.45rem 0.75rem; border-radius: 6px; display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; opacity: 0.85; cursor: default;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    <span>Camera</span>
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-xs" style="padding: 0.45rem 0.75rem; border-radius: 6px; display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; opacity: 0.85; cursor: default;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 0-5 5v3H3v10h18V10h-4V7a5 5 0 0 0-5-5z"></path></svg>
+                    <span>Tag Friend</span>
+                  </button>
+                  
+                  <!-- Small thumbnail preview -->
+                  <div id="community-post-image-preview-container" style="display: none; position: relative;">
+                    <img id="community-post-image-preview" src="" style="width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-light);">
+                    <button type="button" id="btn-clear-post-image" style="position: absolute; top: -5px; right: -5px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">&times;</button>
+                  </div>
+                </div>
+                
+                <button type="button" id="btn-submit-post" class="btn btn-primary btn-sm" style="padding: 0.5rem 1.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.85rem; border-radius: 6px; box-shadow: var(--shadow-glow);">
+                  Post
+                </button>
+              </div>
             </div>
           </div>
           
