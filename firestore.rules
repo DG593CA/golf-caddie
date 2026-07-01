@@ -132,9 +132,9 @@ service cloud.firestore {
     match /users/{syncId} {
       allow get: if isValidSyncId(syncId) && isOwner(syncId);
       allow create: if isValidSyncId(syncId) && isOwner(syncId) && isValidUserDoc(request.resource.data, syncId);
-      allow update: if isValidSyncId(syncId) && isOwner(syncId);
+      allow update: if (isValidSyncId(syncId) && isOwner(syncId)) || isAdmin();
       allow delete: if false; // do not allow deletion via client
-      allow list: if false; // prevent listing users!
+      allow list: if isAdmin();
     }
 
     match /rounds/{roundDocId} {
@@ -146,12 +146,25 @@ service cloud.firestore {
                      request.resource.data.id == resource.data.id &&
                      request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if isOwner(resource.data.syncId);
-      allow list: if false; // prevent listing rounds globally!
+      allow list: if isAdmin();
     }
 
     match /activeRounds/{syncId} {
       allow get: if isValidSyncId(syncId);
-      allow write: if isValidSyncId(syncId);
+      allow create: if isValidSyncId(syncId) && isOwner(syncId);
+      allow update: if isValidSyncId(syncId) && (isOwner(syncId) || request.auth != null);
+      allow delete: if isValidSyncId(syncId) && isOwner(syncId);
+      allow list: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /system/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     function isAdmin() {

@@ -407,6 +407,9 @@ function initApp() {
   initTutorial(); // Bind onboarding tutorial buttons
   initAuth(); // Setup Firebase Authentication listeners
   setupActiveRoundSubscription();
+  initAdminDashboard();
+  initPaywallCheckoutUI();
+  listenToSystemConfig();
 }
 
 if (document.readyState === 'loading') {
@@ -438,6 +441,7 @@ function loadState() {
       if (state.hasCompletedTutorial === undefined) state.hasCompletedTutorial = false;
       if (!state.hiddenRoundIds) state.hiddenRoundIds = [];
       if (state.isAdmin === undefined) state.isAdmin = false;
+      if (state.isPremium === undefined) state.isPremium = false;
       if (state.team1Name === undefined) state.team1Name = '';
       if (state.team2Name === undefined) state.team2Name = '';
       if (state.mode === undefined) state.mode = 'individual';
@@ -475,6 +479,7 @@ function initDefaultState() {
   state.hasCompletedTutorial = false;
   state.hiddenRoundIds = [];
   state.isAdmin = false;
+  state.isPremium = false;
   state.team1Name = '';
   state.team2Name = '';
   state.mode = 'individual';
@@ -531,6 +536,19 @@ async function syncFromCloud() {
           console.warn("Failed to auto-bootstrap isAdmin in cloud:", e);
         }
       }
+
+      if (userData.isPremium !== undefined) {
+        state.isPremium = !!userData.isPremium;
+      } else if (isDeveloperEmail || state.isAdmin) {
+        state.isPremium = true;
+        try {
+          await updateDoc(userDocRef, { isPremium: true });
+        } catch (e) {
+          console.warn("Failed to auto-bootstrap isPremium in cloud:", e);
+        }
+      }
+
+      toggleAdminTabVisibility();
       
       // Fetch completed rounds from roundIds and query participant match play rounds
       const cloudRounds = [];
@@ -1151,6 +1169,9 @@ function initAuth() {
       state.apiKey = '';
       state.openaiApiKey = '';
       state.customCourseMappings = '{}';
+      state.isAdmin = false;
+      state.isPremium = false;
+      toggleAdminTabVisibility();
       
       saveState();
       updateUI();
@@ -1375,6 +1396,14 @@ function initUI() {
   if (closeGpsHelpBtn && gpsHelpDialog) {
     closeGpsHelpBtn.addEventListener('click', () => {
       gpsHelpDialog.close();
+    });
+  }
+
+  const gpsCard = document.getElementById('gps-rangefinder-card');
+  if (gpsCard) {
+    gpsCard.addEventListener('click', (e) => {
+      if (e.target.closest('.gps-status-badge')) return;
+      checkPaywallAccess('gps-range');
     });
   }
 
@@ -1813,6 +1842,9 @@ function initUI() {
         alert('You cannot spectate your own device!');
         return;
       }
+      if (!checkPaywallAccess('multiplayer')) {
+        return;
+      }
       const selectedRole = document.querySelector('input[name="spectator-role"]:checked').value;
       joinSpectatorMode(enteredId, selectedRole);
     });
@@ -2079,14 +2111,16 @@ function initUI() {
     const tabHistory = document.getElementById('tab-history');
     const tabCommunity = document.getElementById('tab-community');
     const tabContact = document.getElementById('tab-contact');
+    const tabAdmin = document.getElementById('tab-admin');
 
     const activeRoundContent = document.getElementById('active-round-tab-content');
     const historyContent = document.getElementById('history-tab-content');
     const communityContent = document.getElementById('community-tab-content');
     const contactContent = document.getElementById('contact-tab-content');
+    const adminContent = document.getElementById('admin-tab-content');
 
     // Deactivate all tab button styles
-    const tabs = [tabActiveRound, tabHistory, tabCommunity, tabContact];
+    const tabs = [tabActiveRound, tabHistory, tabCommunity, tabContact, tabAdmin];
     tabs.forEach(tab => {
       if (tab) {
         tab.classList.remove('active');
@@ -2099,7 +2133,7 @@ function initUI() {
     tabButton.setAttribute('aria-selected', 'true');
 
     // Hide all tab content sections
-    const contents = [activeRoundContent, historyContent, communityContent, contactContent];
+    const contents = [activeRoundContent, historyContent, communityContent, contactContent, adminContent];
     contents.forEach(content => {
       if (content) {
         content.classList.add('hidden');
@@ -2148,6 +2182,11 @@ function initUI() {
     } else if (tabId === 'tab-contact' && contactContent) {
       contactContent.classList.remove('hidden');
       contactContent.style.setProperty('display', 'block', 'important');
+    } else if (tabId === 'tab-admin' && adminContent) {
+      adminContent.classList.remove('hidden');
+      adminContent.style.setProperty('display', 'block', 'important');
+      const defaultSubTab = document.getElementById('btn-admin-sub-analytics');
+      if (defaultSubTab) defaultSubTab.click();
     }
   });
 
@@ -2412,11 +2451,13 @@ async function askCaddieAssistant(question) {
   statusLbl.textContent = 'Thinking...';
   
   let answer = "";
+  const geminiKey = localSystemConfig.geminiApiKey || state.apiKey;
+  const openaiKey = localSystemConfig.openaiApiKey || state.openaiApiKey;
   try {
-    if (state.apiKey) {
-      answer = await queryGeminiAssistant(inputVal, state.apiKey);
-    } else if (state.openaiApiKey) {
-      answer = await queryOpenAIAssistant(inputVal, state.openaiApiKey);
+    if (geminiKey) {
+      answer = await queryGeminiAssistant(inputVal, geminiKey);
+    } else if (openaiKey) {
+      answer = await queryOpenAIAssistant(inputVal, openaiKey);
     } else {
       const lower = inputVal.toLowerCase();
       if (lower.includes("out of bounds") || lower.includes("ob") || lower.includes("stake")) {
@@ -3815,7 +3856,8 @@ function initSpeechRecognition() {
   // Bind microphone button click toggle
   document.getElementById('btn-voice-toggle').addEventListener('click', () => {
     // Use Whisper if OpenAI API key is set!
-    if (state.openaiApiKey) {
+    const openaiKey = localSystemConfig.openaiApiKey || state.openaiApiKey;
+    if (openaiKey) {
       if (whisperIsRecording) {
         if (speechTimeout) clearTimeout(speechTimeout);
         if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -3983,10 +4025,11 @@ async function sendAudioToWhisper(audioBlob, extension) {
   formData.append('prompt', 'Golf score tracker stats. Terms: hole, score, putts, par, fairway, gir, ob, hit fairway, birdie, bogey, eagle, double bogey, albatross, green in regulation, concede, conceded, conceded hole.');
   formData.append('language', 'en');
 
+  const openaiKey = localSystemConfig.openaiApiKey || state.openaiApiKey;
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${state.openaiApiKey}`
+      'Authorization': `Bearer ${openaiKey}`
     },
     body: formData
   });
@@ -4872,8 +4915,22 @@ async function generateCoachingAssessment(roundData, totalScore, totalPar, total
     return;
   }
 
+  if (!checkPaywallAccess('ai-coach')) {
+    coachResponse.innerHTML = `
+      <div style="text-align: center; padding: 1.5rem; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed var(--border-light); margin-bottom: 1rem;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
+        <h4 style="color: var(--gold); font-size: 0.95rem; margin-bottom: 0.35rem;">AI Coach Locked</h4>
+        <p style="font-size: 0.8rem; color: var(--color-secondary); line-height: 1.4; margin-bottom: 0.75rem;">AI coaching assessments, drills recommendations, and assessments summaries are reserved for Caddie Pro members.</p>
+        <button class="btn btn-xs btn-primary" onclick="window.checkPaywallAccess('ai-coach')" style="padding: 0.45rem 1rem;">Unlock Caddie Pro</button>
+      </div>
+    `;
+    return;
+  }
+
   // If Gemini or OpenAI API Key is configured, run AI summary!
-  if (state.apiKey || state.openaiApiKey) {
+  const geminiKey = localSystemConfig.geminiApiKey || state.apiKey;
+  const openaiKey = localSystemConfig.openaiApiKey || state.openaiApiKey;
+  if (geminiKey || openaiKey) {
     coachSpinner.classList.remove('hidden');
     
     // package round data structure
@@ -4909,16 +4966,16 @@ async function generateCoachingAssessment(roundData, totalScore, totalPar, total
 
     try {
       let aiResponse = "";
-      if (state.apiKey) {
-        aiResponse = await queryGeminiCoach(roundSummaryData, state.apiKey);
+      if (geminiKey) {
+        aiResponse = await queryGeminiCoach(roundSummaryData, geminiKey);
       } else {
-        aiResponse = await queryOpenAICoach(roundSummaryData, state.openaiApiKey);
+        aiResponse = await queryOpenAICoach(roundSummaryData, openaiKey);
       }
       coachResponse.innerHTML = aiResponse;
     } catch (err) {
       console.error(err);
       coachResponse.innerHTML = `
-        <p style="color:var(--danger)"><strong>Failed to connect with AI API.</strong> Please check your API Key in Settings.</p>
+        <p style="color:var(--danger)"><strong>Failed to connect with AI API.</strong> Please check your connection or key settings.</p>
         <p>Here is your offline Coach Analysis instead:</p>
         <hr style="border:0; border-top:1px solid var(--border-light); margin:1rem 0;">
         ${generateLocalRulesCoachHTML(totalScore, totalPar, avgPutts, threePutts, fStats, girStats, roundData ? roundData.numHoles : state.numHoles)}
@@ -5964,8 +6021,8 @@ function updateGPSWidget() {
     statusLbl.textContent = "Walk Simulating";
     document.getElementById('gps-dist-val').textContent = walkDistanceRemaining;
     document.getElementById('gps-dist-center').textContent = walkDistanceRemaining;
-    document.getElementById('gps-dist-front').textContent = Math.max(0, walkDistanceRemaining - 15);
-    document.getElementById('gps-dist-back').textContent = walkDistanceRemaining + 15;
+    document.getElementById('gps-dist-front').textContent = getGPSDistanceText(Math.max(0, walkDistanceRemaining - 15), 'front');
+    document.getElementById('gps-dist-back').textContent = getGPSDistanceText(walkDistanceRemaining + 15, 'back');
     return;
   }
 
@@ -5982,8 +6039,8 @@ function updateGPSWidget() {
         
         document.getElementById('gps-dist-val').textContent = yards;
         document.getElementById('gps-dist-center').textContent = yards;
-        document.getElementById('gps-dist-front').textContent = Math.max(0, yards - 15);
-        document.getElementById('gps-dist-back').textContent = yards + 15;
+        document.getElementById('gps-dist-front').textContent = getGPSDistanceText(Math.max(0, yards - 15), 'front');
+        document.getElementById('gps-dist-back').textContent = getGPSDistanceText(yards + 15, 'back');
       },
       (error) => {
         if (badge) badge.classList.add('offline');
@@ -6006,8 +6063,8 @@ function updateGPSWidget() {
         
         document.getElementById('gps-dist-val').textContent = standardDist;
         document.getElementById('gps-dist-center').textContent = standardDist;
-        document.getElementById('gps-dist-front').textContent = Math.max(0, standardDist - 15);
-        document.getElementById('gps-dist-back').textContent = standardDist + 15;
+        document.getElementById('gps-dist-front').textContent = getGPSDistanceText(Math.max(0, standardDist - 15), 'front');
+        document.getElementById('gps-dist-back').textContent = getGPSDistanceText(standardDist + 15, 'back');
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
@@ -6025,8 +6082,8 @@ function updateGPSWidget() {
     
     document.getElementById('gps-dist-val').textContent = standardDist;
     document.getElementById('gps-dist-center').textContent = standardDist;
-    document.getElementById('gps-dist-front').textContent = Math.max(0, standardDist - 15);
-    document.getElementById('gps-dist-back').textContent = standardDist + 15;
+    document.getElementById('gps-dist-front').textContent = getGPSDistanceText(Math.max(0, standardDist - 15), 'front');
+    document.getElementById('gps-dist-back').textContent = getGPSDistanceText(standardDist + 15, 'back');
   }
 
   // Update Course Mapper UI elements for current hole
@@ -6112,8 +6169,8 @@ function startWalkSimulation() {
       isWalkSimulating = false;
       document.getElementById('gps-dist-val').textContent = "GREEN";
       document.getElementById('gps-dist-center').textContent = "0";
-      document.getElementById('gps-dist-front').textContent = "0";
-      document.getElementById('gps-dist-back').textContent = "0";
+      document.getElementById('gps-dist-front').textContent = getGPSDistanceText("0", 'front');
+      document.getElementById('gps-dist-back').textContent = getGPSDistanceText("0", 'back');
       document.getElementById('gps-status-lbl').textContent = "On Green";
       
       if (state.useSpeechSynthesis && window.speechSynthesis) {
@@ -7153,6 +7210,9 @@ function showActiveMatchNotification(hostSyncId, hostUsername, courseName) {
 
   document.getElementById('btn-active-match-accept').addEventListener('click', () => {
     cleanup();
+    if (!checkPaywallAccess('multiplayer')) {
+      return;
+    }
     const tabActiveRound = document.getElementById('tab-active-round');
     if (tabActiveRound) tabActiveRound.click();
     joinSpectatorMode(hostSyncId, 'collaborator');
@@ -7718,4 +7778,859 @@ function updateCreatorProfileBox() {
   const currentUsername = state.username || (auth.currentUser && auth.currentUser.email ? auth.currentUser.email.split('@')[0] : 'Golfer');
   nameEl.textContent = currentUsername;
   avatarEl.textContent = currentUsername.substring(0, 2).toUpperCase();
+}
+
+// =========================================================================
+// Admin Dashboard & Paywall System Logic
+// =========================================================================
+
+let adminCachedUsers = [];
+let currentFeedbackFilter = 'all';
+let localSystemConfig = {
+  lockAICoach: false,
+  lockMultiplayer: false,
+  lockGPSRange: false,
+  monthlyPrice: 9.99,
+  annualPrice: 59.99,
+  trialDays: 7,
+  promoMessage: 'Unlock Pro Caddie Assistant features today!',
+  openaiApiKey: '',
+  geminiApiKey: ''
+};
+let systemConfigUnsubscribe = null;
+
+function toggleAdminTabVisibility() {
+  const tabAdmin = document.getElementById('tab-admin');
+  if (tabAdmin) {
+    if (state.isAdmin) {
+      tabAdmin.classList.remove('hidden');
+      tabAdmin.style.removeProperty('display');
+    } else {
+      tabAdmin.classList.add('hidden');
+      tabAdmin.style.setProperty('display', 'none', 'important');
+      
+      const adminContent = document.getElementById('admin-tab-content');
+      if (adminContent) {
+        adminContent.classList.add('hidden');
+        adminContent.style.setProperty('display', 'none', 'important');
+      }
+
+      // If current tab is admin tab, redirect to active round
+      if (tabAdmin.classList.contains('active')) {
+        const tabActiveRound = document.getElementById('tab-active-round');
+        if (tabActiveRound) tabActiveRound.click();
+      }
+    }
+  }
+
+  const apiKeysBlock = document.getElementById('admin-api-keys-block');
+  if (apiKeysBlock) {
+    if (state.isAdmin) {
+      apiKeysBlock.classList.remove('hidden');
+      apiKeysBlock.style.removeProperty('display');
+    } else {
+      apiKeysBlock.classList.add('hidden');
+      apiKeysBlock.style.setProperty('display', 'none', 'important');
+    }
+  }
+}
+
+function initAdminDashboard() {
+  // Bind sub-tabs navigation
+  const subTabs = [
+    { btnId: 'btn-admin-sub-analytics', viewId: 'admin-view-analytics' },
+    { btnId: 'btn-admin-sub-community', viewId: 'admin-view-community' },
+    { btnId: 'btn-admin-sub-feedback', viewId: 'admin-view-feedback' },
+    { btnId: 'btn-admin-sub-paywalls', viewId: 'admin-view-paywalls' },
+    { btnId: 'btn-admin-sub-push', viewId: 'admin-view-push' }
+  ];
+
+  subTabs.forEach(tab => {
+    const btn = document.getElementById(tab.btnId);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        // Toggle active button style
+        subTabs.forEach(t => {
+          const b = document.getElementById(t.btnId);
+          if (b) {
+            b.classList.remove('btn-primary', 'active-sub-tab');
+            b.classList.add('btn-secondary');
+          }
+          const v = document.getElementById(t.viewId);
+          if (v) {
+            v.classList.add('hidden');
+            v.style.setProperty('display', 'none', 'important');
+          }
+        });
+
+        btn.classList.add('btn-primary', 'active-sub-tab');
+        btn.classList.remove('btn-secondary');
+        
+        const view = document.getElementById(tab.viewId);
+        if (view) {
+          view.classList.remove('hidden');
+          view.style.removeProperty('display');
+        }
+
+        // Trigger loaded view data queries
+        handleAdminSubViewLoad(tab.viewId);
+      });
+    }
+  });
+
+  // User search keyup filter
+  const userSearchInput = document.getElementById('admin-user-search');
+  if (userSearchInput) {
+    userSearchInput.addEventListener('input', () => {
+      filterUsersList(userSearchInput.value);
+    });
+  }
+
+  // Official video announcement submission
+  const btnAnnouncement = document.getElementById('btn-submit-announcement');
+  if (btnAnnouncement) {
+    btnAnnouncement.addEventListener('click', postOfficialAnnouncement);
+  }
+
+  // Paywalls config form submission
+  const paywallForm = document.getElementById('admin-paywall-form');
+  if (paywallForm) {
+    paywallForm.addEventListener('submit', savePaywallConfig);
+  }
+
+  // Push notification dispatch submission
+  const pushForm = document.getElementById('admin-push-form');
+  if (pushForm) {
+    pushForm.addEventListener('submit', dispatchPushNotification);
+  }
+
+  initFeedbackFilters();
+}
+
+async function handleAdminSubViewLoad(viewId) {
+  if (viewId === 'admin-view-analytics') {
+    await loadAdminAnalyticsAndUsers();
+  } else if (viewId === 'admin-view-community') {
+    await loadAdminModerationFeed();
+  } else if (viewId === 'admin-view-feedback') {
+    await loadAdminFeedback();
+  } else if (viewId === 'admin-view-paywalls') {
+    await loadAdminPaywallsAndSubscriptions();
+  }
+}
+
+async function loadAdminAnalyticsAndUsers() {
+  if (!state.isAdmin) return;
+
+  const kpiUsers = document.getElementById('admin-kpi-users');
+  const kpiActive = document.getElementById('admin-kpi-active');
+  const kpiRounds = document.getElementById('admin-kpi-rounds');
+  const kpiSubs = document.getElementById('admin-kpi-subs');
+  const kpiMrr = document.getElementById('admin-kpi-mrr');
+  const usersListBody = document.getElementById('admin-users-list-body');
+
+  try {
+    // 1. Fetch total users
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const totalUsers = usersSnap.size;
+    adminCachedUsers = [];
+    let premiumUsersCount = 0;
+
+    usersSnap.forEach(uDoc => {
+      const uData = uDoc.data();
+      adminCachedUsers.push({ id: uDoc.id, ...uData });
+      if (uData.isPremium) premiumUsersCount++;
+    });
+
+    if (kpiUsers) kpiUsers.textContent = totalUsers;
+    if (kpiSubs) kpiSubs.textContent = premiumUsersCount;
+
+    // 2. Fetch total completed rounds
+    const roundsSnap = await getDocs(collection(db, 'rounds'));
+    if (kpiRounds) kpiRounds.textContent = roundsSnap.size;
+
+    // 3. Fetch active rounds (live matches in progress)
+    const activeSnap = await getDocs(collection(db, 'activeRounds'));
+    if (kpiActive) kpiActive.textContent = activeSnap.size;
+
+    // 4. Retrieve current price from config and calculate MRR & Conversion
+    const calculatedMRR = premiumUsersCount * Number(localSystemConfig.monthlyPrice || 9.99);
+    if (kpiMrr) kpiMrr.textContent = `$${calculatedMRR.toFixed(2)}`;
+
+    // Update financial panel details
+    const finConversion = document.getElementById('admin-financial-conversion');
+    const finConversionBar = document.getElementById('admin-financial-conversion-bar');
+    const finARPU = document.getElementById('admin-financial-arpu');
+
+    const conversionRate = totalUsers > 0 ? (premiumUsersCount / totalUsers) * 100 : 0;
+    if (finConversion) finConversion.textContent = `${conversionRate.toFixed(1)}%`;
+    if (finConversionBar) finConversionBar.style.width = `${conversionRate}%`;
+    
+    const arpu = totalUsers > 0 ? calculatedMRR / totalUsers : 0;
+    if (finARPU) finARPU.textContent = `$${arpu.toFixed(2)}`;
+
+    // Render registered users directory table
+    renderAdminUsersTable(adminCachedUsers);
+
+  } catch (error) {
+    console.error("Failed to load admin metrics or users:", error);
+    if (usersListBody) {
+      usersListBody.innerHTML = `<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--color-danger);">Permission Denied: Ensure you are logged in as an Admin.</td></tr>`;
+    }
+  }
+}
+
+function renderAdminUsersTable(users) {
+  const usersListBody = document.getElementById('admin-users-list-body');
+  if (!usersListBody) return;
+
+  if (users.length === 0) {
+    usersListBody.innerHTML = `<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--color-secondary);">No registered users matching filters.</td></tr>`;
+    return;
+  }
+
+  usersListBody.innerHTML = '';
+  users.forEach(user => {
+    const isPremium = !!user.isPremium;
+    const isAdminRole = !!user.isAdmin;
+    const roundsCount = user.roundIds ? user.roundIds.length : 0;
+    const userRow = document.createElement('tr');
+
+    userRow.innerHTML = `
+      <td style="font-weight: 600;">@${escapeHtml(user.username || 'user')}</td>
+      <td style="font-family: monospace; font-size: 0.75rem; color: var(--color-secondary);">${escapeHtml(user.id)}</td>
+      <td>
+        <span class="admin-badge ${isPremium ? 'premium' : 'free'}">${isPremium ? 'Premium' : 'Free'}</span>
+      </td>
+      <td>
+        <span class="admin-badge ${isAdminRole ? 'admin-role' : 'user-role'}">${isAdminRole ? 'Admin' : 'User'}</span>
+      </td>
+      <td style="font-weight: bold; padding-left: 1.5rem;">${roundsCount}</td>
+      <td style="text-align: right; display: flex; gap: 0.4rem; justify-content: flex-end;">
+        <button class="admin-action-btn btn-sub-toggle" onclick="window.toggleUserPremiumStatus('${user.id}', ${isPremium})">
+          ${isPremium ? 'Downgrade' : 'Upgrade Premium'}
+        </button>
+        <button class="admin-action-btn btn-role-toggle" onclick="window.toggleUserAdminRole('${user.id}', ${isAdminRole})">
+          ${isAdminRole ? 'Revoke Admin' : 'Grant Admin'}
+        </button>
+      </td>
+    `;
+    usersListBody.appendChild(userRow);
+  });
+}
+
+function filterUsersList(queryStr) {
+  const q = queryStr.trim().toLowerCase();
+  if (!q) {
+    renderAdminUsersTable(adminCachedUsers);
+    return;
+  }
+  const filtered = adminCachedUsers.filter(u => 
+    (u.username && u.username.toLowerCase().includes(q)) || 
+    (u.id && u.id.toLowerCase().includes(q))
+  );
+  renderAdminUsersTable(filtered);
+}
+
+window.toggleUserPremiumStatus = async function(userId, currentPremiumState) {
+  if (!state.isAdmin) return;
+  try {
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, { isPremium: !currentPremiumState });
+    await loadAdminAnalyticsAndUsers();
+    showInAppToast("Premium Updated", `Successfully toggled Premium status.`);
+  } catch (error) {
+    console.error("Failed to update premium status:", error);
+    alert("Error updating premium status: " + error.message);
+  }
+};
+
+window.toggleUserAdminRole = async function(userId, currentAdminRoleState) {
+  if (!state.isAdmin) return;
+  if (confirm(`Are you sure you want to toggle Admin privileges for this user?`)) {
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      await updateDoc(userDocRef, { isAdmin: !currentAdminRoleState });
+      await loadAdminAnalyticsAndUsers();
+      showInAppToast("Role Updated", `Successfully toggled Admin role.`);
+    } catch (error) {
+      console.error("Failed to update admin role:", error);
+      alert("Error updating admin role: " + error.message);
+    }
+  }
+};
+
+async function postOfficialAnnouncement() {
+  const textInput = document.getElementById('admin-announcement-text');
+  const videoInput = document.getElementById('admin-announcement-video');
+  if (!textInput) return;
+
+  const text = textInput.value.trim();
+  const videoUrl = videoInput ? videoInput.value.trim() : '';
+
+  if (!text) {
+    alert("Please enter description text for the announcement.");
+    return;
+  }
+
+  try {
+    const postsRef = collection(db, 'posts');
+    const authorHandle = 'GolfCaddie_AI';
+    
+    let postText = text;
+    if (videoUrl) {
+      postText += `\n\n${videoUrl}`;
+    }
+
+    await addDoc(postsRef, {
+      uid: 'GolfCaddie_AI_System',
+      username: authorHandle,
+      text: postText,
+      isPinned: true,
+      likes: [],
+      commentsCount: 0,
+      createdAt: new Date()
+    });
+
+    textInput.value = '';
+    if (videoInput) videoInput.value = '';
+    showInAppToast("Announcement Published", "Official announcement posted.");
+    await loadAdminModerationFeed();
+  } catch (error) {
+    console.error("Failed to post announcement:", error);
+    alert("Failed to publish announcement: " + error.message);
+  }
+}
+
+async function loadAdminModerationFeed() {
+  const feedList = document.getElementById('admin-moderation-feed-list');
+  if (!feedList) return;
+
+  try {
+    const postsRef = collection(db, 'posts');
+    const q = query(postsRef, orderBy('createdAt', 'desc'), limit(15));
+    const snap = await getDocs(q);
+
+    feedList.innerHTML = '';
+    if (snap.empty) {
+      feedList.innerHTML = `<p style="text-align: center; color: var(--color-secondary); padding: 1.5rem;">No recent community activity found.</p>`;
+      return;
+    }
+
+    snap.forEach(pDoc => {
+      const post = pDoc.data();
+      const postId = pDoc.id;
+      const youtubeId = extractYouTubeId(post.text);
+      const isPinned = !!post.isPinned;
+      const avatarLetters = (post.username || 'Golfer').substring(0, 2).toUpperCase();
+
+      const item = document.createElement('div');
+      item.className = 'feedback-msg-card';
+      item.style.borderLeft = isPinned ? '3px solid var(--gold)' : '1px solid var(--border-light)';
+      
+      const pinBtnLabel = isPinned ? '📍 Unpin' : '📌 Pin';
+
+      item.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div class="post-avatar" style="width: 32px; height: 32px; font-size: 0.8rem;">${avatarLetters}</div>
+            <div style="display: flex; flex-direction: column;">
+              <strong style="font-size: 0.85rem; color: var(--color-primary);">@${escapeHtml(post.username || 'Anonymous')}</strong>
+              <span style="font-size: 0.7rem; color: var(--color-secondary);">${formatTimeAgo(post.createdAt)}</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.35rem;">
+            <button class="admin-action-btn" onclick="window.toggleAdminPinPost('${postId}', ${isPinned})">${pinBtnLabel}</button>
+            <button class="admin-action-btn" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);" onclick="window.deleteAdminPost('${postId}')">🗑️ Delete</button>
+          </div>
+        </div>
+        <p style="font-size: 0.85rem; color: rgba(255,255,255,0.9); margin-top: 0.25rem; white-space: pre-wrap;">${escapeHtml(post.text)}</p>
+        ${youtubeId ? `
+          <div style="font-size: 0.75rem; color: var(--emerald-glow); font-weight: 600; display: flex; align-items: center; gap: 0.3rem;">
+            🎥 YouTube Video Attached (ID: ${youtubeId})
+          </div>
+        ` : ''}
+      `;
+      feedList.appendChild(item);
+    });
+
+  } catch (error) {
+    console.error("Failed to load moderation feed:", error);
+    feedList.innerHTML = `<p style="text-align: center; color: var(--danger); padding: 1.5rem;">Failed to load posts feed.</p>`;
+  }
+}
+
+window.toggleAdminPinPost = async function(postId, currentPinned) {
+  try {
+    const postRef = doc(db, 'posts', postId);
+    await updateDoc(postRef, { isPinned: !currentPinned });
+    await loadAdminModerationFeed();
+    showInAppToast("Post Moderated", "Pin status updated.");
+  } catch (error) {
+    console.error("Failed to pin post:", error);
+  }
+};
+
+window.deleteAdminPost = async function(postId) {
+  if (confirm("Are you sure you want to permanently delete this post?")) {
+    try {
+      const postRef = doc(db, 'posts', postId);
+      await deleteDoc(postRef);
+      await loadAdminModerationFeed();
+      showInAppToast("Post Moderated", "Post permanently deleted.");
+    } catch (error) {
+      console.error("Failed to delete post:", error);
+    }
+  }
+};
+
+async function loadAdminFeedback() {
+  const feedbackList = document.getElementById('admin-feedback-list');
+  if (!feedbackList) return;
+
+  try {
+    const feedbackRef = collection(db, 'feedback');
+    const q = query(feedbackRef, orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    feedbackList.innerHTML = '';
+
+    let count = 0;
+    snap.forEach(fDoc => {
+      const fb = fDoc.data();
+      const fbId = fDoc.id;
+
+      if (currentFeedbackFilter !== 'all' && fb.type !== currentFeedbackFilter) {
+        return;
+      }
+      count++;
+
+      const isResolved = !!fb.isResolved;
+      const createdStr = fb.createdAt ? (fb.createdAt.toDate ? fb.createdAt.toDate().toLocaleString() : new Date(fb.createdAt).toLocaleString()) : 'N/A';
+      const badgeClass = fb.type || 'other';
+      const badgeText = fb.type === 'bug' ? '🐛 Bug Report' : (fb.type === 'feature' ? '💡 Feature Request' : (fb.type === 'question' ? '❓ Inquiry' : '💬 Feedback'));
+
+      const card = document.createElement('div');
+      card.className = 'feedback-msg-card' + (isResolved ? ' resolved' : '');
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="feedback-badge ${badgeClass}">${badgeText}</span>
+            <span style="font-size: 0.75rem; color: var(--color-secondary);">${createdStr}</span>
+          </div>
+          <div style="display: flex; gap: 0.35rem;">
+            <button class="admin-action-btn" onclick="window.toggleResolveFeedback('${fbId}', ${isResolved})">
+              ${isResolved ? 'Re-open' : 'Resolve'}
+            </button>
+            <button class="admin-action-btn" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);" onclick="window.deleteFeedback('${fbId}')">
+              🗑️ Delete
+            </button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 0.9rem; font-weight: 700; color: var(--color-primary);">${escapeHtml(fb.name)}</div>
+          <a href="mailto:${escapeHtml(fb.email)}" style="font-size: 0.78rem; display: inline-block; margin-top: 2px;">✉️ ${escapeHtml(fb.email)}</a>
+        </div>
+        <p class="feedback-msg-text" style="font-size: 0.85rem; line-height: 1.45; background: rgba(0,0,0,0.15); border-radius: 6px; padding: 0.6rem 0.8rem; border-left: 2px solid var(--emerald-glow); white-space: pre-wrap;">${escapeHtml(fb.message)}</p>
+      `;
+      feedbackList.appendChild(card);
+    });
+
+    if (count === 0) {
+      feedbackList.innerHTML = `<p style="text-align: center; color: var(--color-secondary); padding: 1.5rem;">No feedback messages found.</p>`;
+    }
+
+  } catch (error) {
+    console.error("Failed to load feedback list:", error);
+    feedbackList.innerHTML = `<p style="text-align: center; color: var(--danger); padding: 1.5rem;">Failed to fetch feedback.</p>`;
+  }
+}
+
+function initFeedbackFilters() {
+  const filters = [
+    { btnId: 'btn-feedback-filter-all', val: 'all' },
+    { btnId: 'btn-feedback-filter-bug', val: 'bug' },
+    { btnId: 'btn-feedback-filter-feature', val: 'feature' },
+    { btnId: 'btn-feedback-filter-question', val: 'question' }
+  ];
+
+  filters.forEach(f => {
+    const btn = document.getElementById(f.btnId);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        filters.forEach(o => {
+          const b = document.getElementById(o.btnId);
+          if (b) {
+            b.classList.remove('btn-primary');
+            b.classList.add('btn-secondary');
+          }
+        });
+        btn.classList.add('btn-primary');
+        btn.classList.remove('btn-secondary');
+
+        currentFeedbackFilter = f.val;
+        loadAdminFeedback();
+      });
+    }
+  });
+}
+
+window.toggleResolveFeedback = async function(fbId, currentResolvedState) {
+  if (!state.isAdmin) return;
+  try {
+    const fbRef = doc(db, 'feedback', fbId);
+    await updateDoc(fbRef, { isResolved: !currentResolvedState });
+    await loadAdminFeedback();
+    showInAppToast("Feedback Updated", "Message status updated.");
+  } catch (error) {
+    console.error("Failed to resolve feedback:", error);
+  }
+};
+
+window.deleteFeedback = async function(fbId) {
+  if (!state.isAdmin) return;
+  if (confirm("Are you sure you want to delete this message?")) {
+    try {
+      const fbRef = doc(db, 'feedback', fbId);
+      await deleteDoc(fbRef);
+      await loadAdminFeedback();
+      showInAppToast("Feedback Moderated", "Message permanently deleted.");
+    } catch (error) {
+      console.error("Failed to delete feedback:", error);
+    }
+  }
+};
+
+async function loadAdminPaywallsAndSubscriptions() {
+  if (!state.isAdmin) return;
+
+  const checkAICoach = document.getElementById('lock-ai-coach');
+  const checkMultiplayer = document.getElementById('lock-multiplayer');
+  const checkGPSRange = document.getElementById('lock-gps-range');
+  const monthlyPriceInput = document.getElementById('paywall-monthly-price');
+  const annualPriceInput = document.getElementById('paywall-annual-price');
+  const trialDaysInput = document.getElementById('paywall-trial-days');
+  const promoMessageInput = document.getElementById('paywall-promo-banner');
+  const globalOpenaiKeyInput = document.getElementById('paywall-global-openai-key');
+  const globalGeminiKeyInput = document.getElementById('paywall-global-gemini-key');
+
+  try {
+    const configDoc = await getDoc(doc(db, 'system', 'config'));
+    if (configDoc.exists()) {
+      localSystemConfig = { ...localSystemConfig, ...configDoc.data() };
+    }
+
+    if (checkAICoach) checkAICoach.checked = !!localSystemConfig.lockAICoach;
+    if (checkMultiplayer) checkMultiplayer.checked = !!localSystemConfig.lockMultiplayer;
+    if (checkGPSRange) checkGPSRange.checked = !!localSystemConfig.lockGPSRange;
+    if (monthlyPriceInput) monthlyPriceInput.value = localSystemConfig.monthlyPrice;
+    if (annualPriceInput) annualPriceInput.value = localSystemConfig.annualPrice;
+    if (trialDaysInput) trialDaysInput.value = localSystemConfig.trialDays;
+    if (promoMessageInput) promoMessageInput.value = localSystemConfig.promoMessage;
+    if (globalOpenaiKeyInput) globalOpenaiKeyInput.value = localSystemConfig.openaiApiKey || '';
+    if (globalGeminiKeyInput) globalGeminiKeyInput.value = localSystemConfig.geminiApiKey || '';
+
+    // Load active subscriber logs
+    const logsList = document.getElementById('admin-subscriber-logs-list');
+    if (logsList) {
+      logsList.innerHTML = '';
+      const premiumUsers = adminCachedUsers.filter(u => u.isPremium);
+      if (premiumUsers.length === 0) {
+        logsList.innerHTML = `<p style="text-align: center; color: var(--color-secondary); font-size: 0.75rem; padding: 1.5rem 0;">No active subscribers currently found.</p>`;
+      } else {
+        premiumUsers.forEach(u => {
+          const logItem = document.createElement('div');
+          logItem.style.display = 'flex';
+          logItem.style.justifyContent = 'space-between';
+          logItem.style.fontSize = '0.78rem';
+          logItem.style.padding = '0.25rem 0';
+          logItem.style.borderBottom = '1px solid rgba(255, 255, 255, 0.03)';
+          logItem.innerHTML = `
+            <span style="font-weight: 600; color: #fff;">@${escapeHtml(u.username || 'user')}</span>
+            <span style="color: var(--gold); font-weight: bold;">$${localSystemConfig.monthlyPrice}/mo</span>
+          `;
+          logsList.appendChild(logItem);
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error("Failed to load paywall configs:", error);
+  }
+}
+
+async function savePaywallConfig(e) {
+  e.preventDefault();
+  if (!state.isAdmin) return;
+
+  const btnSave = document.getElementById('btn-save-paywall-config');
+  if (btnSave) {
+    btnSave.disabled = true;
+    btnSave.textContent = 'Saving Configurations...';
+  }
+
+  try {
+    const configData = {
+      lockAICoach: document.getElementById('lock-ai-coach').checked,
+      lockMultiplayer: document.getElementById('lock-multiplayer').checked,
+      lockGPSRange: document.getElementById('lock-gps-range').checked,
+      monthlyPrice: Number(document.getElementById('paywall-monthly-price').value) || 9.99,
+      annualPrice: Number(document.getElementById('paywall-annual-price').value) || 59.99,
+      trialDays: Number(document.getElementById('paywall-trial-days').value) || 7,
+      promoMessage: document.getElementById('paywall-promo-banner').value.trim() || 'Unlock Pro Caddie Assistant features today!',
+      openaiApiKey: document.getElementById('paywall-global-openai-key').value.trim(),
+      geminiApiKey: document.getElementById('paywall-global-gemini-key').value.trim(),
+      updatedAt: new Date()
+    };
+
+    const configDocRef = doc(db, 'system', 'config');
+    await setDoc(configDocRef, configData);
+
+    localSystemConfig = { ...localSystemConfig, ...configData };
+    showInAppToast("Configuration Saved", "Paywall configurations successfully updated.");
+    syncPaywallModalPricing();
+
+  } catch (error) {
+    console.error("Failed to save config:", error);
+    alert("Error saving configuration: " + error.message);
+  } finally {
+    if (btnSave) {
+      btnSave.disabled = false;
+      btnSave.textContent = 'Save System Configurations';
+    }
+  }
+}
+
+function syncPaywallModalPricing() {
+  const lblMonthly = document.getElementById('paywall-val-monthly');
+  const lblAnnual = document.getElementById('paywall-val-annual');
+  const lblTrial = document.getElementById('paywall-lbl-trial-monthly');
+  
+  if (lblMonthly) lblMonthly.textContent = `$${localSystemConfig.monthlyPrice}/mo`;
+  if (lblAnnual) lblAnnual.textContent = `$${localSystemConfig.annualPrice}/yr`;
+  if (lblTrial) lblTrial.textContent = `Includes ${localSystemConfig.trialDays}-day free trial`;
+}
+
+window.checkPaywallAccess = function(feature) {
+  if (state.isAdmin) return true;
+  if (state.isPremium) return true;
+
+  let isLocked = false;
+  let featureTitleText = "Premium Feature Locked";
+  let bodyText = "This feature is locked under your current Free Plan.";
+
+  if (feature === 'ai-coach' && localSystemConfig.lockAICoach) {
+    isLocked = true;
+    featureTitleText = "AI Coach assessment Locked";
+    bodyText = "Professional assessment reports are only available for Caddie Pro members. Subscribe today to review coaching assessment summaries and drills!";
+  } else if (feature === 'multiplayer' && localSystemConfig.lockMultiplayer) {
+    isLocked = true;
+    featureTitleText = "Multiplayer Mode Locked";
+    bodyText = "Live multiplayer co-scoring and collaboration features require a Caddie Pro membership. Play alongside your friends with real-time scorecards!";
+  } else if (feature === 'gps-range' && localSystemConfig.lockGPSRange) {
+    isLocked = true;
+    featureTitleText = "Detailed GPS Yardages Locked";
+    bodyText = "Complete front, center, and back rangefinder yardages are locked. Subscribe to Caddie Pro to unlock full satellite distance coordinates!";
+  }
+
+  if (isLocked) {
+    const dialog = document.getElementById('paywall-checkout-dialog');
+    const headerEl = document.getElementById('paywall-dialog-header');
+    const bodyEl = document.getElementById('paywall-dialog-body');
+    const titleEl = document.getElementById('paywall-feature-title');
+    
+    if (titleEl) titleEl.innerHTML = `<span>⭐ ${featureTitleText}</span>`;
+    if (headerEl) headerEl.textContent = `Unlock ${featureTitleText}`;
+    if (bodyEl) bodyEl.textContent = bodyText;
+
+    if (dialog) {
+      dialog.showModal();
+    }
+    return false;
+  }
+
+  return true;
+};
+
+function initPaywallCheckoutUI() {
+  const dialog = document.getElementById('paywall-checkout-dialog');
+  const btnClose = document.getElementById('btn-close-paywall-checkout');
+  const btnSubscribe = document.getElementById('btn-subscribe-checkout');
+  const optionMonthly = document.getElementById('paywall-option-monthly');
+  const optionAnnual = document.getElementById('paywall-option-annual');
+
+  if (btnClose && dialog) {
+    btnClose.addEventListener('click', () => {
+      dialog.close();
+    });
+  }
+
+  let selectedBillingPlan = 'monthly';
+
+  if (optionMonthly && optionAnnual) {
+    optionMonthly.addEventListener('click', () => {
+      optionMonthly.classList.add('active');
+      optionMonthly.style.borderColor = 'var(--emerald-glow)';
+      optionMonthly.style.backgroundColor = 'rgba(16, 185, 129, 0.08)';
+      
+      optionAnnual.classList.remove('active');
+      optionAnnual.style.borderColor = 'var(--border-light)';
+      optionAnnual.style.backgroundColor = 'rgba(255,255,255,0.02)';
+      
+      const valMonthly = document.getElementById('paywall-val-monthly');
+      const valAnnual = document.getElementById('paywall-val-annual');
+      if (valMonthly) valMonthly.style.color = 'var(--emerald-glow)';
+      if (valAnnual) valAnnual.style.color = 'var(--color-primary)';
+      
+      selectedBillingPlan = 'monthly';
+    });
+
+    optionAnnual.addEventListener('click', () => {
+      optionAnnual.classList.add('active');
+      optionAnnual.style.borderColor = 'var(--emerald-glow)';
+      optionAnnual.style.backgroundColor = 'rgba(16, 185, 129, 0.08)';
+      
+      optionMonthly.classList.remove('active');
+      optionMonthly.style.borderColor = 'var(--border-light)';
+      optionMonthly.style.backgroundColor = 'rgba(255,255,255,0.02)';
+      
+      const valMonthly = document.getElementById('paywall-val-monthly');
+      const valAnnual = document.getElementById('paywall-val-annual');
+      if (valMonthly) valMonthly.style.color = 'var(--color-primary)';
+      if (valAnnual) valAnnual.style.color = 'var(--emerald-glow)';
+      
+      selectedBillingPlan = 'annual';
+    });
+  }
+
+  if (btnSubscribe) {
+    btnSubscribe.addEventListener('click', async () => {
+      btnSubscribe.disabled = true;
+      btnSubscribe.textContent = 'Processing Transaction...';
+
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      try {
+        state.isPremium = true;
+        saveState();
+
+        if (auth.currentUser) {
+          const userDocRef = doc(db, 'users', auth.currentUser.uid);
+          await updateDoc(userDocRef, { isPremium: true });
+        }
+
+        btnSubscribe.disabled = false;
+        btnSubscribe.textContent = 'Unlock Premium Access';
+        
+        if (dialog) dialog.close();
+        
+        alert("🎉 Congratulations! You are now a Caddie Pro member. All locked features are unlocked.");
+        showInAppToast("Subscription Successful", "Welcome to Golf Caddie Pro!");
+        
+        if (state.isAdmin) {
+          await loadAdminAnalyticsAndUsers();
+        }
+
+        updateUI();
+
+      } catch (err) {
+        console.error("Subscription update error:", err);
+        alert("Transaction successful, but failed to sync online status: " + err.message);
+      }
+    });
+  }
+}
+
+function showInAppToast(title, message) {
+  const toast = document.createElement('div');
+  toast.className = 'in-app-toast-alert';
+  toast.innerHTML = `
+    <div style="font-size: 1.5rem; line-height: 1.2;">🔔</div>
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+      <strong style="font-size: 0.85rem; color: #fff;">${escapeHtml(title)}</strong>
+      <span style="font-size: 0.78rem; color: var(--color-secondary); line-height: 1.3;">${escapeHtml(message)}</span>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('leaving');
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, 3500);
+}
+
+async function dispatchPushNotification(e) {
+  e.preventDefault();
+  if (!state.isAdmin) return;
+
+  const btnDispatch = document.getElementById('btn-dispatch-push');
+  const titleVal = document.getElementById('push-title').value.trim();
+  const messageVal = document.getElementById('push-message').value.trim();
+  const audienceVal = document.getElementById('push-audience').value;
+  const actionVal = document.getElementById('push-action').value;
+
+  if (!titleVal || !messageVal) {
+    alert("Please enter a title and message body.");
+    return;
+  }
+
+  if (btnDispatch) {
+    btnDispatch.disabled = true;
+    btnDispatch.textContent = 'Dispatching System Alert...';
+  }
+
+  try {
+    const notifRef = collection(db, 'notifications');
+    await addDoc(notifRef, {
+      title: titleVal,
+      message: messageVal,
+      audience: audienceVal,
+      action: actionVal,
+      createdAt: new Date(),
+      senderUid: state.syncId
+    });
+
+    document.getElementById('push-title').value = '';
+    document.getElementById('push-message').value = '';
+
+    showInAppToast("Notification Dispatched", `Notification alert delivered to: ${audienceVal} users.`);
+    
+    setTimeout(() => {
+      showInAppToast(titleVal, messageVal);
+    }, 1000);
+
+  } catch (error) {
+    console.error("Failed to save notification:", error);
+    alert("Failed to record notification: " + error.message);
+  } finally {
+    if (btnDispatch) {
+      btnDispatch.disabled = false;
+      btnDispatch.textContent = 'Dispatch System Alert';
+    }
+  }
+}
+
+function listenToSystemConfig() {
+  if (systemConfigUnsubscribe) systemConfigUnsubscribe();
+  
+  systemConfigUnsubscribe = onSnapshot(doc(db, 'system', 'config'), (snapshot) => {
+    if (snapshot.exists()) {
+      localSystemConfig = { ...localSystemConfig, ...snapshot.data() };
+      syncPaywallModalPricing();
+    }
+  }, (error) => {
+    console.warn("System config snapshot listener error:", error);
+  });
+}
+
+function getGPSDistanceText(val, type) {
+  if (type === 'center' || type === 'val') {
+    return val;
+  }
+  const isPremiumUser = state.isAdmin || state.isPremium;
+  if (localSystemConfig.lockGPSRange && !isPremiumUser) {
+    return '🔒';
+  }
+  return val;
 }

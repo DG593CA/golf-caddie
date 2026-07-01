@@ -45,8 +45,8 @@
           if (!btn) return;
           
           var tabId = btn.id;
-          var tabs = ['tab-active-round', 'tab-history', 'tab-community', 'tab-contact'];
-          var contents = ['active-round-tab-content', 'history-tab-content', 'community-tab-content', 'contact-tab-content'];
+          var tabs = ['tab-active-round', 'tab-history', 'tab-community', 'tab-contact', 'tab-admin'];
+          var contents = ['active-round-tab-content', 'history-tab-content', 'community-tab-content', 'contact-tab-content', 'admin-tab-content'];
           
           var targetContentId = tabId.replace('tab-', '') + '-tab-content';
           if (tabId === 'tab-active-round') targetContentId = 'active-round-tab-content';
@@ -89,8 +89,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-gK5sm-VG.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CQ9Rd5Ef.css">
+    <script type="module" crossorigin src="./assets/index-Ch4fWc_5.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C0yXxy5a.css">
   </head>
   <body>
     <div id="app">
@@ -133,6 +133,7 @@
           <button id="tab-history" class="nav-tab" aria-selected="false">📊 History &amp; Handicap</button>
           <button id="tab-community" class="nav-tab" aria-selected="false">👥 Community</button>
           <button id="tab-contact" class="nav-tab" aria-selected="false">✉️ Contact Us</button>
+          <button id="tab-admin" class="nav-tab hidden" aria-selected="false" style="display: none;">🛡️ Admin Dashboard</button>
         </nav>
 
         <!-- Active Round Tab Content -->
@@ -809,7 +810,376 @@
             </div>
           </div>
         </div>
+
+        <!-- Admin Dashboard Tab Content -->
+        <div id="admin-tab-content" class="tab-content hidden" style="padding: 1rem 0; display: none;">
+          <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem;">
+              <div>
+                <h2 style="font-size: 1.6rem; color: var(--gold); display: flex; align-items: center; gap: 0.6rem; margin: 0;">
+                  <span>🛡️ Admin Dashboard</span>
+                </h2>
+                <p style="color: var(--color-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Configure features, view analytics, manage subscriptions, and moderate content.</p>
+              </div>
+              <div id="admin-status-badge" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 20px; padding: 0.35rem 0.85rem; font-size: 0.75rem; font-weight: 700; color: var(--gold); display: flex; align-items: center; gap: 0.4rem;">
+                <span style="display: inline-block; width: 6px; height: 6px; background-color: var(--gold); border-radius: 50%;"></span>
+                <span>Active Console</span>
+              </div>
+            </div>
+
+            <!-- Global KPI Stats Grid -->
+            <div class="admin-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem; margin-bottom: 0.5rem;">
+              <div class="admin-stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 8px; padding: 0.75rem 1rem; text-align: center;">
+                <span style="font-size: 0.7rem; color: var(--color-secondary); font-weight: bold; text-transform: uppercase;">Total Users</span>
+                <div id="admin-kpi-users" style="font-size: 1.75rem; font-weight: 800; color: var(--color-primary); margin-top: 0.25rem;">-</div>
+              </div>
+              <div class="admin-stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 8px; padding: 0.75rem 1rem; text-align: center;">
+                <span style="font-size: 0.7rem; color: var(--color-secondary); font-weight: bold; text-transform: uppercase;">Active Matches</span>
+                <div id="admin-kpi-active" style="font-size: 1.75rem; font-weight: 800; color: var(--emerald-glow); margin-top: 0.25rem;">-</div>
+              </div>
+              <div class="admin-stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 8px; padding: 0.75rem 1rem; text-align: center;">
+                <span style="font-size: 0.7rem; color: var(--color-secondary); font-weight: bold; text-transform: uppercase;">Total Rounds</span>
+                <div id="admin-kpi-rounds" style="font-size: 1.75rem; font-weight: 800; color: var(--color-primary); margin-top: 0.25rem;">-</div>
+              </div>
+              <div class="admin-stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 8px; padding: 0.75rem 1rem; text-align: center;">
+                <span style="font-size: 0.7rem; color: var(--color-secondary); font-weight: bold; text-transform: uppercase;">Subscribers</span>
+                <div id="admin-kpi-subs" style="font-size: 1.75rem; font-weight: 800; color: var(--gold); margin-top: 0.25rem;">-</div>
+              </div>
+              <div class="admin-stat-card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 8px; padding: 0.75rem 1rem; text-align: center;">
+                <span style="font-size: 0.7rem; color: var(--color-secondary); font-weight: bold; text-transform: uppercase;">Est. MRR</span>
+                <div id="admin-kpi-mrr" style="font-size: 1.75rem; font-weight: 800; color: #3b82f6; margin-top: 0.25rem;">$0.00</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admin Sub-Navigation Menu -->
+          <div class="admin-sub-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-light); padding-bottom: 0.75rem; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <button type="button" id="btn-admin-sub-analytics" class="btn btn-sm btn-primary active-sub-tab" style="padding: 0.5rem 1rem; font-weight: 600; border-radius: 20px; white-space: nowrap;">📊 Users &amp; Analytics</button>
+            <button type="button" id="btn-admin-sub-community" class="btn btn-sm btn-secondary" style="padding: 0.5rem 1rem; font-weight: 600; border-radius: 20px; white-space: nowrap;">👥 Community Moderation</button>
+            <button type="button" id="btn-admin-sub-feedback" class="btn btn-sm btn-secondary" style="padding: 0.5rem 1rem; font-weight: 600; border-radius: 20px; white-space: nowrap;">✉️ Customer Messages</button>
+            <button type="button" id="btn-admin-sub-paywalls" class="btn btn-sm btn-secondary" style="padding: 0.5rem 1rem; font-weight: 600; border-radius: 20px; white-space: nowrap;">💳 Paywalls &amp; Subs</button>
+            <button type="button" id="btn-admin-sub-push" class="btn btn-sm btn-secondary" style="padding: 0.5rem 1rem; font-weight: 600; border-radius: 20px; white-space: nowrap;">🔔 Push Notifications</button>
+          </div>
+
+          <!-- SUB-VIEW 1: Analytics & Users -->
+          <div id="admin-view-analytics" class="admin-sub-content">
+            <div class="glass-card" style="padding: 1.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+                <h3 style="font-size: 1.1rem; color: var(--color-primary); margin: 0;">👥 Registered User Accounts</h3>
+                <div style="display: flex; gap: 0.5rem; width: 100%; max-width: 300px;">
+                  <input type="text" id="admin-user-search" class="form-input" placeholder="Search by username..." style="width: 100%; height: 36px; padding: 0.5rem; font-size: 0.85rem; border-radius: 6px;">
+                </div>
+              </div>
+
+              <!-- User List Scroll Container -->
+              <div style="overflow-x: auto; border: 1px solid var(--border-light); border-radius: 8px; background: rgba(9, 12, 15, 0.4);">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                  <thead>
+                    <tr style="background: rgba(255, 255, 255, 0.02); border-bottom: 1px solid var(--border-light);">
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Username</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Sync ID</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Subscription</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Role</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Rounds</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary); text-align: right;">Moderation Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-users-list-body">
+                    <tr>
+                      <td colspan="6" style="padding: 2rem; text-align: center; color: var(--color-secondary);">Loading registered user directories...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 2: Community Moderation -->
+          <div id="admin-view-community" class="admin-sub-content hidden" style="display: none;">
+            <!-- Post video announcement card -->
+            <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+              <h3 style="font-size: 1rem; color: var(--emerald-glow); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.4rem;">
+                📢 Create Video Announcement
+              </h3>
+              <p class="form-help-text" style="margin-bottom: 1rem;">Post an official system announcement or video clip. Paste a YouTube URL to embed it beautifully in the feed.</p>
+              
+              <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                  <label class="form-section-title" style="margin-bottom: 0.25rem;">Announcement Text</label>
+                  <textarea id="admin-announcement-text" class="form-input" placeholder="Type your announcement description... Use @mentions to highlight users." style="width: 100%; min-height: 80px; resize: none; border-radius: 6px;" maxlength="500"></textarea>
+                </div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 250px;">
+                    <label class="form-section-title" style="margin-bottom: 0.25rem;">YouTube Video URL</label>
+                    <input type="text" id="admin-announcement-video" class="form-input" placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ" style="width: 100%; border-radius: 6px; height: 38px;">
+                  </div>
+                  <div style="display: flex; align-items: flex-end;">
+                    <button type="button" id="btn-submit-announcement" class="btn btn-primary" style="height: 38px; padding: 0 1.5rem; font-weight: 700; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Post to Community</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Community Moderation Feed -->
+            <div class="glass-card" style="padding: 1.5rem;">
+              <h3 style="font-size: 1.1rem; color: var(--color-primary); margin-bottom: 1rem;">👥 Community Posts Moderation</h3>
+              <div id="admin-moderation-feed-list" class="community-feed-grid">
+                <!-- Dynamically loaded list of posts for moderation -->
+                <p style="text-align: center; color: var(--color-secondary); padding: 2rem;">Loading community moderation feed...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 3: Customer Feedback -->
+          <div id="admin-view-feedback" class="admin-sub-content hidden" style="display: none;">
+            <div class="glass-card" style="padding: 1.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                <h3 style="font-size: 1.1rem; color: var(--color-primary); margin: 0;">✉️ User Feedback &amp; Contact Us Messages</h3>
+                <!-- Feedback type filters -->
+                <div style="display: flex; gap: 0.25rem; overflow-x: auto; max-width: 100%;">
+                  <button type="button" id="btn-feedback-filter-all" class="btn btn-xs btn-primary" style="padding: 0.35rem 0.75rem; border-radius: 12px;">All</button>
+                  <button type="button" id="btn-feedback-filter-bug" class="btn btn-xs btn-secondary" style="padding: 0.35rem 0.75rem; border-radius: 12px;">Bugs</button>
+                  <button type="button" id="btn-feedback-filter-feature" class="btn btn-xs btn-secondary" style="padding: 0.35rem 0.75rem; border-radius: 12px;">Features</button>
+                  <button type="button" id="btn-feedback-filter-question" class="btn btn-xs btn-secondary" style="padding: 0.35rem 0.75rem; border-radius: 12px;">Questions</button>
+                </div>
+              </div>
+
+              <div id="admin-feedback-list" style="display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Dynamically loaded message cards -->
+                <p style="text-align: center; color: var(--color-secondary); padding: 2rem;">Loading user feedback submissions...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 4: Paywalls & Subscriptions -->
+          <div id="admin-view-paywalls" class="admin-sub-content hidden" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: start;">
+              <!-- Left side: Configuration form -->
+              <div class="glass-card" style="padding: 1.5rem;">
+                <h3 style="font-size: 1.1rem; color: var(--color-primary); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <span>⚙️ System Paywall Configuration</span>
+                </h3>
+                
+                <form id="admin-paywall-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                  <!-- Toggle Locked Premium Features -->
+                  <div style="border-bottom: 1px solid var(--border-light); padding-bottom: 1rem;">
+                    <span class="form-section-title" style="margin-bottom: 0.75rem;">Premium Feature Lock Toggles</span>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.15); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-light);">
+                        <label for="lock-ai-coach" style="font-size: 0.85rem; font-weight: 600;">
+                          <span>Lock AI Coach Assessment</span>
+                          <small style="display: block; font-weight: normal; color: var(--color-secondary); font-size: 0.75rem; margin-top: 2px;">Restricts assessment reports to Premium users only.</small>
+                        </label>
+                        <label class="toggle-switch" style="margin: 0;">
+                          <input type="checkbox" id="lock-ai-coach">
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+
+                      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.15); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-light);">
+                        <label for="lock-multiplayer" style="font-size: 0.85rem; font-weight: 600;">
+                          <span>Lock Multiplayer &amp; Co-Scoring</span>
+                          <small style="display: block; font-weight: normal; color: var(--color-secondary); font-size: 0.75rem; margin-top: 2px;">Locks collaborative Live Round play behind Premium membership.</small>
+                        </label>
+                        <label class="toggle-switch" style="margin: 0;">
+                          <input type="checkbox" id="lock-multiplayer">
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+
+                      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.15); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-light);">
+                        <label for="lock-gps-range" style="font-size: 0.85rem; font-weight: 600;">
+                          <span>Lock GPS Rangefinder Yardages</span>
+                          <small style="display: block; font-weight: normal; color: var(--color-secondary); font-size: 0.75rem; margin-top: 2px;">Limits non-premium view to Center distance (Front/Back require sub).</small>
+                        </label>
+                        <label class="toggle-switch" style="margin: 0;">
+                          <input type="checkbox" id="lock-gps-range">
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Subscription Cost Inputs -->
+                  <div>
+                    <span class="form-section-title" style="margin-bottom: 0.75rem;">Billing Plans &amp; Pricing</span>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                      <div>
+                        <label for="paywall-monthly-price" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">Monthly Subscription</label>
+                        <input type="number" id="paywall-monthly-price" class="form-input" value="9.99" step="0.01" min="0" style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                      </div>
+                      <div>
+                        <label for="paywall-annual-price" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">Annual Subscription</label>
+                        <input type="number" id="paywall-annual-price" class="form-input" value="59.99" step="0.01" min="0" style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                      </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 0.75rem;">
+                      <div>
+                        <label for="paywall-trial-days" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">Free Trial Days</label>
+                        <input type="number" id="paywall-trial-days" class="form-input" value="7" min="0" style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Paywall promotional message banner -->
+                  <div>
+                    <label for="paywall-promo-banner" class="form-section-title" style="margin-bottom: 0.25rem;">Custom Paywall Header Promo Text</label>
+                    <input type="text" id="paywall-promo-banner" class="form-input" value="Unlock Pro Caddie Assistant features today!" style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                  </div>
+
+                  <!-- Global Developer API Keys -->
+                  <div style="border-top: 1px solid var(--border-light); padding-top: 1rem;">
+                    <span class="form-section-title" style="margin-bottom: 0.75rem;">Global Developer API Keys (System-wide Fallback)</span>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div>
+                        <label for="paywall-global-openai-key" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">Global OpenAI API Key (Whisper &amp; GPT Coach)</label>
+                        <input type="password" id="paywall-global-openai-key" class="form-input" placeholder="sk-proj-..." style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                      </div>
+                      <div>
+                        <label for="paywall-global-gemini-key" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">Global Gemini API Key (Gemini Coach)</label>
+                        <input type="password" id="paywall-global-gemini-key" class="form-input" placeholder="AIzaSy..." style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                      </div>
+                    </div>
+                  </div>
+
+                  <button type="submit" id="btn-save-paywall-config" class="btn btn-success" style="width: 100%; padding: 0.75rem; font-weight: 700; font-size: 0.9rem; border-radius: 6px; margin-top: 0.5rem; text-transform: uppercase;">
+                    Save System Configurations
+                  </button>
+                </form>
+              </div>
+
+              <!-- Right side: Health Metrics & Billing Details -->
+              <div class="glass-card" style="padding: 1.5rem;">
+                <h3 style="font-size: 1.1rem; color: var(--color-primary); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <span>📈 Financial Health &amp; Subscriptions</span>
+                </h3>
+                
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                  <div style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600; text-transform: uppercase;">Subscribers Health Rate</span>
+                      <span id="admin-financial-conversion" style="font-size: 0.95rem; font-weight: 700; color: var(--emerald-glow);">-</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 0.5rem;">
+                      <div id="admin-financial-conversion-bar" style="height: 100%; background: var(--emerald-gradient); width: 0%;"></div>
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-light); border-radius: 8px; padding: 0.75rem; text-align: center;">
+                      <span style="font-size: 0.7rem; color: var(--color-secondary); font-weight: bold; text-transform: uppercase;">Avg. Revenue/User</span>
+                      <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary); margin-top: 0.25rem;" id="admin-financial-arpu">-</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-light); border-radius: 8px; padding: 0.75rem; text-align: center;">
+                      <span style="font-size: 0.7rem; color: var(--color-secondary); font-weight: bold; text-transform: uppercase;">Simulated Churn</span>
+                      <div style="font-size: 1.25rem; font-weight: 800; color: var(--danger); margin-top: 0.25rem;">2.4%</div>
+                    </div>
+                  </div>
+
+                  <!-- Interactive subscriber log -->
+                  <div style="margin-top: 0.5rem;">
+                    <span class="form-section-title" style="margin-bottom: 0.5rem;">Active Subscribers Log</span>
+                    <div id="admin-subscriber-logs-list" style="max-height: 160px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.25); display: flex; flex-direction: column; gap: 0.5rem;">
+                      <!-- Dynamically filled with active subscriptions logs -->
+                      <p style="text-align: center; color: var(--color-secondary); font-size: 0.75rem; padding: 1rem 0;">No active subscribers currently found.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 5: Push Notifications -->
+          <div id="admin-view-push" class="admin-sub-content hidden" style="display: none;">
+            <div class="glass-card" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+              <h3 style="font-size: 1.1rem; color: var(--color-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>🔔 Compose System Notification Alert</span>
+              </h3>
+              <p class="form-help-text" style="margin-bottom: 1.25rem;">Send a system-wide mobile alert or message announcement to players. Sent logs are recorded in Firestore.</p>
+
+              <form id="admin-push-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div class="form-group-block" style="margin-bottom: 0;">
+                  <label for="push-title" class="form-section-title" style="margin-bottom: 0.35rem;">Notification Title</label>
+                  <input type="text" id="push-title" class="form-input" placeholder="e.g. Major Championship Alert! 🏆" required style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                </div>
+
+                <div class="form-group-block" style="margin-bottom: 0;">
+                  <label for="push-message" class="form-section-title" style="margin-bottom: 0.35rem;">Message Body</label>
+                  <textarea id="push-message" placeholder="Type notification details... E.g. Check out the leaderboard stats for Pebble Beach!" required style="width: 100%; min-height: 80px; resize: vertical; border-radius: 6px; padding: 0.5rem;" maxlength="200"></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                  <div>
+                    <label for="push-audience" class="form-section-title" style="margin-bottom: 0.25rem;">Target Audience</label>
+                    <select id="push-audience" class="form-input" style="width: 100%; border-radius: 6px; height: 36px; padding: 0.25rem 0.5rem; background: rgba(0,0,0,0.4);">
+                      <option value="all">👥 All Registered Users</option>
+                      <option value="premium">⭐ Premium Members Only</option>
+                      <option value="free">👤 Free Users Only</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="push-action" class="form-section-title" style="margin-bottom: 0.25rem;">Notification Action</label>
+                    <select id="push-action" class="form-input" style="width: 100%; border-radius: 6px; height: 36px; padding: 0.25rem 0.5rem; background: rgba(0,0,0,0.4);">
+                      <option value="community">Open Community Feed</option>
+                      <option value="active-round">Open Active Round</option>
+                      <option value="history">Open Handicap History</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" id="btn-dispatch-push" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-weight: 700; font-size: 0.95rem; border-radius: 6px; margin-top: 0.5rem; text-transform: uppercase;">
+                  🚀 Dispatch System Alert
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
       </main>
+
+      <!-- Premium Paywall Checkout Modal -->
+      <dialog id="paywall-checkout-dialog" class="settings-modal glass-modal" style="max-width: 440px;">
+        <div class="modal-header" style="border-bottom: none; padding-bottom: 0.5rem;">
+          <h2 id="paywall-feature-title" style="color: var(--gold); font-size: 1.2rem; display: flex; align-items: center; gap: 0.4rem;">
+            <span>⭐ Premium Feature Locked</span>
+          </h2>
+          <button id="btn-close-paywall-checkout" class="btn-close-modal" aria-label="Close paywall">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 0.5rem 1.5rem 1.5rem; text-align: center;">
+          <div style="font-size: 3rem; margin-bottom: 0.5rem;">🏆</div>
+          <h3 id="paywall-dialog-header" style="font-size: 1.25rem; margin-bottom: 0.5rem; color: #fff;">Join Golf Caddie Pro</h3>
+          <p id="paywall-dialog-body" style="color: var(--color-secondary); font-size: 0.88rem; line-height: 1.45; margin-bottom: 1.25rem;">
+            This feature is locked under your current Free Plan. Subscribe today to unlock professional coach assessments, live multiplayer co-scoring, and complete rangefinder yardages.
+          </p>
+
+          <!-- Pricing Options Selector -->
+          <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+            <div id="paywall-option-monthly" class="paywall-pricing-option active" style="background: rgba(16, 185, 129, 0.08); border: 2px solid var(--emerald-glow); border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
+              <div>
+                <span style="font-weight: 700; color: #fff; display: block; font-size: 0.95rem;">Monthly Caddie Pro</span>
+                <span style="font-size: 0.75rem; color: var(--color-secondary);" id="paywall-lbl-trial-monthly">Includes 7-day free trial</span>
+              </div>
+              <span style="font-weight: 800; font-size: 1.2rem; color: var(--emerald-glow);" id="paywall-val-monthly">$9.99/mo</span>
+            </div>
+            
+            <div id="paywall-option-annual" class="paywall-pricing-option" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
+              <div>
+                <span style="font-weight: 700; color: #fff; display: block; font-size: 0.95rem;">Annual Caddie Pro</span>
+                <span style="font-size: 0.75rem; color: var(--emerald-glow); font-weight: 600;">Save 50% Yearly</span>
+              </div>
+              <span style="font-weight: 800; font-size: 1.2rem; color: var(--color-primary);" id="paywall-val-annual">$59.99/yr</span>
+            </div>
+          </div>
+
+          <button type="button" id="btn-subscribe-checkout" class="btn btn-success btn-lg btn-block" style="padding: 0.8rem; font-weight: 700; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.9rem;">
+            Unlock Premium Access
+          </button>
+          
+          <div style="font-size: 0.7rem; color: var(--color-secondary); margin-top: 0.75rem;">
+            Cancel anytime in settings. Secure checkout. Terms of service apply.
+          </div>
+        </div>
+      </dialog>
 
       <!-- Tee Selector Dialog -->
       <dialog id="tee-select-dialog" class="settings-modal glass-modal" style="max-width: 420px;">
@@ -934,18 +1304,20 @@
               </div>
             </div>
 
-            <!-- Gemini AI Key -->
-            <div class="form-group-block">
-              <label for="gemini-api-key" class="form-section-title">Gemini API Key (Optional)</label>
-              <p class="form-help-text">Add your Google Gemini API Key for deep personal coaching and summary details at the end of the round. Key is saved locally on your browser.</p>
-              <input type="password" id="gemini-api-key" class="form-input" placeholder="AIzaSy...">
-            </div>
+            <div id="admin-api-keys-block" class="hidden" style="display: none;">
+              <!-- Gemini AI Key -->
+              <div class="form-group-block">
+                <label for="gemini-api-key" class="form-section-title">Gemini API Key (Optional)</label>
+                <p class="form-help-text">Add your Google Gemini API Key for deep personal coaching and summary details at the end of the round. Key is saved locally on your browser.</p>
+                <input type="password" id="gemini-api-key" class="form-input" placeholder="AIzaSy...">
+              </div>
 
-            <!-- OpenAI API Key for Whisper -->
-            <div class="form-group-block">
-              <label for="openai-api-key" class="form-section-title">OpenAI API Key for Whisper (Optional)</label>
-              <p class="form-help-text">Use OpenAI's Whisper AI to transcribe voice controls. Recommended for superior voice recognition and handling of accents/diction. Key is saved locally.</p>
-              <input type="password" id="openai-api-key" class="form-input" placeholder="sk-proj-...">
+              <!-- OpenAI API Key for Whisper -->
+              <div class="form-group-block">
+                <label for="openai-api-key" class="form-section-title">OpenAI API Key for Whisper (Optional)</label>
+                <p class="form-help-text">Use OpenAI's Whisper AI to transcribe voice controls. Recommended for superior voice recognition and handling of accents/diction. Key is saved locally.</p>
+                <input type="password" id="openai-api-key" class="form-input" placeholder="sk-proj-...">
+              </div>
             </div>
 
             <!-- Voice Control Options (Moved from Dashboard Voice Card) -->

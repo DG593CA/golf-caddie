@@ -2891,3 +2891,229 @@ a:hover {
   background-color: var(--bg-dark);
 }
 
+/* =========================================================================
+   Admin Dashboard & Paywall Premium Styles
+   ========================================================================= */
+
+.admin-stats-grid {
+  margin-top: 0.5rem;
+}
+
+.admin-stat-card {
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.admin-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 158, 11, 0.25);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.08);
+}
+
+/* Sub tabs pill list custom styling */
+.admin-sub-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+.admin-sub-tabs::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.admin-sub-tabs button {
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--color-secondary);
+  transition: all var(--transition-fast);
+}
+
+.admin-sub-tabs button:hover {
+  color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-sub-tabs button.active-sub-tab {
+  background: var(--emerald-gradient);
+  border-color: var(--emerald-glow);
+  color: #ffffff;
+  box-shadow: var(--shadow-glow);
+}
+
+.admin-sub-tabs button.active-sub-tab:hover {
+  opacity: 0.95;
+}
+
+/* User management table styling */
+#admin-users-list-body tr {
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color var(--transition-fast);
+}
+
+#admin-users-list-body tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+#admin-users-list-body td {
+  padding: 0.85rem 1rem;
+  color: var(--color-primary);
+}
+
+/* Admin badges */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.admin-badge.free {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--color-secondary);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.admin-badge.premium {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--gold);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.2);
+}
+
+.admin-badge.admin-role {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.admin-badge.user-role {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-secondary);
+  border: 1px solid var(--border-light);
+}
+
+/* Interactive tables action buttons */
+.admin-action-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  color: var(--color-primary);
+  border-radius: 4px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.admin-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.admin-action-btn.btn-sub-toggle {
+  color: var(--gold);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.admin-action-btn.btn-sub-toggle:hover {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--gold);
+}
+
+.admin-action-btn.btn-role-toggle {
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.admin-action-btn.btn-role-toggle:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+}
+
+/* Feedback card styling */
+.feedback-msg-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.feedback-msg-card:hover {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.feedback-msg-card.resolved {
+  opacity: 0.55;
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
+.feedback-msg-card.resolved .feedback-msg-text {
+  text-decoration: line-through;
+  color: var(--color-secondary);
+}
+
+.feedback-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.feedback-badge.bug { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+.feedback-badge.feature { background: rgba(16, 185, 129, 0.12); color: var(--emerald-glow); border: 1px solid rgba(16, 185, 129, 0.3); }
+.feedback-badge.question { background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+.feedback-badge.other { background: rgba(148, 163, 184, 0.1); color: var(--color-secondary); border: 1px solid rgba(148, 163, 184, 0.2); }
+
+/* Paywall options styling */
+.paywall-pricing-option {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.paywall-pricing-option:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+.paywall-pricing-option.active {
+  background: rgba(16, 185, 129, 0.08) !important;
+  border-color: var(--emerald-glow) !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+}
+
+/* Global Paywall Toasts alerts */
+.in-app-toast-alert {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: rgba(15, 19, 24, 0.95);
+  border: 1px solid var(--border-focus);
+  box-shadow: var(--shadow-glow);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  z-index: 100000;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 90%;
+  max-width: 380px;
+  backdrop-filter: blur(8px);
+  animation: toastSlideIn 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.in-app-toast-alert.leaving {
+  animation: toastSlideOut 0.3s cubic-bezier(0.8, 0, 0.9, 0.1) forwards;
+}
+
+@keyframes toastSlideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(120%); opacity: 0; }
+}
+
+
