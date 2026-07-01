@@ -998,6 +998,39 @@
                           <span class="slider round"></span>
                         </label>
                       </div>
+
+                      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.15); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-light);">
+                        <label for="lock-voice-scoring" style="font-size: 0.85rem; font-weight: 600;">
+                          <span>Lock Speech &amp; Voice Scoring</span>
+                          <small style="display: block; font-weight: normal; color: var(--color-secondary); font-size: 0.75rem; margin-top: 2px;">Restricts voice-command scoring and speech recognition to premium users.</small>
+                        </label>
+                        <label class="toggle-switch" style="margin: 0;">
+                          <input type="checkbox" id="lock-voice-scoring">
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+
+                      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(16, 185, 129, 0.05); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.25);">
+                        <label for="free-premium-new-users" style="font-size: 0.85rem; font-weight: 600;">
+                          <span>🎁 Free Premium for New Users</span>
+                          <small style="display: block; font-weight: normal; color: var(--color-secondary); font-size: 0.75rem; margin-top: 2px;">Automatically grants premium status to all new sign-ups.</small>
+                        </label>
+                        <label class="toggle-switch" style="margin: 0;">
+                          <input type="checkbox" id="free-premium-new-users">
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+
+                      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(245, 158, 11, 0.05); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.25);">
+                        <label for="free-premium-all-users" style="font-size: 0.85rem; font-weight: 600;">
+                          <span>🔓 Open Access (Free Premium for All)</span>
+                          <small style="display: block; font-weight: normal; color: var(--color-secondary); font-size: 0.75rem; margin-top: 2px;">Temporarily unlocks all premium features for all users.</small>
+                        </label>
+                        <label class="toggle-switch" style="margin: 0;">
+                          <input type="checkbox" id="free-premium-all-users">
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
                     </div>
                   </div>
 
@@ -1039,6 +1072,25 @@
                       <div>
                         <label for="paywall-global-gemini-key" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">Global Gemini API Key (Gemini Coach)</label>
                         <input type="password" id="paywall-global-gemini-key" class="form-input" placeholder="AIzaSy..." style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- RevenueCat Mobile Subscriptions -->
+                  <div style="border-top: 1px solid var(--border-light); padding-top: 1rem;">
+                    <span class="form-section-title" style="margin-bottom: 0.75rem;">RevenueCat Mobile In-App Subscriptions (SDK)</span>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div>
+                        <label for="paywall-revenuecat-key-ios" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">RevenueCat Public API Key (iOS)</label>
+                        <input type="text" id="paywall-revenuecat-key-ios" class="form-input" placeholder="appl_..." style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                      </div>
+                      <div>
+                        <label for="paywall-revenuecat-key-android" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">RevenueCat Public API Key (Android)</label>
+                        <input type="text" id="paywall-revenuecat-key-android" class="form-input" placeholder="goog_..." style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
+                      </div>
+                      <div>
+                        <label for="paywall-revenuecat-entitlement" style="font-size: 0.8rem; color: var(--color-secondary); font-weight: 600;">Active Entitlement ID</label>
+                        <input type="text" id="paywall-revenuecat-entitlement" class="form-input" placeholder="caddie_pro" style="width: 100%; border-radius: 6px; height: 36px; padding: 0.5rem;">
                       </div>
                     </div>
                   </div>
@@ -1545,6 +1597,35 @@
           <!-- Back to login toggle -->
           <div id="gate-back-to-login-wrapper" style="text-align: center; margin-top: 1rem; display: none;">
             <span id="btn-gate-back-to-login" style="font-size: 0.85rem; color: var(--color-primary); cursor: pointer; text-decoration: underline;">Back to Log In</span>
+          </div>
+
+          <!-- Social Sign-in Divider & Buttons -->
+          <div id="gate-social-auth-section">
+            <div style="display: flex; align-items: center; margin: 1.5rem 0 1rem; color: var(--color-secondary); font-size: 0.78rem;">
+              <div style="flex: 1; height: 1px; background: var(--border-light); opacity: 0.7;"></div>
+              <span style="padding: 0 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; opacity: 0.8;">Or continue with</span>
+              <div style="flex: 1; height: 1px; background: var(--border-light); opacity: 0.7;"></div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+              <!-- Apple Sign In -->
+              <button type="button" id="btn-gate-social-apple" class="btn btn-secondary btn-block" style="background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; height: 40px; border-radius: 8px; font-size: 0.9rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.22.67-2.94 1.5-.63.73-1.18 1.87-1.03 2.98.1.01.21.02.32.02.88 0 2.05-.56 2.66-1.44z"/></svg>
+                <span>Continue with Apple</span>
+              </button>
+
+              <!-- Google Sign In -->
+              <button type="button" id="btn-gate-social-google" class="btn btn-secondary btn-block" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; height: 40px; border-radius: 8px; font-size: 0.9rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.435 0-6.223-2.788-6.223-6.223s2.788-6.223 6.223-6.223c1.558 0 2.977.575 4.07 1.517l3.078-3.078C18.995 2.11 15.823 1 12.24 1c-6.075 0-11 4.925-11 11s4.925 11 11 11c5.8 0 10.714-4.143 11-10.285h-11z"/></svg>
+                <span>Continue with Google</span>
+              </button>
+
+              <!-- Facebook Sign In -->
+              <button type="button" id="btn-gate-social-facebook" class="btn btn-secondary btn-block" style="background: rgba(24, 119, 242, 0.12); border: 1px solid rgba(24, 119, 242, 0.35); color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; height: 40px; border-radius: 8px; font-size: 0.9rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.75z"/></svg>
+                <span>Continue with Facebook</span>
+              </button>
+            </div>
           </div>
 
           <!-- Toggle to use Legacy Sync ID -->

@@ -2972,6 +2972,12 @@ a:hover {
   color: var(--color-secondary);
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
+.admin-badge.blocked {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  text-shadow: 0 0 6px rgba(239, 68, 68, 0.2);
+}
 
 .admin-badge.premium {
   background: rgba(245, 158, 11, 0.15);
@@ -3026,6 +3032,25 @@ a:hover {
 .admin-action-btn.btn-role-toggle:hover {
   background: rgba(59, 130, 246, 0.1);
   border-color: #3b82f6;
+}
+
+.admin-action-btn.btn-block-toggle {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+.admin-action-btn.btn-block-toggle:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #f87171;
+}
+
+.admin-action-btn.btn-delete-toggle {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+.admin-action-btn.btn-delete-toggle:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
 }
 
 /* Feedback card styling */

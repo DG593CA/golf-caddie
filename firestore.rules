@@ -72,10 +72,16 @@ service cloud.firestore {
       return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
     }
 
+    function isNotBlocked() {
+      return request.auth == null ||
+             !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isBlocked', false) != true;
+    }
+
     // Domain validation functions
     function isValidUserDoc(data, syncId) {
       return hasRequiredFields(['syncId', 'roundIds', 'createdAt', 'updatedAt']) &&
-             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'playerAliases', 'createdAt', 'updatedAt', 'username', 'customCourses', 'hasCompletedTutorial', 'isAdmin']) &&
+             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'playerAliases', 'createdAt', 'updatedAt', 'username', 'customCourses', 'hasCompletedTutorial', 'isAdmin', 'isPremium', 'isBlocked']) &&
              data.syncId == syncId &&
              isValidSyncId(data.syncId) &&
              isValidOptionalString(data, 'apiKey', 1000) &&
@@ -88,6 +94,8 @@ service cloud.firestore {
              (!('username' in data) || (data.username is string && data.username.size() <= 50)) &&
              (!('hasCompletedTutorial' in data) || data.hasCompletedTutorial is bool) &&
              (!('isAdmin' in data) || data.isAdmin is bool) &&
+             (!('isPremium' in data) || data.isPremium is bool) &&
+             (!('isBlocked' in data) || data.isBlocked is bool) &&
              (!('customCourses' in data) || data.customCourses is list);
     }
 
@@ -130,65 +138,70 @@ service cloud.firestore {
 
     // Rules matching
     match /users/{syncId} {
-      allow get: if isValidSyncId(syncId) && isOwner(syncId);
+      allow get: if isValidSyncId(syncId) && (isOwner(syncId) || isAdmin()) && isNotBlocked();
       allow create: if isValidSyncId(syncId) && isOwner(syncId) && isValidUserDoc(request.resource.data, syncId);
-      allow update: if (isValidSyncId(syncId) && isOwner(syncId)) || isAdmin();
-      allow delete: if false; // do not allow deletion via client
-      allow list: if isAdmin();
+      allow update: if isValidSyncId(syncId) && (isOwner(syncId) || isAdmin()) && isNotBlocked();
+      allow delete: if isAdmin();
+      allow list: if isAdmin() && isNotBlocked();
     }
 
     match /rounds/{roundDocId} {
-      allow get: if true; // Safe because they can't list, and doc ID is high-entropy (syncId_roundId)
-      allow create: if isOwner(request.resource.data.syncId) && isValidRoundDoc(request.resource.data, roundDocId);
+      allow get: if isNotBlocked(); // Safe because they can't list, and doc ID is high-entropy (syncId_roundId)
+      allow create: if isOwner(request.resource.data.syncId) && isValidRoundDoc(request.resource.data, roundDocId) && isNotBlocked();
       allow update: if isOwner(request.resource.data.syncId) && 
                      isValidRoundDoc(request.resource.data, roundDocId) &&
                      request.resource.data.syncId == resource.data.syncId &&
                      request.resource.data.id == resource.data.id &&
-                     request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isOwner(resource.data.syncId);
-      allow list: if isAdmin();
+                     request.resource.data.createdAt == resource.data.createdAt &&
+                     isNotBlocked();
+      allow delete: if isOwner(resource.data.syncId) && isNotBlocked();
+      allow list: if isAdmin() && isNotBlocked();
     }
 
     match /activeRounds/{syncId} {
-      allow get: if isValidSyncId(syncId);
-      allow create: if isValidSyncId(syncId) && isOwner(syncId);
-      allow update: if isValidSyncId(syncId) && (isOwner(syncId) || request.auth != null);
-      allow delete: if isValidSyncId(syncId) && isOwner(syncId);
-      allow list: if isAdmin();
+      allow get: if isValidSyncId(syncId) && isNotBlocked();
+      allow create: if isValidSyncId(syncId) && isOwner(syncId) && isNotBlocked();
+      allow update: if isValidSyncId(syncId) && (isOwner(syncId) || request.auth != null) && isNotBlocked();
+      allow delete: if isValidSyncId(syncId) && isOwner(syncId) && isNotBlocked();
+      allow list: if isAdmin() && isNotBlocked();
     }
 
     match /notifications/{notificationId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && isNotBlocked();
       allow write: if isAdmin();
     }
 
     match /system/{document} {
-      allow read: if true;
+      allow read: if isNotBlocked();
       allow write: if isAdmin();
     }
 
     function isAdmin() {
       return request.auth != null && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
     }
 
     match /posts/{postId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && isNotBlocked();
       allow create: if request.auth != null &&
+                    isNotBlocked() &&
                     (!('isPinned' in request.resource.data) || 
                      request.resource.data.isPinned == false || 
                      isAdmin());
       allow update: if request.auth != null &&
+                    isNotBlocked() &&
                     (request.resource.data.uid == request.auth.uid || isAdmin()) &&
                     (request.resource.data.isPinned == resource.data.isPinned || isAdmin());
       allow delete: if request.auth != null &&
+                    isNotBlocked() &&
                     (resource.data.uid == request.auth.uid || isAdmin());
       
       match /comments/{commentId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null;
+        allow read: if request.auth != null && isNotBlocked();
+        allow create: if request.auth != null && isNotBlocked();
         allow update, delete: if request.auth != null &&
+                              isNotBlocked() &&
                               (resource.data.uid == request.auth.uid || isAdmin());
       }
     }

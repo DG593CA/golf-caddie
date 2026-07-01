@@ -1,5 +1,7 @@
 import './style.css';
 import { Capacitor } from '@capacitor/core';
+import { Purchases } from '@revenuecat/purchases-capacitor';
+import { RevenueCatUI, PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui';
 import { db, auth } from './firebase.js';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, addDoc, orderBy, limit, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
@@ -19,7 +21,11 @@ import {
   onAuthStateChanged,
   signOut,
   deleteUser,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 
 // Global error logging overlay for mobile device debugging
@@ -522,9 +528,7 @@ async function syncFromCloud() {
       if (userData.playerAliases !== undefined) state.playerAliases = userData.playerAliases;
       
       const isDeveloperEmail = auth.currentUser && auth.currentUser.email && (
-        auth.currentUser.email.toLowerCase().includes('danny') ||
-        auth.currentUser.email.toLowerCase().includes('travis') ||
-        auth.currentUser.email.toLowerCase() === 'travis.hildreth@hotmail.com'
+        auth.currentUser.email.toLowerCase().includes('danny')
       );
       if (userData.isAdmin !== undefined) {
         state.isAdmin = !!userData.isAdmin;
@@ -622,6 +626,9 @@ async function syncFromCloud() {
       if (golfapiInput) golfapiInput.value = state.golfApiKey || '';
     } else {
       // First time user registration in Cloud database
+      if (localSystemConfig.freePremiumNewUsers === true) {
+        state.isPremium = true;
+      }
       await saveSettingsToCloud();
     }
   } catch (error) {
@@ -648,9 +655,10 @@ async function saveSettingsToCloud() {
       hasCompletedTutorial: !!state.hasCompletedTutorial,
       playerAliases: state.playerAliases || [],
       roundIds: roundIds,
+      isPremium: state.isPremium || false,
       createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
       updatedAt: new Date()
-    });
+    }, { merge: true });
     console.log("Settings successfully synced to Cloud.");
   } catch (error) {
     console.error("Failed to save settings to Cloud:", error);
@@ -682,14 +690,8 @@ async function saveRoundToCloud(archivedRound) {
       roundIds.push(docId);
     }
     
-    await setDoc(userDocRef, {
-      syncId: state.syncId,
-      apiKey: state.apiKey || '',
-      openaiApiKey: state.openaiApiKey || '',
-      golfApiKey: state.golfApiKey || '',
-      customCourseMappings: state.customCourseMappings || '{}',
+    await updateDoc(userDocRef, {
       roundIds: roundIds,
-      createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
       updatedAt: new Date()
     });
     console.log("Round successfully archived in the Cloud database:", docId);
@@ -829,6 +831,7 @@ async function migrateUserData(uid, localHistory, localSettings, username) {
       golfApiKey: localSettings.golfApiKey || 'JU7TE2S574463W653KOETCNKH4',
       customCourseMappings: localSettings.customCourseMappings || '{}',
       roundIds: roundIds,
+      isPremium: localSystemConfig.freePremiumNewUsers === true || state.isPremium === true,
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -905,6 +908,8 @@ function initAuth() {
     btnGateAuthSubmit.textContent = 'Send Reset Email';
     gateAuthErrorMsg.style.display = 'none';
     if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'none';
+    const socialSection = document.getElementById('gate-social-auth-section');
+    if (socialSection) socialSection.style.display = 'none';
   });
 
   btnGateBackToLogin.addEventListener('click', () => {
@@ -917,7 +922,81 @@ function initAuth() {
     gateAuthErrorMsg.style.display = 'none';
     gateAuthPassword.value = '';
     if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'none';
+    const socialSection = document.getElementById('gate-social-auth-section');
+    if (socialSection) socialSection.style.display = 'block';
   });
+
+  // Social Logins (Google, Facebook, Apple)
+  const btnGateSocialApple = document.getElementById('btn-gate-social-apple');
+  const btnGateSocialGoogle = document.getElementById('btn-gate-social-google');
+  const btnGateSocialFacebook = document.getElementById('btn-gate-social-facebook');
+
+  const handleSocialSignIn = async (providerName) => {
+    let provider;
+    if (providerName === 'google') {
+      provider = new GoogleAuthProvider();
+    } else if (providerName === 'facebook') {
+      provider = new FacebookAuthProvider();
+    } else if (providerName === 'apple') {
+      provider = new OAuthProvider('apple.com');
+    }
+
+    try {
+      gateAuthErrorMsg.style.display = 'none';
+      btnGateAuthSubmit.disabled = true;
+      const originalText = btnGateAuthSubmit.textContent;
+      btnGateAuthSubmit.textContent = `Connecting to ${providerName}...`;
+
+      // Capture existing local state before signing up for migration
+      const existingLocalHistory = [...(state.history || [])];
+      const existingSettings = {
+        apiKey: state.apiKey,
+        openaiApiKey: state.openaiApiKey,
+        golfApiKey: state.golfApiKey,
+        customCourseMappings: state.customCourseMappings
+      };
+
+      isMigrating = true;
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+      console.log(`Social Sign-in Success:`, user.email);
+
+      // Check if user doc exists in Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) {
+        // New user sign up - perform migration
+        const username = user.displayName || user.email.split('@')[0] || 'Golfer_' + user.uid.substring(0, 5);
+        state.username = username;
+        if (localSystemConfig.freePremiumNewUsers === true) {
+          state.isPremium = true;
+        }
+        saveState();
+        await migrateUserData(user.uid, existingLocalHistory, existingSettings, username);
+      }
+      
+      isMigrating = false;
+      btnGateAuthSubmit.disabled = false;
+      btnGateAuthSubmit.textContent = originalText;
+    } catch (error) {
+      isMigrating = false;
+      console.error(`Social Sign-in error (${providerName}):`, error);
+      showGateAuthError(`Sign-in failed: ${error.message}`);
+      btnGateAuthSubmit.disabled = false;
+      btnGateAuthSubmit.textContent = currentAuthMode === 'login' ? 'Log In' : 'Create Account';
+    }
+  };
+
+  if (btnGateSocialApple) {
+    btnGateSocialApple.addEventListener('click', () => handleSocialSignIn('apple'));
+  }
+  if (btnGateSocialGoogle) {
+    btnGateSocialGoogle.addEventListener('click', () => handleSocialSignIn('google'));
+  }
+  if (btnGateSocialFacebook) {
+    btnGateSocialFacebook.addEventListener('click', () => handleSocialSignIn('facebook'));
+  }
 
   // Submit action on login gate (Log In, Sign Up, or Password Reset)
   btnGateAuthSubmit.addEventListener('click', async () => {
@@ -1003,6 +1082,9 @@ function initAuth() {
 
         // Perform migration of local rounds and settings to Firestore under new User UID
         state.username = username;
+        if (localSystemConfig.freePremiumNewUsers === true) {
+          state.isPremium = true;
+        }
         saveState();
         await migrateUserData(user.uid, existingLocalHistory, existingSettings, username);
         isMigrating = false;
@@ -1141,6 +1223,7 @@ function initAuth() {
       setupActiveRoundSubscription();
       listenForActiveMatches();
       updateCreatorProfileBox();
+      initRevenueCat();
 
       if (!state.hasCompletedTutorial) {
         setTimeout(() => {
@@ -2016,6 +2099,10 @@ function initUI() {
 
   // Toggles for Voice
   document.getElementById('switch-continuous').addEventListener('change', (e) => {
+    if (!checkPaywallAccess('voice-scoring')) {
+      e.target.checked = false;
+      return;
+    }
     state.continuous = e.target.checked;
     saveState();
     if (state.isListening) {
@@ -2389,6 +2476,9 @@ function initCaddieAssistant() {
   });
   
   voiceBtn.addEventListener('click', () => {
+    if (!checkPaywallAccess('voice-scoring')) {
+      return;
+    }
     toggleAssistantVoice();
   });
   
@@ -3855,6 +3945,9 @@ function initSpeechRecognition() {
 
   // Bind microphone button click toggle
   document.getElementById('btn-voice-toggle').addEventListener('click', () => {
+    if (!checkPaywallAccess('voice-scoring')) {
+      return;
+    }
     // Use Whisper if OpenAI API key is set!
     const openaiKey = localSystemConfig.openaiApiKey || state.openaiApiKey;
     if (openaiKey) {
@@ -7790,12 +7883,18 @@ let localSystemConfig = {
   lockAICoach: false,
   lockMultiplayer: false,
   lockGPSRange: false,
+  lockVoiceScoring: false,
   monthlyPrice: 9.99,
   annualPrice: 59.99,
   trialDays: 7,
   promoMessage: 'Unlock Pro Caddie Assistant features today!',
   openaiApiKey: '',
-  geminiApiKey: ''
+  geminiApiKey: '',
+  freePremiumNewUsers: false,
+  freePremiumForAllUsers: false,
+  revenuecatApiKeyIos: 'test_dBJZULZQYsCLwtaRReqeGDiZtio',
+  revenuecatApiKeyAndroid: 'test_dBJZULZQYsCLwtaRReqeGDiZtio',
+  revenuecatEntitlementId: 'GolfCaddieAi Pro'
 };
 let systemConfigUnsubscribe = null;
 
@@ -7993,6 +8092,7 @@ function renderAdminUsersTable(users) {
   users.forEach(user => {
     const isPremium = !!user.isPremium;
     const isAdminRole = !!user.isAdmin;
+    const isBlocked = !!user.isBlocked;
     const roundsCount = user.roundIds ? user.roundIds.length : 0;
     const userRow = document.createElement('tr');
 
@@ -8000,7 +8100,7 @@ function renderAdminUsersTable(users) {
       <td style="font-weight: 600;">@${escapeHtml(user.username || 'user')}</td>
       <td style="font-family: monospace; font-size: 0.75rem; color: var(--color-secondary);">${escapeHtml(user.id)}</td>
       <td>
-        <span class="admin-badge ${isPremium ? 'premium' : 'free'}">${isPremium ? 'Premium' : 'Free'}</span>
+        <span class="admin-badge ${isBlocked ? 'blocked' : (isPremium ? 'premium' : 'free')}">${isBlocked ? '🚫 Blocked' : (isPremium ? 'Premium' : 'Free')}</span>
       </td>
       <td>
         <span class="admin-badge ${isAdminRole ? 'admin-role' : 'user-role'}">${isAdminRole ? 'Admin' : 'User'}</span>
@@ -8012,6 +8112,12 @@ function renderAdminUsersTable(users) {
         </button>
         <button class="admin-action-btn btn-role-toggle" onclick="window.toggleUserAdminRole('${user.id}', ${isAdminRole})">
           ${isAdminRole ? 'Revoke Admin' : 'Grant Admin'}
+        </button>
+        <button class="admin-action-btn btn-block-toggle" onclick="window.toggleUserBlockStatus('${user.id}', ${isBlocked})">
+          ${isBlocked ? 'Unblock' : 'Block'}
+        </button>
+        <button class="admin-action-btn btn-delete-toggle" onclick="window.deleteUserAccountAdmin('${user.id}', '@${escapeHtml(user.username || 'user')}')">
+          Delete
         </button>
       </td>
     `;
@@ -8047,6 +8153,10 @@ window.toggleUserPremiumStatus = async function(userId, currentPremiumState) {
 
 window.toggleUserAdminRole = async function(userId, currentAdminRoleState) {
   if (!state.isAdmin) return;
+  if (userId === auth.currentUser.uid) {
+    alert("You cannot revoke your own admin status!");
+    return;
+  }
   if (confirm(`Are you sure you want to toggle Admin privileges for this user?`)) {
     try {
       const userDocRef = doc(db, 'users', userId);
@@ -8056,6 +8166,62 @@ window.toggleUserAdminRole = async function(userId, currentAdminRoleState) {
     } catch (error) {
       console.error("Failed to update admin role:", error);
       alert("Error updating admin role: " + error.message);
+    }
+  }
+};
+
+window.toggleUserBlockStatus = async function(userId, currentBlockState) {
+  if (!state.isAdmin) return;
+  if (userId === auth.currentUser.uid) {
+    alert("You cannot block your own admin account!");
+    return;
+  }
+  const action = currentBlockState ? 'unblock' : 'block';
+  if (confirm(`Are you sure you want to ${action} this user account?`)) {
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      await updateDoc(userDocRef, { isBlocked: !currentBlockState });
+      await loadAdminAnalyticsAndUsers();
+      showInAppToast("User Block Status Updated", `User has been successfully ${action}ed.`);
+    } catch (error) {
+      console.error("Failed to toggle block status:", error);
+      alert("Error updating block status: " + error.message);
+    }
+  }
+};
+
+window.deleteUserAccountAdmin = async function(userId, displayUsername) {
+  if (!state.isAdmin) return;
+  if (userId === auth.currentUser.uid) {
+    alert("You cannot delete your own admin account!");
+    return;
+  }
+  if (confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account ${displayUsername}? This will delete their profile and ALL of their round records from the cloud. This cannot be undone.`)) {
+    try {
+      // 1. Get user rounds first to delete them
+      const userDocRef = doc(db, 'users', userId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const uData = userDocSnap.data();
+        if (uData.roundIds && uData.roundIds.length > 0) {
+          for (const roundDocId of uData.roundIds) {
+            try {
+              await deleteDoc(doc(db, 'rounds', roundDocId));
+            } catch (err) {
+              console.error("Failed to delete round during admin account deletion:", roundDocId, err);
+            }
+          }
+        }
+      }
+      
+      // 2. Delete the user document in Firestore
+      await deleteDoc(userDocRef);
+      
+      await loadAdminAnalyticsAndUsers();
+      showInAppToast("Account Deleted", `${displayUsername} has been permanently deleted.`);
+    } catch (error) {
+      console.error("Failed to delete user account:", error);
+      alert("Error deleting account: " + error.message);
     }
   }
 };
@@ -8306,12 +8472,16 @@ async function loadAdminPaywallsAndSubscriptions() {
   const checkAICoach = document.getElementById('lock-ai-coach');
   const checkMultiplayer = document.getElementById('lock-multiplayer');
   const checkGPSRange = document.getElementById('lock-gps-range');
+  const checkVoiceScoring = document.getElementById('lock-voice-scoring');
   const monthlyPriceInput = document.getElementById('paywall-monthly-price');
   const annualPriceInput = document.getElementById('paywall-annual-price');
   const trialDaysInput = document.getElementById('paywall-trial-days');
   const promoMessageInput = document.getElementById('paywall-promo-banner');
   const globalOpenaiKeyInput = document.getElementById('paywall-global-openai-key');
   const globalGeminiKeyInput = document.getElementById('paywall-global-gemini-key');
+  const rcKeyIosInput = document.getElementById('paywall-revenuecat-key-ios');
+  const rcKeyAndroidInput = document.getElementById('paywall-revenuecat-key-android');
+  const rcEntitlementInput = document.getElementById('paywall-revenuecat-entitlement');
 
   try {
     const configDoc = await getDoc(doc(db, 'system', 'config'));
@@ -8322,12 +8492,23 @@ async function loadAdminPaywallsAndSubscriptions() {
     if (checkAICoach) checkAICoach.checked = !!localSystemConfig.lockAICoach;
     if (checkMultiplayer) checkMultiplayer.checked = !!localSystemConfig.lockMultiplayer;
     if (checkGPSRange) checkGPSRange.checked = !!localSystemConfig.lockGPSRange;
+    if (checkVoiceScoring) checkVoiceScoring.checked = !!localSystemConfig.lockVoiceScoring;
+    
+    const checkFreePremium = document.getElementById('free-premium-new-users');
+    if (checkFreePremium) checkFreePremium.checked = !!localSystemConfig.freePremiumNewUsers;
+
+    const checkFreePremiumAll = document.getElementById('free-premium-all-users');
+    if (checkFreePremiumAll) checkFreePremiumAll.checked = !!localSystemConfig.freePremiumForAllUsers;
+
     if (monthlyPriceInput) monthlyPriceInput.value = localSystemConfig.monthlyPrice;
     if (annualPriceInput) annualPriceInput.value = localSystemConfig.annualPrice;
     if (trialDaysInput) trialDaysInput.value = localSystemConfig.trialDays;
     if (promoMessageInput) promoMessageInput.value = localSystemConfig.promoMessage;
     if (globalOpenaiKeyInput) globalOpenaiKeyInput.value = localSystemConfig.openaiApiKey || '';
     if (globalGeminiKeyInput) globalGeminiKeyInput.value = localSystemConfig.geminiApiKey || '';
+    if (rcKeyIosInput) rcKeyIosInput.value = localSystemConfig.revenuecatApiKeyIos || '';
+    if (rcKeyAndroidInput) rcKeyAndroidInput.value = localSystemConfig.revenuecatApiKeyAndroid || '';
+    if (rcEntitlementInput) rcEntitlementInput.value = localSystemConfig.revenuecatEntitlementId || 'caddie_pro';
 
     // Load active subscriber logs
     const logsList = document.getElementById('admin-subscriber-logs-list');
@@ -8373,12 +8554,18 @@ async function savePaywallConfig(e) {
       lockAICoach: document.getElementById('lock-ai-coach').checked,
       lockMultiplayer: document.getElementById('lock-multiplayer').checked,
       lockGPSRange: document.getElementById('lock-gps-range').checked,
+      lockVoiceScoring: document.getElementById('lock-voice-scoring').checked,
+      freePremiumNewUsers: document.getElementById('free-premium-new-users').checked,
+      freePremiumForAllUsers: document.getElementById('free-premium-all-users').checked,
       monthlyPrice: Number(document.getElementById('paywall-monthly-price').value) || 9.99,
       annualPrice: Number(document.getElementById('paywall-annual-price').value) || 59.99,
       trialDays: Number(document.getElementById('paywall-trial-days').value) || 7,
       promoMessage: document.getElementById('paywall-promo-banner').value.trim() || 'Unlock Pro Caddie Assistant features today!',
       openaiApiKey: document.getElementById('paywall-global-openai-key').value.trim(),
       geminiApiKey: document.getElementById('paywall-global-gemini-key').value.trim(),
+      revenuecatApiKeyIos: document.getElementById('paywall-revenuecat-key-ios').value.trim(),
+      revenuecatApiKeyAndroid: document.getElementById('paywall-revenuecat-key-android').value.trim(),
+      revenuecatEntitlementId: document.getElementById('paywall-revenuecat-entitlement').value.trim() || 'caddie_pro',
       updatedAt: new Date()
     };
 
@@ -8413,6 +8600,7 @@ function syncPaywallModalPricing() {
 window.checkPaywallAccess = function(feature) {
   if (state.isAdmin) return true;
   if (state.isPremium) return true;
+  if (localSystemConfig.freePremiumForAllUsers === true) return true;
 
   let isLocked = false;
   let featureTitleText = "Premium Feature Locked";
@@ -8430,6 +8618,10 @@ window.checkPaywallAccess = function(feature) {
     isLocked = true;
     featureTitleText = "Detailed GPS Yardages Locked";
     bodyText = "Complete front, center, and back rangefinder yardages are locked. Subscribe to Caddie Pro to unlock full satellite distance coordinates!";
+  } else if (feature === 'voice-scoring' && localSystemConfig.lockVoiceScoring) {
+    isLocked = true;
+    featureTitleText = "Voice Controls Locked";
+    bodyText = "Oral speech recognition, voice controls, and assistant microphone transcription require a Caddie Pro membership. Score hands-free on the green!";
   }
 
   if (isLocked) {
@@ -8450,6 +8642,74 @@ window.checkPaywallAccess = function(feature) {
 
   return true;
 };
+
+async function initRevenueCat() {
+  if (!Capacitor.isNativePlatform()) {
+    console.log("RevenueCat: Running on web platform, skipping SDK initialization.");
+    return;
+  }
+
+  const iosKey = localSystemConfig.revenuecatApiKeyIos || 'test_dBJZULZQYsCLwtaRReqeGDiZtio';
+  const androidKey = localSystemConfig.revenuecatApiKeyAndroid || 'test_dBJZULZQYsCLwtaRReqeGDiZtio';
+  const entitlementId = localSystemConfig.revenuecatEntitlementId || 'GolfCaddieAi Pro';
+
+  let apiKey = '';
+  if (Capacitor.getPlatform() === 'ios') {
+    apiKey = iosKey;
+  } else if (Capacitor.getPlatform() === 'android') {
+    apiKey = androidKey;
+  }
+
+  if (!apiKey) {
+    console.warn("RevenueCat: No public API Key configured for the current native platform.");
+    return;
+  }
+
+  try {
+    console.log("RevenueCat: Initializing with API key and user:", auth.currentUser ? auth.currentUser.uid : 'anonymous');
+    await Purchases.configure({
+      apiKey: apiKey,
+      appUserID: auth.currentUser ? auth.currentUser.uid : undefined
+    });
+
+    // Register status change listener
+    Purchases.addListener('purchasesUpdate', async (info) => {
+      console.log("RevenueCat: Received entitlement update notification:", info);
+      const isRCPremium = !!info.customerInfo.entitlements.active[entitlementId];
+      if (state.isPremium !== isRCPremium) {
+        state.isPremium = isRCPremium;
+        saveState();
+        if (auth.currentUser) {
+          try {
+            await updateDoc(doc(db, 'users', auth.currentUser.uid), { isPremium: isRCPremium });
+          } catch (e) {
+            console.error("RevenueCat listener failed to sync Firestore state:", e);
+          }
+        }
+        updateUI();
+      }
+    });
+
+    // Check current status immediately
+    const info = await Purchases.getCustomerInfo();
+    const isRCPremium = !!info.customerInfo.entitlements.active[entitlementId];
+    console.log("RevenueCat: Checked current active premium entitlement status:", isRCPremium);
+    if (state.isPremium !== isRCPremium) {
+      state.isPremium = isRCPremium;
+      saveState();
+      if (auth.currentUser) {
+        try {
+          await updateDoc(doc(db, 'users', auth.currentUser.uid), { isPremium: isRCPremium });
+        } catch (e) {
+          console.error("RevenueCat startup check failed to sync Firestore state:", e);
+        }
+      }
+      updateUI();
+    }
+  } catch (error) {
+    console.error("RevenueCat: Failed to initialize SDK or get customer info:", error);
+  }
+}
 
 function initPaywallCheckoutUI() {
   const dialog = document.getElementById('paywall-checkout-dialog');
@@ -8507,6 +8767,39 @@ function initPaywallCheckoutUI() {
       btnSubscribe.disabled = true;
       btnSubscribe.textContent = 'Processing Transaction...';
 
+      if (Capacitor.isNativePlatform()) {
+        try {
+          console.log("RevenueCat: Presenting native paywall UI...");
+          const { result } = await RevenueCatUI.presentPaywall();
+          
+          if (result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED) {
+            state.isPremium = true;
+            saveState();
+            if (auth.currentUser) {
+              await updateDoc(doc(db, 'users', auth.currentUser.uid), { isPremium: true });
+            }
+            if (dialog) dialog.close();
+            alert("🎉 Congratulations! You are now a Caddie Pro member. All locked features are unlocked.");
+            showInAppToast("Subscription Successful", "Welcome to Golf Caddie Pro!");
+            if (state.isAdmin) {
+              await loadAdminAnalyticsAndUsers();
+            }
+            updateUI();
+          } else {
+            console.log("RevenueCat: Paywall dismissed without purchase. Result:", result);
+            showInAppToast("Paywall Closed", "No transaction completed.");
+          }
+        } catch (e) {
+          console.error("RevenueCat native paywall error:", e);
+          alert("Error launching subscription panel: " + e.message);
+        } finally {
+          btnSubscribe.disabled = false;
+          btnSubscribe.textContent = 'Unlock Premium Access';
+        }
+        return;
+      }
+
+      // Web Sandbox Simulator
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       try {
@@ -8523,7 +8816,7 @@ function initPaywallCheckoutUI() {
         
         if (dialog) dialog.close();
         
-        alert("🎉 Congratulations! You are now a Caddie Pro member. All locked features are unlocked.");
+        alert("🎉 [Sandbox] Congratulations! You are now a Caddie Pro member. All locked features are unlocked.");
         showInAppToast("Subscription Successful", "Welcome to Golf Caddie Pro!");
         
         if (state.isAdmin) {
@@ -8535,6 +8828,8 @@ function initPaywallCheckoutUI() {
       } catch (err) {
         console.error("Subscription update error:", err);
         alert("Transaction successful, but failed to sync online status: " + err.message);
+        btnSubscribe.disabled = false;
+        btnSubscribe.textContent = 'Unlock Premium Access';
       }
     });
   }
@@ -8616,8 +8911,13 @@ function listenToSystemConfig() {
   
   systemConfigUnsubscribe = onSnapshot(doc(db, 'system', 'config'), (snapshot) => {
     if (snapshot.exists()) {
+      const oldIosKey = localSystemConfig.revenuecatApiKeyIos;
       localSystemConfig = { ...localSystemConfig, ...snapshot.data() };
       syncPaywallModalPricing();
+      
+      if (auth.currentUser && localSystemConfig.revenuecatApiKeyIos !== oldIosKey) {
+        initRevenueCat();
+      }
     }
   }, (error) => {
     console.warn("System config snapshot listener error:", error);
@@ -8628,7 +8928,7 @@ function getGPSDistanceText(val, type) {
   if (type === 'center' || type === 'val') {
     return val;
   }
-  const isPremiumUser = state.isAdmin || state.isPremium;
+  const isPremiumUser = state.isAdmin || state.isPremium || localSystemConfig.freePremiumForAllUsers === true;
   if (localSystemConfig.lockGPSRange && !isPremiumUser) {
     return '🔒';
   }
