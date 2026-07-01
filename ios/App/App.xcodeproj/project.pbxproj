@@ -130,7 +130,7 @@
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
-				D929947ECC1982E11C905AE8 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+				D929947ECC1982E11C905AE8 /* XCRemoteSwiftPackageReference "purchases-ios" */,
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
@@ -318,7 +318,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 39;
+				CURRENT_PROJECT_VERSION = 40;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -340,7 +340,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 39;
+				CURRENT_PROJECT_VERSION = 40;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -387,9 +387,9 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		D929947ECC1982E11C905AE8 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+		D929947ECC1982E11C905AE8 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 5.0.0;
@@ -404,12 +404,12 @@
 		};
 		55A2C3E7B3916720E55B65EF /* RevenueCatPaywalls */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = D929947ECC1982E11C905AE8 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			package = D929947ECC1982E11C905AE8 /* XCRemoteSwiftPackageReference "purchases-ios" */;
 			productName = RevenueCatPaywalls;
 		};
 		C52DB405021C48FE65A9BCA3 /* RevenueCat */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = D929947ECC1982E11C905AE8 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			package = D929947ECC1982E11C905AE8 /* XCRemoteSwiftPackageReference "purchases-ios" */;
 			productName = RevenueCat;
 		};
 /* End XCSwiftPackageProductDependency section */
