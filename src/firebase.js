@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { initializeAuth, browserLocalPersistence, browserPopupRedirectResolver } from "firebase/auth";
+import { getAuth, initializeAuth, browserLocalPersistence } from "firebase/auth";
 
 const firebaseConfig = {
   projectId: "golfcaddie-e3e0e",
@@ -15,11 +15,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Use stable browserLocalPersistence (localStorage) exclusively to avoid indexedDB hangs on iOS WebView
-const auth = initializeAuth(app, {
-  persistence: browserLocalPersistence,
-  popupRedirectResolver: browserPopupRedirectResolver
-});
+// Conditionally initialize Auth to avoid WKWebView sandbox crashes on native platforms
+let auth;
+const isNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+
+if (isNative) {
+  // Use stable local persistence for webviews, avoiding popup dependencies
+  auth = initializeAuth(app, {
+    persistence: browserLocalPersistence
+  });
+} else {
+  // Standard getAuth on web/PWA automatically bundles popup resolver support
+  auth = getAuth(app);
+}
 
 export { db, auth };
 
