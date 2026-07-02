@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { initializeAuth, browserLocalPersistence } from "firebase/auth";
+import { initializeAuth, browserLocalPersistence, browserPopupRedirectResolver } from "firebase/auth";
 
 const firebaseConfig = {
   projectId: "golfcaddie-e3e0e",
@@ -17,7 +17,8 @@ const db = getFirestore(app);
 
 // Use stable browserLocalPersistence (localStorage) exclusively to avoid indexedDB hangs on iOS WebView
 const auth = initializeAuth(app, {
-  persistence: browserLocalPersistence
+  persistence: browserLocalPersistence,
+  popupRedirectResolver: browserPopupRedirectResolver
 });
 
 export { db, auth };
