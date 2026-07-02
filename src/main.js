@@ -8673,9 +8673,9 @@ async function initRevenueCat() {
     });
 
     // Register status change listener
-    Purchases.addListener('purchasesUpdate', async (info) => {
-      console.log("RevenueCat: Received entitlement update notification:", info);
-      const isRCPremium = !!info.customerInfo.entitlements.active[entitlementId];
+    await Purchases.addCustomerInfoUpdateListener(async (customerInfo) => {
+      console.log("RevenueCat: Received entitlement update notification:", customerInfo);
+      const isRCPremium = !!customerInfo.entitlements.active[entitlementId];
       if (state.isPremium !== isRCPremium) {
         state.isPremium = isRCPremium;
         saveState();
@@ -8692,7 +8692,7 @@ async function initRevenueCat() {
 
     // Check current status immediately
     const info = await Purchases.getCustomerInfo();
-    const isRCPremium = !!info.customerInfo.entitlements.active[entitlementId];
+    const isRCPremium = !!info.entitlements.active[entitlementId];
     console.log("RevenueCat: Checked current active premium entitlement status:", isRCPremium);
     if (state.isPremium !== isRCPremium) {
       state.isPremium = isRCPremium;
