@@ -7892,8 +7892,8 @@ let localSystemConfig = {
   geminiApiKey: '',
   freePremiumNewUsers: false,
   freePremiumForAllUsers: false,
-  revenuecatApiKeyIos: 'test_dBJZULZQYsCLwtaRReqeGDiZtio',
-  revenuecatApiKeyAndroid: 'test_dBJZULZQYsCLwtaRReqeGDiZtio',
+  revenuecatApiKeyIos: 'appl_YmCthZgPkWUeEClfMhOsnKqVepq',
+  revenuecatApiKeyAndroid: 'goog_hCeaHnBydwDqSgLpMnKeFhQwErT',
   revenuecatEntitlementId: 'GolfCaddieAi Pro'
 };
 let systemConfigUnsubscribe = null;
@@ -8649,8 +8649,8 @@ async function initRevenueCat() {
     return;
   }
 
-  const iosKey = localSystemConfig.revenuecatApiKeyIos || 'test_dBJZULZQYsCLwtaRReqeGDiZtio';
-  const androidKey = localSystemConfig.revenuecatApiKeyAndroid || 'test_dBJZULZQYsCLwtaRReqeGDiZtio';
+  const iosKey = localSystemConfig.revenuecatApiKeyIos || 'appl_YmCthZgPkWUeEClfMhOsnKqVepq';
+  const androidKey = localSystemConfig.revenuecatApiKeyAndroid || 'goog_hCeaHnBydwDqSgLpMnKeFhQwErT';
   const entitlementId = localSystemConfig.revenuecatEntitlementId || 'GolfCaddieAi Pro';
 
   let apiKey = '';
