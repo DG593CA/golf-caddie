@@ -932,6 +932,11 @@ function initAuth() {
   const btnGateSocialFacebook = document.getElementById('btn-gate-social-facebook');
 
   const handleSocialSignIn = async (providerName) => {
+    if (Capacitor.isNativePlatform()) {
+      showGateAuthError(`Social Sign-in (${providerName}) is only available in web/PWA mode. On iOS, please sign in or register with your Email and Password.`);
+      return;
+    }
+
     let provider;
     if (providerName === 'google') {
       provider = new GoogleAuthProvider();
