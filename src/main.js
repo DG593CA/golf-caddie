@@ -25,7 +25,8 @@ import {
   GoogleAuthProvider,
   FacebookAuthProvider,
   OAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  signInWithCredential
 } from 'firebase/auth';
 
 // Global error logging overlay for mobile device debugging
@@ -932,11 +933,6 @@ function initAuth() {
   const btnGateSocialFacebook = document.getElementById('btn-gate-social-facebook');
 
   const handleSocialSignIn = async (providerName) => {
-    if (Capacitor.isNativePlatform()) {
-      showGateAuthError(`Social Sign-in (${providerName}) is only available in web/PWA mode. On iOS, please sign in or register with your Email and Password.`);
-      return;
-    }
-
     let provider;
     if (providerName === 'google') {
       provider = new GoogleAuthProvider();
@@ -962,7 +958,39 @@ function initAuth() {
       };
 
       isMigrating = true;
-      const userCredential = await signInWithPopup(auth, provider);
+      let userCredential;
+
+      if (Capacitor.isNativePlatform()) {
+        // Native Social Login using @capacitor-firebase/authentication plugin
+        const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+        
+        let result;
+        if (providerName === 'google') {
+          result = await FirebaseAuthentication.signInWithGoogle();
+          const credential = GoogleAuthProvider.credential(result.idToken);
+          userCredential = await signInWithCredential(auth, credential);
+        } else if (providerName === 'facebook') {
+          result = await FirebaseAuthentication.signInWithFacebook();
+          const credential = FacebookAuthProvider.credential(result.accessToken.token || result.accessToken);
+          userCredential = await signInWithCredential(auth, credential);
+        } else if (providerName === 'apple') {
+          result = await FirebaseAuthentication.signInWithApple();
+          const credential = OAuthProvider.credential({
+            providerId: 'apple.com',
+            idToken: result.idToken,
+            rawNonce: result.rawNonce
+          });
+          userCredential = await signInWithCredential(auth, credential);
+        }
+      } else {
+        // Web Social Login using popup resolver
+        userCredential = await signInWithPopup(auth, provider);
+      }
+
+      if (!userCredential) {
+        throw new Error("Failed to retrieve user credential from social provider.");
+      }
+
       const user = userCredential.user;
       console.log(`Social Sign-in Success:`, user.email);
 
@@ -972,7 +1000,7 @@ function initAuth() {
 
       if (!userDocSnap.exists()) {
         // New user sign up - perform migration
-        const username = user.displayName || user.email.split('@')[0] || 'Golfer_' + user.uid.substring(0, 5);
+        const username = user.displayName || (user.email ? user.email.split('@')[0] : 'Golfer_' + user.uid.substring(0, 5));
         state.username = username;
         if (localSystemConfig.freePremiumNewUsers === true) {
           state.isPremium = true;
@@ -987,7 +1015,7 @@ function initAuth() {
     } catch (error) {
       isMigrating = false;
       console.error(`Social Sign-in error (${providerName}):`, error);
-      showGateAuthError(`Sign-in failed: ${error.message}`);
+      showGateAuthError(`Sign-in failed: ${error.message || error}`);
       btnGateAuthSubmit.disabled = false;
       btnGateAuthSubmit.textContent = currentAuthMode === 'login' ? 'Log In' : 'Create Account';
     }
