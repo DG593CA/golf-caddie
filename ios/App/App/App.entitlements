@@ -6,5 +6,9 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<key>com.apple.developer.devicecheck.app-attest-opt-in</key>
+	<array>
+		<string>CDhash</string>
+	</array>
 </dict>
 </plist>
