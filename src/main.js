@@ -4335,8 +4335,8 @@ function processFinalTranscript(transcript) {
       const p3 = state.players[2];
       const p4 = state.players[3];
 
-      // Check Team 1 win commands: "Team A one-up", "Team A won", "Team 1 up"
-      const t1Regex = new RegExp(`\\b(?:${team1Name}|team\\s+1)\\s+(?:one[- ]up|1[- ]up|won|won\\s+the\\s+hole|up)\\b`, 'i');
+      // Check Team 1 win commands: "Team A one-up", "Team A won the hole on the match", etc.
+      const t1Regex = new RegExp(`\\b(?:${team1Name}|team\\s+1)[\\s,]+(?:one[- ]up|1[- ]up|won|won\\s+the\\s+hole|up)(?:\\s+on\\s+the\\s+match|\\s+in\\s+the\\s+match)?\\b`, 'i');
       if (t1Regex.test(clause)) {
         activeHole.playerConceded[p1] = false;
         activeHole.playerConceded[p2] = false;
@@ -4361,7 +4361,7 @@ function processFinalTranscript(transcript) {
       }
 
       // Check Team 2 win commands: "Team B one-up", "Team B won", "Team 2 up"
-      const t2Regex = new RegExp(`\\b(?:${team2Name}|team\\s+2)\\s+(?:one[- ]up|1[- ]up|won|won\\s+the\\s+hole|up)\\b`, 'i');
+      const t2Regex = new RegExp(`\\b(?:${team2Name}|team\\s+2)[\\s,]+(?:one[- ]up|1[- ]up|won|won\\s+the\\s+hole|up)(?:\\s+on\\s+the\\s+match|\\s+in\\s+the\\s+match)?\\b`, 'i');
       if (t2Regex.test(clause)) {
         activeHole.playerConceded[p3] = false;
         activeHole.playerConceded[p4] = false;
@@ -4415,7 +4415,7 @@ function processFinalTranscript(transcript) {
 
     if (matchedPlayer) {
       // Check if matchedPlayer won the hole: "John one-up", "John won the hole"
-      const wonMatch = clause.match(/\b(?:one[- ]up|1[- ]up|won|won\s+the\s+hole|up)\b/i);
+      const wonMatch = clause.match(/\b(?:one[- ]up|1[- ]up|won|won\s+the\s+hole|up)(?:\\s+on\\s+the\\s+match|\\s+in\\s+the\\s+match)?\\b/i);
       if (wonMatch) {
         activeHole.playerConceded[matchedPlayer] = false;
         if (!activeHole.playerScores[matchedPlayer]) {
@@ -4594,14 +4594,14 @@ function processFinalTranscript(transcript) {
           clause = clause.replace(hitMatch[0], '').trim();
           isStat = true;
         } else {
-          const leftMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+left|miss(?:ed)?\s+left|fairway\s+left|miss\s+left|miss(?:ed)?\s+the\s+fairway\s+left)\b/i);
+          const leftMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+left|miss(?:ed)?\s+left|fairway\s+left|miss\s+left|miss(?:ed)?\s+the\s+fairway\s+left|left\s+side|missed\s+to\s+the\s+left)\b/i);
           if (leftMatch) {
             activeHole.fairway = "LEFT";
             updates.fairway = "LEFT";
             clause = clause.replace(leftMatch[0], '').trim();
             isStat = true;
           } else {
-            const rightMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+right|miss(?:ed)?\s+right|fairway\s+right|miss\s+right|miss(?:ed)?\s+the\s+fairway\s+right)\b/i);
+            const rightMatch = clause.match(/\b(?:miss(?:ed)?\s+fairway\s+right|miss(?:ed)?\s+right|fairway\s+right|miss\s+right|miss(?:ed)?\s+the\s+fairway\s+right|right\s+side|missed\s+to\s+the\s+right)\b/i);
             if (rightMatch) {
               activeHole.fairway = "RIGHT";
               updates.fairway = "RIGHT";
