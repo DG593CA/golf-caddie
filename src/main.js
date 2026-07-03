@@ -380,7 +380,8 @@ let state = {
   isAdmin: false,
   team1Name: '',
   team2Name: '',
-  selectedTee: ''
+  selectedTee: '',
+  playerHandicaps: {}
 };
 
 // Speech Recognition Variables
@@ -1369,7 +1370,8 @@ function setupActiveRoundSubscription() {
           cloudData.matchType !== state.matchType ||
           cloudData.team1Name !== state.team1Name ||
           cloudData.team2Name !== state.team2Name ||
-          JSON.stringify(cloudData.players) !== JSON.stringify(state.players)) {
+          JSON.stringify(cloudData.players) !== JSON.stringify(state.players) ||
+          JSON.stringify(cloudData.playerHandicaps) !== JSON.stringify(state.playerHandicaps)) {
         
         console.log("Syncing active round updates from cloud/collaborator...");
         
@@ -1378,6 +1380,7 @@ function setupActiveRoundSubscription() {
         state.holes = cloudData.holes || [];
         state.mode = cloudData.mode || 'individual';
         state.players = cloudData.players || ['You'];
+        state.playerHandicaps = cloudData.playerHandicaps || {};
         state.matchType = cloudData.matchType || 'leaderboard';
         state.team1Name = cloudData.team1Name || '';
         state.team2Name = cloudData.team2Name || '';
@@ -1422,6 +1425,7 @@ async function publishActiveRoundToCloud() {
       holes: state.holes || [],
       mode: state.mode || 'individual',
       players: state.players || ['You'],
+      playerHandicaps: state.playerHandicaps || {},
       playerUsernames: (state.players || []).map(p => p.toLowerCase()),
       matchType: state.matchType || 'leaderboard',
       team1Name: state.team1Name || '',
@@ -1444,6 +1448,34 @@ async function deleteActiveRoundFromCloud(syncId) {
   } catch (error) {
     console.error("Failed to delete active round from cloud:", error);
   }
+}
+
+function getHoleStrokeIndex(holeNumber, numHoles) {
+  if (numHoles === 9) {
+    const si9 = [5, 1, 7, 3, 9, 2, 8, 4, 6];
+    return si9[(holeNumber - 1) % 9];
+  } else {
+    const si18 = [9, 17, 3, 11, 13, 5, 1, 15, 7, 10, 18, 4, 12, 14, 6, 2, 16, 8];
+    return si18[(holeNumber - 1) % 18];
+  }
+}
+
+function getNetPlayerScore(playerName, grossScore, conceded, holeNumber, numHoles, playerHandicaps) {
+  if (conceded || grossScore <= 0) return { played: false, score: Infinity, conceded: true, strokesReceived: 0 };
+  
+  const handicaps = playerHandicaps || {};
+  const handicap = parseInt(handicaps[playerName]) || 0;
+  
+  let strokes = 0;
+  if (handicap > 0) {
+    const si = getHoleStrokeIndex(holeNumber, numHoles);
+    const baseStrokes = Math.floor(handicap / numHoles);
+    const extraStrokes = handicap % numHoles;
+    strokes = baseStrokes + (si <= extraStrokes ? 1 : 0);
+  }
+  
+  const netScore = Math.max(1, grossScore - strokes);
+  return { played: true, score: netScore, conceded: false, strokesReceived: strokes };
 }
 
 function getTeamBestBall(s1, c1, s2, c2) {
@@ -1643,16 +1675,32 @@ function initUI() {
       }
     }
     
-    // Populate players' names
+    // Populate players' names and handicaps
     const p1 = document.getElementById('player-1-name');
     const p2 = document.getElementById('player-2-name');
     const p3 = document.getElementById('player-3-name');
     const p4 = document.getElementById('player-4-name');
+
+    const h1 = document.getElementById('player-1-handicap');
+    const h2 = document.getElementById('player-2-handicap');
+    const h3 = document.getElementById('player-3-handicap');
+    const h4 = document.getElementById('player-4-handicap');
+
+    const ph = state.playerHandicaps || {};
+    const p1Name = state.players && state.players[0] ? state.players[0] : 'You';
+    const p2Name = state.players && state.players[1] ? state.players[1] : '';
+    const p3Name = state.players && state.players[2] ? state.players[2] : '';
+    const p4Name = state.players && state.players[3] ? state.players[3] : '';
     
-    if (p1) p1.value = state.players && state.players[0] ? state.players[0] : 'You';
-    if (p2) p2.value = state.players && state.players[1] ? state.players[1] : '';
-    if (p3) p3.value = state.players && state.players[2] ? state.players[2] : '';
-    if (p4) p4.value = state.players && state.players[3] ? state.players[3] : '';
+    if (p1) p1.value = p1Name;
+    if (p2) p2.value = p2Name;
+    if (p3) p3.value = p3Name;
+    if (p4) p4.value = p4Name;
+
+    if (h1) h1.value = ph[p1Name] !== undefined ? ph[p1Name] : '';
+    if (h2) h2.value = p2Name && ph[p2Name] !== undefined ? ph[p2Name] : '';
+    if (h3) h3.value = p3Name && ph[p3Name] !== undefined ? ph[p3Name] : '';
+    if (h4) h4.value = p4Name && ph[p4Name] !== undefined ? ph[p4Name] : '';
     
     // Set match type radios
     const matchTypeLeaderboard = document.getElementById('match-type-leaderboard');
@@ -1815,6 +1863,20 @@ function initUI() {
           }
         });
         state.players = uniquePlayers;
+
+        // Retrieve and save handicaps
+        const handicaps = {};
+        const h1Val = parseInt(document.getElementById('player-1-handicap').value);
+        const h2Val = parseInt(document.getElementById('player-2-handicap').value);
+        const h3Val = parseInt(document.getElementById('player-3-handicap').value);
+        const h4Val = parseInt(document.getElementById('player-4-handicap').value);
+
+        if (!isNaN(h1Val)) handicaps[p1] = h1Val;
+        if (p2 && !isNaN(h2Val)) handicaps[p2] = h2Val;
+        if (p3 && !isNaN(h3Val)) handicaps[p3] = h3Val;
+        if (p4 && !isNaN(h4Val)) handicaps[p4] = h4Val;
+
+        state.playerHandicaps = handicaps;
         
         // Auto-save aliases (excluding Player 1 or existing ones)
         if (!state.playerAliases) state.playerAliases = [];
@@ -1829,6 +1891,8 @@ function initUI() {
         state.players = ['You'];
         state.team1Name = '';
         state.team2Name = '';
+        const h1Val = parseInt(document.getElementById('player-1-handicap').value);
+        state.playerHandicaps = { 'You': !isNaN(h1Val) ? h1Val : 0 };
       }
       
       if (state.numHoles !== numHolesVal) {
@@ -2405,6 +2469,7 @@ function initUI() {
       durationSeconds: elapsedSeconds,
       mode: state.mode || 'individual',
       players: state.players || ['You'],
+      playerHandicaps: state.playerHandicaps || {},
       team1Name: state.team1Name || '',
       team2Name: state.team2Name || '',
       matchPlayStandings: matchPlayStandingsVal,
@@ -2975,23 +3040,31 @@ function calculateMatchPlayStandings() {
       const s4 = (hole.playerScores && hole.playerScores[p4]) || 0;
       const c4 = (hole.playerConceded && hole.playerConceded[p4]) || false;
 
-      const teamA = getTeamBestBall(s1, c1, s2, c2);
-      const teamB = getTeamBestBall(s3, c3, s4, c4);
+      const net1 = getNetPlayerScore(p1, s1, c1, hole.number, state.numHoles, state.playerHandicaps);
+      const net2 = getNetPlayerScore(p2, s2, c2, hole.number, state.numHoles, state.playerHandicaps);
+      const net3 = getNetPlayerScore(p3, s3, c3, hole.number, state.numHoles, state.playerHandicaps);
+      const net4 = getNetPlayerScore(p4, s4, c4, hole.number, state.numHoles, state.playerHandicaps);
 
-      if (teamA.played || teamB.played) {
+      const teamAPlayed = net1.played || net2.played;
+      const teamBPlayed = net3.played || net4.played;
+
+      if (teamAPlayed || teamBPlayed) {
         lastPlayedHole = Math.max(lastPlayedHole, hole.number);
       }
 
-      if (teamA.played && teamB.played) {
-        if (teamA.conceded && teamB.conceded) {
+      if (teamAPlayed && teamBPlayed) {
+        const teamANet = Math.min(net1.score, net2.score);
+        const teamBNet = Math.min(net3.score, net4.score);
+
+        if (teamANet === Infinity && teamBNet === Infinity) {
           // halved
-        } else if (teamA.conceded) {
+        } else if (teamANet === Infinity) {
           teamBWon++;
-        } else if (teamB.conceded) {
+        } else if (teamBNet === Infinity) {
           teamAWon++;
         } else {
-          if (teamA.score < teamB.score) teamAWon++;
-          if (teamB.score < teamA.score) teamBWon++;
+          if (teamANet < teamBNet) teamAWon++;
+          if (teamBNet < teamANet) teamBWon++;
         }
       }
     });
@@ -3052,7 +3125,8 @@ function calculateMatchPlayStandings() {
       const score = (hole.playerScores && hole.playerScores[p]) || 0;
       const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
       if (score > 0 || conceded) {
-        played[p] = { score, conceded };
+        const netInfo = getNetPlayerScore(p, score, conceded, hole.number, state.numHoles, state.playerHandicaps);
+        played[p] = { score: netInfo.score, conceded: netInfo.conceded, played: netInfo.played };
         anyPlayed = true;
       }
     });
@@ -3065,17 +3139,13 @@ function calculateMatchPlayStandings() {
       let winners = [];
       
       players.forEach(p => {
-        if (played[p]) {
-          if (played[p].conceded) {
-            // Conceded means lost or didn't finish
-          } else {
-            const s = played[p].score;
-            if (s < bestScore) {
-              bestScore = s;
-              winners = [p];
-            } else if (s === bestScore) {
-              winners.push(p);
-            }
+        if (played[p] && played[p].played) {
+          const s = played[p].score;
+          if (s < bestScore) {
+            bestScore = s;
+            winners = [p];
+          } else if (s === bestScore) {
+            winners.push(p);
           }
         }
       });
@@ -3107,15 +3177,18 @@ function calculateMatchPlayStandings() {
       const p2Played = s2 > 0 || c2;
       
       if (p1Played && p2Played) {
-        if (c1 && c2) {
-          // both conceded, halved
-        } else if (c1) {
+        const net1 = getNetPlayerScore(p1, s1, c1, hole.number, state.numHoles, state.playerHandicaps);
+        const net2 = getNetPlayerScore(p2, s2, c2, hole.number, state.numHoles, state.playerHandicaps);
+        
+        if (net1.conceded && net2.conceded) {
+          // halved
+        } else if (net1.conceded) {
           p2Won++;
-        } else if (c2) {
+        } else if (net2.conceded) {
           p1Won++;
         } else {
-          if (s1 < s2) p1Won++;
-          if (s2 < s1) p2Won++;
+          if (net1.score < net2.score) p1Won++;
+          if (net2.score < net1.score) p2Won++;
         }
       }
     });
@@ -3450,6 +3523,7 @@ function joinSpectatorMode(targetSyncId, role = 'viewer') {
       state.holes = cloudData.holes || [];
       state.mode = cloudData.mode || 'individual';
       state.players = cloudData.players || ['You'];
+      state.playerHandicaps = cloudData.playerHandicaps || {};
       state.matchType = cloudData.matchType || 'leaderboard';
       state.team1Name = cloudData.team1Name || '';
       state.team2Name = cloudData.team2Name || '';
@@ -3578,12 +3652,17 @@ function renderScorecard() {
       if (state.matchType === 'team' && idx === 2) {
         tr.classList.add('player-score-row-team-divider');
       }
-      tr.innerHTML = `<td class="row-header">${p}</td>`;
+      const handicapVal = (state.playerHandicaps && state.playerHandicaps[p]) !== undefined ? state.playerHandicaps[p] : 0;
+      const hcpText = handicapVal > 0 ? ` <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(HCP ${handicapVal})</span>` : '';
+      tr.innerHTML = `<td class="row-header">${p}${hcpText}</td>`;
       tbody.insertBefore(tr, puttsRow);
       playerRows[p] = tr;
     });
   } else {
     scoreRow.style.display = '';
+    const myHcp = (state.playerHandicaps && state.playerHandicaps['You']) || 0;
+    const hcpText = myHcp > 0 ? ` <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(HCP ${myHcp})</span>` : '';
+    scoreRow.innerHTML = `<td class="row-header">Score${hcpText}</td>`;
   }
 
   state.holes.forEach((hole, index) => {
@@ -3614,10 +3693,11 @@ function renderScorecard() {
       yardsRow.appendChild(tdYards);
     }
 
-    // If Match Mode, determine the hole winner or team winner
+    // If Match Mode, determine the hole winner or team winner using net scores
     let holeWinner = null;
     let teamWinner = null; // 'A' or 'B'
     let teamBestScore = null;
+    let netScores = {};
 
     if (isMatchMode) {
       const players = state.players || ['You'];
@@ -3637,51 +3717,66 @@ function renderScorecard() {
         const s4 = (hole.playerScores && hole.playerScores[p4]) || 0;
         const c4 = (hole.playerConceded && hole.playerConceded[p4]) || false;
 
-        const teamA = getTeamBestBall(s1, c1, s2, c2);
-        const teamB = getTeamBestBall(s3, c3, s4, c4);
+        const net1 = getNetPlayerScore(p1, s1, c1, hole.number, state.numHoles, state.playerHandicaps);
+        const net2 = getNetPlayerScore(p2, s2, c2, hole.number, state.numHoles, state.playerHandicaps);
+        const net3 = getNetPlayerScore(p3, s3, c3, hole.number, state.numHoles, state.playerHandicaps);
+        const net4 = getNetPlayerScore(p4, s4, c4, hole.number, state.numHoles, state.playerHandicaps);
 
-        if (teamA.played && teamB.played) {
-          if (teamA.conceded && teamB.conceded) {
+        netScores[p1] = net1;
+        netScores[p2] = net2;
+        netScores[p3] = net3;
+        netScores[p4] = net4;
+
+        const teamAPlayed = net1.played || net2.played;
+        const teamBPlayed = net3.played || net4.played;
+
+        if (teamAPlayed && teamBPlayed) {
+          const teamANet = Math.min(net1.score, net2.score);
+          const teamBNet = Math.min(net3.score, net4.score);
+
+          if (teamANet === Infinity && teamBNet === Infinity) {
             // halved
-          } else if (teamA.conceded) {
+          } else if (teamANet === Infinity) {
             teamWinner = 'B';
-            teamBestScore = teamB.score;
-          } else if (teamB.conceded) {
+            teamBestScore = teamBNet;
+          } else if (teamBNet === Infinity) {
             teamWinner = 'A';
-            teamBestScore = teamA.score;
+            teamBestScore = teamANet;
           } else {
-            if (teamA.score < teamB.score) {
+            if (teamANet < teamBNet) {
               teamWinner = 'A';
-              teamBestScore = teamA.score;
-            } else if (teamB.score < teamA.score) {
+              teamBestScore = teamANet;
+            } else if (teamBNet < teamANet) {
               teamWinner = 'B';
-              teamBestScore = teamB.score;
+              teamBestScore = teamBNet;
             }
           }
         }
       } else {
-        let bestScore = Infinity;
+        let bestNetScore = Infinity;
         let winners = [];
         let activeCount = 0;
 
         players.forEach(p => {
           const score = (hole.playerScores && hole.playerScores[p]) || 0;
           const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
+          const netInfo = getNetPlayerScore(p, score, conceded, hole.number, state.numHoles, state.playerHandicaps);
+          netScores[p] = netInfo;
 
-          if (score > 0 || conceded) {
+          if (netInfo.played || netInfo.conceded) {
             activeCount++;
-            if (!conceded) {
-              if (score < bestScore) {
-                bestScore = score;
+            if (!netInfo.conceded) {
+              if (netInfo.score < bestNetScore) {
+                bestNetScore = netInfo.score;
                 winners = [p];
-              } else if (score === bestScore) {
+              } else if (netInfo.score === bestNetScore) {
                 winners.push(p);
               }
             }
           }
         });
 
-        // A hole has a winner only if at least two players recorded a score/concession and one player has the unique best score
+        // A hole has a winner only if at least two players recorded a score/concession and one player has the unique best net score
         if (activeCount >= 2 && winners.length === 1) {
           holeWinner = winners[0];
         }
@@ -3695,6 +3790,7 @@ function renderScorecard() {
 
         const score = (hole.playerScores && hole.playerScores[p]) || 0;
         const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
+        const netInfo = netScores[p] || getNetPlayerScore(p, score, conceded, hole.number, state.numHoles, state.playerHandicaps);
 
         if (conceded) {
           td.className += ' cell-conceded';
@@ -3709,7 +3805,12 @@ function renderScorecard() {
             else if (diff === 1) td.className += ' cell-bogey';
             else td.className += ' cell-double';
             
-            td.textContent = score;
+            if (netInfo.strokesReceived > 0) {
+              const dots = '•'.repeat(netInfo.strokesReceived);
+              td.innerHTML = `${score}<span style="color:var(--gold); font-size: 0.75rem; margin-left: 1px; vertical-align: super; line-height: 0;">${dots}</span>`;
+            } else {
+              td.textContent = score;
+            }
           } else {
             td.textContent = '-';
           }
@@ -3718,11 +3819,11 @@ function renderScorecard() {
         let cellWon = false;
         if (state.matchType === 'team' && players.length === 4) {
           if (teamWinner === 'A' && idx < 2) {
-            if (!conceded && score === teamBestScore && score > 0) {
+            if (!conceded && netInfo.score === teamBestScore && netInfo.score !== Infinity) {
               cellWon = true;
             }
           } else if (teamWinner === 'B' && idx >= 2) {
-            if (!conceded && score === teamBestScore && score > 0) {
+            if (!conceded && netInfo.score === teamBestScore && netInfo.score !== Infinity) {
               cellWon = true;
             }
           }
@@ -3743,12 +3844,24 @@ function renderScorecard() {
       // Individual Score
       const tdScore = document.createElement('td');
       if (isCurrent) tdScore.className = 'active-col';
+      
+      const netInfo = getNetPlayerScore('You', hole.score, hole.conceded, hole.number, state.numHoles, state.playerHandicaps);
+
       if (hole.conceded) {
         tdScore.className += ' cell-val cell-conceded';
         tdScore.textContent = 'C';
       } else {
         tdScore.className += ` cell-val ${getScoreClass(hole)}`;
-        tdScore.textContent = hole.score > 0 ? hole.score : '-';
+        if (hole.score > 0) {
+          if (netInfo.strokesReceived > 0) {
+            const dots = '•'.repeat(netInfo.strokesReceived);
+            tdScore.innerHTML = `${hole.score}<span style="color:var(--gold); font-size: 0.75rem; margin-left: 1px; vertical-align: super; line-height: 0;">${dots}</span>`;
+          } else {
+            tdScore.textContent = hole.score;
+          }
+        } else {
+          tdScore.textContent = '-';
+        }
       }
       tdScore.addEventListener('click', () => navigateHole(index));
       scoreRow.appendChild(tdScore);
@@ -7376,23 +7489,31 @@ function calculateMatchPlayStandingsForRound(round) {
       const s4 = (hole.playerScores && hole.playerScores[p4]) || 0;
       const c4 = (hole.playerConceded && hole.playerConceded[p4]) || false;
 
-      const teamA = getTeamBestBall(s1, c1, s2, c2);
-      const teamB = getTeamBestBall(s3, c3, s4, c4);
+      const net1 = getNetPlayerScore(p1, s1, c1, hole.number, numHoles, round.playerHandicaps);
+      const net2 = getNetPlayerScore(p2, s2, c2, hole.number, numHoles, round.playerHandicaps);
+      const net3 = getNetPlayerScore(p3, s3, c3, hole.number, numHoles, round.playerHandicaps);
+      const net4 = getNetPlayerScore(p4, s4, c4, hole.number, numHoles, round.playerHandicaps);
 
-      if (teamA.played || teamB.played) {
+      const teamAPlayed = net1.played || net2.played;
+      const teamBPlayed = net3.played || net4.played;
+
+      if (teamAPlayed || teamBPlayed) {
         lastPlayedHole = Math.max(lastPlayedHole, hole.number);
       }
 
-      if (teamA.played && teamB.played) {
-        if (teamA.conceded && teamB.conceded) {
+      if (teamAPlayed && teamBPlayed) {
+        const teamANet = Math.min(net1.score, net2.score);
+        const teamBNet = Math.min(net3.score, net4.score);
+
+        if (teamANet === Infinity && teamBNet === Infinity) {
           // halved
-        } else if (teamA.conceded) {
+        } else if (teamANet === Infinity) {
           teamBWon++;
-        } else if (teamB.conceded) {
+        } else if (teamBNet === Infinity) {
           teamAWon++;
         } else {
-          if (teamA.score < teamB.score) teamAWon++;
-          if (teamB.score < teamA.score) teamBWon++;
+          if (teamANet < teamBNet) teamAWon++;
+          if (teamBNet < teamANet) teamBWon++;
         }
       }
     });
@@ -7442,15 +7563,18 @@ function calculateMatchPlayStandingsForRound(round) {
       }
 
       if (p1Played && p2Played) {
-        if (c1 && c2) {
+        const net1 = getNetPlayerScore(p1, s1, c1, hole.number, numHoles, round.playerHandicaps);
+        const net2 = getNetPlayerScore(p2, s2, c2, hole.number, numHoles, round.playerHandicaps);
+        
+        if (net1.conceded && net2.conceded) {
           // halved
-        } else if (c1) {
+        } else if (net1.conceded) {
           p2Won++;
-        } else if (c2) {
+        } else if (net2.conceded) {
           p1Won++;
         } else {
-          if (s1 < s2) p1Won++;
-          if (s2 < s1) p2Won++;
+          if (net1.score < net2.score) p1Won++;
+          if (net2.score < net1.score) p2Won++;
         }
       }
     });
@@ -7487,7 +7611,8 @@ function calculateMatchPlayStandingsForRound(round) {
       const score = (hole.playerScores && hole.playerScores[p]) || 0;
       const conceded = (hole.playerConceded && hole.playerConceded[p]) || false;
       if (score > 0 || conceded) {
-        played[p] = { score, conceded };
+        const netInfo = getNetPlayerScore(p, score, conceded, hole.number, numHoles, round.playerHandicaps);
+        played[p] = { score: netInfo.score, conceded: netInfo.conceded, played: netInfo.played };
         anyPlayed = true;
       }
     });
@@ -7496,7 +7621,7 @@ function calculateMatchPlayStandingsForRound(round) {
       let bestScore = Infinity;
       let winners = [];
       players.forEach(p => {
-        if (played[p] && !played[p].conceded) {
+        if (played[p] && played[p].played) {
           const s = played[p].score;
           if (s < bestScore) {
             bestScore = s;
