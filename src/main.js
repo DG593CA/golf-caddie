@@ -639,6 +639,29 @@ async function syncFromCloud() {
   }
 }
 
+function cleanFirestoreData(obj) {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanFirestoreData(item));
+  }
+  if (typeof obj === 'object') {
+    if (obj instanceof Date || (obj.constructor && obj.constructor.name === 'Timestamp')) {
+      return obj;
+    }
+    const cleaned = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const val = obj[key];
+        if (val !== undefined) {
+          cleaned[key] = cleanFirestoreData(val);
+        }
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 async function saveSettingsToCloud() {
   if (!state.syncId) return;
   try {
@@ -646,7 +669,7 @@ async function saveSettingsToCloud() {
     const userDocSnap = await getDoc(userDocRef);
     const roundIds = userDocSnap.exists() ? (userDocSnap.data().roundIds || []) : [];
     
-    await setDoc(userDocRef, {
+    const settingsData = {
       syncId: state.syncId,
       username: state.username || '',
       apiKey: state.apiKey || '',
@@ -658,9 +681,11 @@ async function saveSettingsToCloud() {
       playerAliases: state.playerAliases || [],
       roundIds: roundIds,
       isPremium: state.isPremium || false,
-      createdAt: userDocSnap.exists() ? userDocSnap.data().createdAt : new Date(),
+      createdAt: (userDocSnap.exists() && userDocSnap.data().createdAt) ? userDocSnap.data().createdAt : new Date(),
       updatedAt: new Date()
-    }, { merge: true });
+    };
+    
+    await setDoc(userDocRef, cleanFirestoreData(settingsData), { merge: true });
     console.log("Settings successfully synced to Cloud.");
   } catch (error) {
     console.error("Failed to save settings to Cloud:", error);
@@ -1416,7 +1441,7 @@ async function publishActiveRoundToCloud() {
   if (!targetSyncId) return;
   try {
     const activeRoundRef = doc(db, 'activeRounds', targetSyncId);
-    await setDoc(activeRoundRef, {
+    const activeRoundData = {
       syncId: targetSyncId,
       hostUsername: isSpectating ? (state.hostUsername || 'Host') : (state.username || 'Host'),
       numHoles: state.numHoles || 9,
@@ -1434,7 +1459,8 @@ async function publishActiveRoundToCloud() {
       roundElapsedTime: state.roundElapsedTime || 0,
       isTimerRunning: state.isTimerRunning || false,
       updatedAt: new Date().toISOString()
-    });
+    };
+    await setDoc(activeRoundRef, cleanFirestoreData(activeRoundData));
   } catch (error) {
     console.error("Failed to publish active round to Firestore:", error);
   }
@@ -5895,7 +5921,9 @@ function createNewCustomCourse(name) {
       slope: 113,
       holesCount: 9,
       pars: Array(9).fill(4),
-      coordinates: { lat: dLat, lng: dLng }
+      coordinates: { lat: dLat, lng: dLng },
+      holeCoordinates: null,
+      tees: []
     };
     
     if (!state.customCourses) state.customCourses = [];
@@ -6069,7 +6097,7 @@ function selectTee(course, tee) {
     pars: tee.pars || (tee.holes ? tee.holes.map(h => h.par || 4) : Array(course.holesCount || 18).fill(4)),
     holeYardages: tee.holeYardages || (tee.holes ? tee.holes.map(h => h.yardage || 0) : Array(course.holesCount || 18).fill(0)),
     coordinates: course.coordinates || { lat: 36.5684, lng: -121.9507 },
-    holeCoordinates: course.holeCoordinates,
+    holeCoordinates: course.holeCoordinates || null,
     availableTees: course.tees || course.availableTees || []
   };
   
