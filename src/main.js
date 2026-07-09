@@ -359,6 +359,8 @@ const MOCK_COURSES = [
 let state = {
   syncId: '',
   username: '',
+  firstName: '',
+  lastName: '',
   numHoles: 9,
   currentHoleIndex: 0,
   apiKey: '',
@@ -522,6 +524,8 @@ async function syncFromCloud() {
         state.username = auth.currentUser && auth.currentUser.email ? auth.currentUser.email.split('@')[0] : 'Golfer_' + state.syncId.substring(0, 5);
       }
       if (userData.apiKey !== undefined) state.apiKey = userData.apiKey;
+      if (userData.firstName !== undefined) state.firstName = userData.firstName;
+      if (userData.lastName !== undefined) state.lastName = userData.lastName;
       if (userData.openaiApiKey !== undefined) state.openaiApiKey = userData.openaiApiKey;
       if (userData.golfApiKey !== undefined) state.golfApiKey = userData.golfApiKey;
       if (userData.customCourseMappings !== undefined) state.customCourseMappings = userData.customCourseMappings;
@@ -672,6 +676,8 @@ async function saveSettingsToCloud() {
     const settingsData = {
       syncId: state.syncId,
       username: state.username || '',
+      firstName: state.firstName || '',
+      lastName: state.lastName || '',
       apiKey: state.apiKey || '',
       openaiApiKey: state.openaiApiKey || '',
       golfApiKey: state.golfApiKey || '',
@@ -827,7 +833,7 @@ async function deleteUserAccount() {
   }
 }
 
-async function migrateUserData(uid, localHistory, localSettings, username) {
+async function migrateUserData(uid, localHistory, localSettings, username, firstName, lastName) {
   try {
     const userDocRef = doc(db, 'users', uid);
     let roundIds = [];
@@ -853,6 +859,8 @@ async function migrateUserData(uid, localHistory, localSettings, username) {
     await setDoc(userDocRef, {
       syncId: uid,
       username: username || '',
+      firstName: firstName || '',
+      lastName: lastName || '',
       apiKey: localSettings.apiKey || '',
       openaiApiKey: localSettings.openaiApiKey || '',
       golfApiKey: localSettings.golfApiKey || 'JU7TE2S574463W653KOETCNKH4',
@@ -886,6 +894,12 @@ function initAuth() {
   const gateAuthUsernameWrapper = document.getElementById('gate-auth-username-wrapper');
   const gateAuthUsername = document.getElementById('gate-auth-username');
 
+  // Name Elements
+  const gateAuthFirstnameWrapper = document.getElementById('gate-auth-firstname-wrapper');
+  const gateAuthFirstname = document.getElementById('gate-auth-firstname');
+  const gateAuthLastnameWrapper = document.getElementById('gate-auth-lastname-wrapper');
+  const gateAuthLastname = document.getElementById('gate-auth-lastname');
+
   // New Forgot Password Elements
   const gateAuthTabs = document.getElementById('gate-auth-tabs');
   const gateAuthPasswordWrapper = document.getElementById('gate-auth-password-wrapper');
@@ -912,6 +926,8 @@ function initAuth() {
     gateAuthForgotHelper.style.display = 'none';
     gateBackToLoginWrapper.style.display = 'none';
     if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'none';
+    if (gateAuthFirstnameWrapper) gateAuthFirstnameWrapper.style.display = 'none';
+    if (gateAuthLastnameWrapper) gateAuthLastnameWrapper.style.display = 'none';
   });
 
   gateTabSignup.addEventListener('click', () => {
@@ -924,6 +940,8 @@ function initAuth() {
     gateAuthForgotHelper.style.display = 'none';
     gateBackToLoginWrapper.style.display = 'none';
     if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'block';
+    if (gateAuthFirstnameWrapper) gateAuthFirstnameWrapper.style.display = 'block';
+    if (gateAuthLastnameWrapper) gateAuthLastnameWrapper.style.display = 'block';
   });
 
   btnGateForgotPassword.addEventListener('click', () => {
@@ -935,6 +953,8 @@ function initAuth() {
     btnGateAuthSubmit.textContent = 'Send Reset Email';
     gateAuthErrorMsg.style.display = 'none';
     if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'none';
+    if (gateAuthFirstnameWrapper) gateAuthFirstnameWrapper.style.display = 'none';
+    if (gateAuthLastnameWrapper) gateAuthLastnameWrapper.style.display = 'none';
     const socialSection = document.getElementById('gate-social-auth-section');
     if (socialSection) socialSection.style.display = 'none';
   });
@@ -949,6 +969,8 @@ function initAuth() {
     gateAuthErrorMsg.style.display = 'none';
     gateAuthPassword.value = '';
     if (gateAuthUsernameWrapper) gateAuthUsernameWrapper.style.display = 'none';
+    if (gateAuthFirstnameWrapper) gateAuthFirstnameWrapper.style.display = 'none';
+    if (gateAuthLastnameWrapper) gateAuthLastnameWrapper.style.display = 'none';
     const socialSection = document.getElementById('gate-social-auth-section');
     if (socialSection) socialSection.style.display = 'block';
   });
@@ -1028,11 +1050,23 @@ function initAuth() {
         // New user sign up - perform migration
         const username = user.displayName || (user.email ? user.email.split('@')[0] : 'Golfer_' + user.uid.substring(0, 5));
         state.username = username;
+        
+        const displayName = user.displayName || '';
+        let firstName = '';
+        let lastName = '';
+        if (displayName) {
+          const parts = displayName.trim().split(/\s+/);
+          firstName = parts[0] || '';
+          lastName = parts.slice(1).join(' ') || '';
+        }
+        state.firstName = firstName;
+        state.lastName = lastName;
+        
         if (localSystemConfig.freePremiumNewUsers === true) {
           state.isPremium = true;
         }
         saveState();
-        await migrateUserData(user.uid, existingLocalHistory, existingSettings, username);
+        await migrateUserData(user.uid, existingLocalHistory, existingSettings, username, firstName, lastName);
       }
       
       isMigrating = false;
@@ -1062,6 +1096,8 @@ function initAuth() {
     const email = gateAuthEmail.value.trim();
     const password = gateAuthPassword.value;
     let username = '';
+    let firstName = '';
+    let lastName = '';
 
     if (currentAuthMode === 'forgot') {
       if (!email) {
@@ -1074,7 +1110,14 @@ function initAuth() {
         return;
       }
       if (currentAuthMode === 'signup') {
+        firstName = gateAuthFirstname.value.trim();
+        lastName = gateAuthLastname.value.trim();
         username = gateAuthUsername.value.trim();
+        
+        if (!firstName || !lastName) {
+          showGateAuthError("Please fill in both first name and last name.");
+          return;
+        }
         if (!username) {
           showGateAuthError("Please choose a username for the community.");
           return;
@@ -1141,11 +1184,13 @@ function initAuth() {
 
         // Perform migration of local rounds and settings to Firestore under new User UID
         state.username = username;
+        state.firstName = firstName;
+        state.lastName = lastName;
         if (localSystemConfig.freePremiumNewUsers === true) {
           state.isPremium = true;
         }
         saveState();
-        await migrateUserData(user.uid, existingLocalHistory, existingSettings, username);
+        await migrateUserData(user.uid, existingLocalHistory, existingSettings, username, firstName, lastName);
         isMigrating = false;
         
         // Refresh local data from newly migrated cloud profile
@@ -1154,6 +1199,8 @@ function initAuth() {
         gateAuthEmail.value = '';
         gateAuthPassword.value = '';
         if (gateAuthUsername) gateAuthUsername.value = '';
+        if (gateAuthFirstname) gateAuthFirstname.value = '';
+        if (gateAuthLastname) gateAuthLastname.value = '';
       }
     } catch (error) {
       console.error("Authentication error:", error);
@@ -6595,12 +6642,12 @@ async function pinLocation(type) {
 const ONBOARDING_STEPS = [
   {
     title: "Welcome to GolfCaddie AI! ⛳",
-    text: "Let’s take a quick 1-minute tour of your new AI-powered golf caddie. We’ll show you how to log scores, get GPS coordinates, and speak commands to the AI.",
+    text: "Let’s take a quick 1-minute tour of your new AI-powered golf caddie. We’ll show you how to log scores, get GPS coordinates, set handicaps, and use advanced voice commands.",
     target: null
   },
   {
     title: "Voice Caddie Assistant 🎙️",
-    text: "This is the microphone button. Tap it and speak naturally to command the caddie: e.g. <em>\"Hole 1, score 4, 2 putts\"</em> or <em>\"put me down for a par on hole 2\"</em>. You can also ask <em>\"how far is it?\"</em>.",
+    text: "This is the microphone button. Tap it and speak naturally to log stats or ask questions. Try advanced team match commands like: <em>\"Fairway in regulation, right side, 3 putts, score 5. Team A won the hole.\"</em> to record both player and team match stats simultaneously!",
     target: "#btn-voice-toggle"
   },
   {
@@ -6614,9 +6661,14 @@ const ONBOARDING_STEPS = [
     target: ".active-hole-section"
   },
   {
-    title: "Detailed Scorecard 📊",
-    text: "Here is your running scorecard grid. You can tap on any cell (like a specific hole number) to jump straight to that hole and make quick edits.",
+    title: "Handicaps & Net Scores 🎯",
+    text: "Set Course Handicaps for players to calculate net scores automatically. The scorecard dynamically displays handicap dots (<code>•</code>) next to player scores, matching official tournament layouts.",
     target: ".scorecard-section"
+  },
+  {
+    title: "Real-Time Co-Scoring 👥",
+    text: "Collaborate in real-time! Share your Sync ID with friends, or enter their ID under Settings to co-score or spectate live rounds together from any iOS or web device.",
+    target: "#tab-active-round"
   },
   {
     title: "Settings & Options ⚙️",

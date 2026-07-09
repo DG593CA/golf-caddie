@@ -81,7 +81,7 @@ service cloud.firestore {
     // Domain validation functions
     function isValidUserDoc(data, syncId) {
       return hasRequiredFields(['syncId', 'roundIds', 'createdAt', 'updatedAt']) &&
-             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'playerAliases', 'createdAt', 'updatedAt', 'username', 'customCourses', 'hasCompletedTutorial', 'isAdmin', 'isPremium', 'isBlocked']) &&
+             hasOnlyAllowedFields(['syncId', 'apiKey', 'openaiApiKey', 'golfApiKey', 'roundIds', 'customCourseMappings', 'playerAliases', 'createdAt', 'updatedAt', 'username', 'firstName', 'lastName', 'customCourses', 'hasCompletedTutorial', 'isAdmin', 'isPremium', 'isBlocked']) &&
              data.syncId == syncId &&
              isValidSyncId(data.syncId) &&
              isValidOptionalString(data, 'apiKey', 1000) &&
@@ -92,6 +92,8 @@ service cloud.firestore {
              data.roundIds.size() <= 5000 &&
              (!('playerAliases' in data) || (data.playerAliases is list && data.playerAliases.size() <= 1000)) &&
              (!('username' in data) || (data.username is string && data.username.size() <= 50)) &&
+             (!('firstName' in data) || (data.firstName is string && data.firstName.size() <= 100)) &&
+             (!('lastName' in data) || (data.lastName is string && data.lastName.size() <= 100)) &&
              (!('hasCompletedTutorial' in data) || data.hasCompletedTutorial is bool) &&
              (!('isAdmin' in data) || data.isAdmin is bool) &&
              (!('isPremium' in data) || data.isPremium is bool) &&

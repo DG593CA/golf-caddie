@@ -1575,6 +1575,14 @@
 
           <!-- Form fields -->
           <div class="auth-form-fields" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem;">
+            <div id="gate-auth-firstname-wrapper" style="display: none;">
+              <label for="gate-auth-firstname" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">First Name</label>
+              <input type="text" id="gate-auth-firstname" class="form-input" placeholder="First Name (e.g. John)" autocomplete="given-name">
+            </div>
+            <div id="gate-auth-lastname-wrapper" style="display: none;">
+              <label for="gate-auth-lastname" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Last Name</label>
+              <input type="text" id="gate-auth-lastname" class="form-input" placeholder="Last Name (e.g. Doe)" autocomplete="family-name">
+            </div>
             <div id="gate-auth-username-wrapper" style="display: none;">
               <label for="gate-auth-username" style="font-size: 0.8rem; color: var(--color-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600; text-transform: uppercase;">Username</label>
               <input type="text" id="gate-auth-username" class="form-input" placeholder="Choose username (e.g. golfer1)" autocomplete="username">
