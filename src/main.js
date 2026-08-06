@@ -8365,9 +8365,12 @@ function renderAdminActiveMatchesTable(matches) {
       <td style="padding: 0.75rem 1rem;"><span style="font-size: 0.8rem; font-weight: 600;">${mode}</span></td>
       <td style="padding: 0.75rem 1rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(playersList)}">${escapeHtml(playersList)}</td>
       <td style="font-weight: bold; color: var(--gold); padding: 0.75rem 1rem;">${currentHole}</td>
-      <td style="text-align: right; padding: 0.75rem 1rem;">
-        <button type="button" class="admin-action-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: var(--emerald-glow); padding: 0.35rem 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: 0.75rem;" onclick="window.adminSpectateRound('${escapeHtml(match.syncId)}')">
+      <td style="text-align: right; padding: 0.75rem 1rem; white-space: nowrap;">
+        <button type="button" class="admin-action-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: var(--emerald-glow); padding: 0.35rem 0.6rem; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: 0.75rem; margin-right: 0.25rem;" onclick="window.adminSpectateRound('${escapeHtml(match.syncId)}')">
           👁️ Spectate
+        </button>
+        <button type="button" class="admin-action-btn" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: var(--danger); padding: 0.35rem 0.6rem; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: 0.75rem;" onclick="window.adminForceCloseRound('${escapeHtml(match.syncId)}')">
+          ❌ Close
         </button>
       </td>
     `;
@@ -8386,6 +8389,21 @@ window.adminSpectateRound = function(syncId) {
   }
   // Trigger join spectator mode
   joinSpectatorMode(syncId, 'viewer');
+};
+
+window.adminForceCloseRound = async function(syncId) {
+  if (!confirm(`Are you sure you want to FORCE CLOSE and terminate the active round for Sync ID: ${syncId}?\n\nThis will stop synchronization for all connected players immediately.`)) {
+    return;
+  }
+  try {
+    const activeRoundRef = doc(db, 'activeRounds', syncId);
+    await deleteDoc(activeRoundRef);
+    await loadAdminAnalyticsAndUsers();
+    showInAppToast("Round Closed", `Successfully terminated active round.`);
+  } catch (error) {
+    console.error("Failed to delete active round document:", error);
+    alert("Error closing round: " + error.message);
+  }
 };
 
 function renderAdminUsersTable(users) {

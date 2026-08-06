@@ -164,8 +164,8 @@ service cloud.firestore {
     match /activeRounds/{syncId} {
       allow get: if isValidSyncId(syncId) && isNotBlocked();
       allow create: if isValidSyncId(syncId) && isOwner(syncId) && isNotBlocked();
-      allow update: if isValidSyncId(syncId) && (isOwner(syncId) || request.auth != null) && isNotBlocked();
-      allow delete: if isValidSyncId(syncId) && isOwner(syncId) && isNotBlocked();
+      allow update: if isValidSyncId(syncId) && (isOwner(syncId) || request.auth != null || isAdmin()) && isNotBlocked();
+      allow delete: if isValidSyncId(syncId) && (isOwner(syncId) || isAdmin()) && isNotBlocked();
       allow list: if isAdmin() && isNotBlocked();
     }
 
