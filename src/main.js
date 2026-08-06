@@ -8298,6 +8298,11 @@ async function loadAdminAnalyticsAndUsers() {
     const activeSnap = await getDocs(collection(db, 'activeRounds'));
     if (kpiActive) kpiActive.textContent = activeSnap.size;
 
+    const activeMatches = [];
+    activeSnap.forEach(aDoc => {
+      activeMatches.push({ syncId: aDoc.id, ...aDoc.data() });
+    });
+
     // 4. Retrieve current price from config and calculate MRR & Conversion
     const calculatedMRR = premiumUsersCount * Number(localSystemConfig.monthlyPrice || 9.99);
     if (kpiMrr) kpiMrr.textContent = `$${calculatedMRR.toFixed(2)}`;
@@ -8316,14 +8321,72 @@ async function loadAdminAnalyticsAndUsers() {
 
     // Render registered users directory table
     renderAdminUsersTable(adminCachedUsers);
+    
+    // Render active matches table
+    renderAdminActiveMatchesTable(activeMatches);
 
   } catch (error) {
     console.error("Failed to load admin metrics or users:", error);
     if (usersListBody) {
       usersListBody.innerHTML = `<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--color-danger);">Permission Denied: Ensure you are logged in as an Admin.</td></tr>`;
     }
+    const matchesListBody = document.getElementById('admin-active-matches-list-body');
+    if (matchesListBody) {
+      matchesListBody.innerHTML = `<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--color-danger);">Error loading active matches.</td></tr>`;
+    }
   }
 }
+
+function renderAdminActiveMatchesTable(matches) {
+  const matchesListBody = document.getElementById('admin-active-matches-list-body');
+  if (!matchesListBody) return;
+
+  if (matches.length === 0) {
+    matchesListBody.innerHTML = `<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--color-secondary);">No active live rounds in progress.</td></tr>`;
+    return;
+  }
+
+  matchesListBody.innerHTML = '';
+  matches.forEach(match => {
+    const matchRow = document.createElement('tr');
+    
+    const host = match.hostUsername ? `@${escapeHtml(match.hostUsername)}` : 'Anonymous';
+    const courseName = match.selectedCourse ? (match.selectedCourse.name || 'Unnamed Course') : 'Custom Course';
+    const mode = match.mode === 'match' ? `🏆 Match Play (${escapeHtml(match.matchType || 'Leaderboard')})` : '⛳ Stroke Play';
+    const playersList = (match.players || ['You']).join(', ');
+    const currentHole = match.currentHoleIndex !== undefined ? `Hole ${match.currentHoleIndex + 1}` : 'Hole 1';
+    
+    matchRow.innerHTML = `
+      <td style="font-weight: 600; color: var(--emerald-glow); padding: 0.75rem 1rem;">
+        ${host}
+        <span style="font-family: monospace; font-size: 0.7rem; color: var(--color-secondary); font-weight: normal; display: block;">${escapeHtml(match.syncId || '')}</span>
+      </td>
+      <td style="font-weight: bold; color: var(--color-primary); padding: 0.75rem 1rem;">${escapeHtml(courseName)}</td>
+      <td style="padding: 0.75rem 1rem;"><span style="font-size: 0.8rem; font-weight: 600;">${mode}</span></td>
+      <td style="padding: 0.75rem 1rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(playersList)}">${escapeHtml(playersList)}</td>
+      <td style="font-weight: bold; color: var(--gold); padding: 0.75rem 1rem;">${currentHole}</td>
+      <td style="text-align: right; padding: 0.75rem 1rem;">
+        <button type="button" class="admin-action-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: var(--emerald-glow); padding: 0.35rem 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: 0.75rem;" onclick="window.adminSpectateRound('${escapeHtml(match.syncId)}')">
+          👁️ Spectate
+        </button>
+      </td>
+    `;
+    matchesListBody.appendChild(matchRow);
+  });
+}
+
+window.adminSpectateRound = function(syncId) {
+  if (!confirm(`Would you like to spectate the active round for Sync ID: ${syncId} in read-only mode?`)) {
+    return;
+  }
+  // Click on the Active Round tab to make sure it is shown
+  const tabActiveRound = document.getElementById('tab-active-round');
+  if (tabActiveRound) {
+    tabActiveRound.click();
+  }
+  // Trigger join spectator mode
+  joinSpectatorMode(syncId, 'viewer');
+};
 
 function renderAdminUsersTable(users) {
   const usersListBody = document.getElementById('admin-users-list-body');

@@ -863,6 +863,33 @@
 
           <!-- SUB-VIEW 1: Analytics & Users -->
           <div id="admin-view-analytics" class="admin-sub-content">
+            <!-- Active Matches in Progress -->
+            <div class="glass-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1.1rem; color: var(--emerald-glow); margin: 0 0 1.25rem 0; display: flex; align-items: center; gap: 0.6rem;">
+                <span>🟢 Active Matches in Progress</span>
+              </h3>
+              
+              <div style="overflow-x: auto; border: 1px solid var(--border-light); border-radius: 8px; background: rgba(9, 12, 15, 0.4); margin-bottom: 0.5rem;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                  <thead>
+                    <tr style="background: rgba(255, 255, 255, 0.02); border-bottom: 1px solid var(--border-light);">
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Host / Sync ID</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Course</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Mode &amp; Type</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Players</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary);">Hole</th>
+                      <th style="padding: 0.75rem 1rem; font-weight: 700; color: var(--color-secondary); text-align: right;">Live Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-active-matches-list-body">
+                    <tr>
+                      <td colspan="6" style="padding: 2rem; text-align: center; color: var(--color-secondary);">Loading active live rounds...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div class="glass-card" style="padding: 1.5rem;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
                 <h3 style="font-size: 1.1rem; color: var(--color-primary); margin: 0;">👥 Registered User Accounts</h3>
