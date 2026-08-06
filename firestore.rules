@@ -111,7 +111,7 @@ service cloud.firestore {
                'id', 'syncId', 'courseName', 'date', 'rating', 'slope', 'numHoles',
                'totalScore', 'totalPar', 'totalPutts', 'avgPutts', 'threePutts',
                'onePutts', 'fairwayPercent', 'girPercent', 'holes', 'createdAt',
-               'duration', 'durationSeconds', 'mode', 'players', 'playerUsernames', 'matchPlayStandings', 'team1Name', 'team2Name'
+               'duration', 'durationSeconds', 'mode', 'players', 'playerHandicaps', 'playerUsernames', 'matchPlayStandings', 'team1Name', 'team2Name'
              ]) &&
              docId == data.syncId + "_" + string(data.id) &&
              data.id is number && data.id > 0 &&
@@ -134,6 +134,7 @@ service cloud.firestore {
              (!('durationSeconds' in data) || data.durationSeconds is number) &&
              isValidOptionalString(data, 'mode', 20) &&
              (!('players' in data) || (data.players is list && data.players.size() <= 4)) &&
+             (!('playerHandicaps' in data) || data.playerHandicaps is map) &&
              (!('playerUsernames' in data) || (data.playerUsernames is list && data.playerUsernames.size() <= 4)) &&
              (!('matchPlayStandings' in data) || data.matchPlayStandings == null || data.matchPlayStandings is map);
     }
