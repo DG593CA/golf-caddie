@@ -26,7 +26,9 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSBluetoothWhileInUseUsageDescription</key>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>GolfCaddie requires Bluetooth to connect to and use the microphone of smart glasses (such as Meta Ray-Ban or Oakley) for hands-free caddie commands.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>GolfCaddie requires Bluetooth to connect to and use the microphone of smart glasses (such as Meta Ray-Ban or Oakley) for hands-free caddie commands.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>GolfCaddie requires your location to calculate distances to the green.</string>
