@@ -4946,6 +4946,14 @@ function processFinalTranscript(transcript) {
     updates.notesCount = notesToAdd.length;
   }
 
+  // Auto-advance to the next hole if a score was set
+  const scoreWasSet = (updates.score !== null) || (updates.playerUpdates && updates.playerUpdates.length > 0);
+  if (scoreWasSet && activeHole.number < state.numHoles) {
+    state.currentHoleIndex = activeHole.number;
+    updates.holeChanged = true;
+    updates.newHoleNum = state.currentHoleIndex + 1;
+  }
+
   saveState();
   updateUI();
 
