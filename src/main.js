@@ -4983,7 +4983,6 @@ function cleanNoteText(text) {
   return null;
 }
 
-// Text-to-speech confirmation speakback
 function triggerVoiceConfirmation(updates, activeHoleNum) {
   if (!window.speechSynthesis) return;
 
@@ -4991,15 +4990,9 @@ function triggerVoiceConfirmation(updates, activeHoleNum) {
   window.speechSynthesis.cancel();
 
   let message = '';
-
-  if (updates.holeChanged) {
-    message += `Hole ${updates.newHoleNum}. `;
-  }
+  let scoreReadback = '';
 
   if (updates.playerUpdates && updates.playerUpdates.length > 0) {
-    if (!updates.holeChanged && !message.includes('updated')) {
-      message += `Hole ${activeHoleNum} updated: `;
-    }
     const playerMsgs = [];
     updates.playerUpdates.forEach(pu => {
       if (pu.name === 'You') {
@@ -5033,7 +5026,7 @@ function triggerVoiceConfirmation(updates, activeHoleNum) {
         }
       }
     });
-    message += playerMsgs.join('. ') + '. ';
+    scoreReadback += playerMsgs.join('. ') + '. ';
   } else {
     let statUpdates = [];
     if (updates.score !== null) {
@@ -5056,15 +5049,30 @@ function triggerVoiceConfirmation(updates, activeHoleNum) {
     }
 
     if (statUpdates.length > 0) {
-      if (!updates.holeChanged) {
-        message += `Hole ${activeHoleNum} updated: `;
-      }
-      message += statUpdates.join(', ') + '. ';
+      scoreReadback += statUpdates.join(', ') + '. ';
+    }
+  }
+
+  // Read the score/stats updates back first
+  if (scoreReadback) {
+    if (!updates.holeChanged) {
+      message += `Hole ${activeHoleNum} updated: ` + scoreReadback;
+    } else {
+      message += scoreReadback;
     }
   }
 
   if (updates.notesCount > 0) {
-    message += `Note added.`;
+    message += `Note added. `;
+  }
+
+  // Hole transition at the end
+  if (updates.holeChanged) {
+    if (updates.newHoleNum > activeHoleNum) {
+      message += `Moving scorecard to next hole for recording.`;
+    } else {
+      message += `Moving to hole ${updates.newHoleNum}.`;
+    }
   }
 
   if (message) {
