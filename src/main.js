@@ -1,4 +1,5 @@
 import './style.css';
+import * as XLSX from 'xlsx';
 import { Capacitor } from '@capacitor/core';
 import { Purchases } from '@revenuecat/purchases-capacitor';
 import { RevenueCatUI, PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui';
@@ -2171,6 +2172,7 @@ function initUI() {
   document.getElementById('btn-start-round').addEventListener('click', startNewRound);
   document.getElementById('btn-history-start-new').addEventListener('click', startNewRound);
   document.getElementById('btn-report-start-new').addEventListener('click', startNewRound);
+  document.getElementById('btn-export-excel').addEventListener('click', exportLast10ScoresToExcel);
 
   // Manual Input Steppers
   // Score
@@ -5819,6 +5821,121 @@ function renderHistoryTab() {
 
     roundsList.appendChild(card);
   });
+}
+
+function exportLast10ScoresToExcel() {
+  const rounds = (state.history || []).slice(0, 10);
+  if (rounds.length === 0) {
+    alert("You do not have any completed rounds to export yet!");
+    return;
+  }
+
+  // 1. Generate Sheet 1: Handicap & Scores Summary
+  const sheet1Data = [];
+  
+  // Add some general header info
+  const hcpStats = calculateHandicapIndex();
+  sheet1Data.push(["GolfCaddie AI - Player Handicap & Performance Report"]);
+  sheet1Data.push(["Generated on:", new Date().toLocaleDateString()]);
+  sheet1Data.push(["Regular Course Handicap Index:", hcpStats.normal.handicap]);
+  sheet1Data.push(["Par 3 Course Handicap Index:", hcpStats.par3.handicap]);
+  sheet1Data.push([]); // Empty row
+  
+  // Headers for round list
+  sheet1Data.push(["Date", "Course Name", "Holes", "Par", "Gross Score", "To Par", "Putts", "Fairway %", "GIR %", "Course Type"]);
+  
+  rounds.forEach(r => {
+    const diffVal = r.totalScore - r.totalPar;
+    const toPar = diffVal === 0 ? "Even" : (diffVal > 0 ? `+${diffVal}` : `${diffVal}`);
+    const isPar3 = (r.totalPar / r.numHoles) < 3.5;
+    const typeLabel = isPar3 ? "Par 3 Course" : "Regular Course";
+    
+    sheet1Data.push([
+      r.date || '',
+      r.courseName || '',
+      r.numHoles || 0,
+      r.totalPar || 0,
+      r.totalScore || 0,
+      toPar,
+      r.totalPutts || 0,
+      r.fairwayPercent !== undefined && r.fairwayPercent !== null ? `${Math.round(r.fairwayPercent)}%` : '-',
+      r.girPercent !== undefined && r.girPercent !== null ? `${Math.round(r.girPercent)}%` : '-',
+      typeLabel
+    ]);
+  });
+  
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+
+  // 2. Generate Sheet 2: Hole-by-Hole Details
+  const sheet2Data = [];
+  sheet2Data.push(["GolfCaddie AI - Detailed Scorecards (Last 10 Rounds)"]);
+  sheet2Data.push([]); // Spacer
+  
+  rounds.forEach((r, idx) => {
+    sheet2Data.push([`ROUND #${idx + 1}: ${r.courseName || ''} (${r.date || ''})`]);
+    
+    // Hole headers: Hole 1, 2, ..., 18
+    const holeHeaders = ["Hole"];
+    const parsRow = ["Par"];
+    const scoresRow = ["Score"];
+    const puttsRow = ["Putts"];
+    
+    const numHoles = r.numHoles || 18;
+    for (let h = 1; h <= numHoles; h++) {
+      holeHeaders.push(h);
+      const holeObj = r.holes ? r.holes.find(hObj => hObj.number === h) : null;
+      parsRow.push(holeObj ? holeObj.par : '-');
+      scoresRow.push(holeObj ? holeObj.score : '-');
+      puttsRow.push(holeObj ? holeObj.putts : '-');
+    }
+    
+    // Add Total columns
+    holeHeaders.push("Total");
+    parsRow.push(r.totalPar || 0);
+    scoresRow.push(r.totalScore || 0);
+    puttsRow.push(r.totalPutts || 0);
+    
+    // Add Over/Under Par column
+    holeHeaders.push("To Par");
+    parsRow.push("");
+    const diff = (r.totalScore || 0) - (r.totalPar || 0);
+    scoresRow.push(diff === 0 ? "Even" : (diff > 0 ? `+${diff}` : diff));
+    puttsRow.push("");
+    
+    sheet2Data.push(holeHeaders);
+    sheet2Data.push(parsRow);
+    sheet2Data.push(scoresRow);
+    sheet2Data.push(puttsRow);
+    sheet2Data.push([]); // Spacer row between rounds
+  });
+  
+  const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+
+  // Create workbook and append sheets
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, "Handicap & Scores");
+  XLSX.utils.book_append_sheet(wb, ws2, "Scorecard Details");
+
+  // Write file to binary array
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  
+  const filename = `GolfCaddie_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+  
+  // On both web and native Capacitor iOS, triggering download is fully compatible and invokes preview/sharesheet
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.style.display = "none";
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 150);
+
+  showInAppToast("Excel Generated", "Save or email the spreadsheet via the system prompt.");
 }
 
 // Sync course configuration to inputs & labels
