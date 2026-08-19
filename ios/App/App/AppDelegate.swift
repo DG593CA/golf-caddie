@@ -11,7 +11,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Configure AVAudioSession to support Bluetooth microphone input (e.g. Meta Ray-Ban, Oakley glasses)
         let audioSession = AVAudioSession.sharedInstance()
         do {
-            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.allowBluetoothHFP, .allowBluetoothA2DP, .defaultToSpeaker])
             try audioSession.setActive(true, options: [])
         } catch {
             print("Failed to set up AVAudioSession for Bluetooth accessories: \(error)")
