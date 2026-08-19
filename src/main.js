@@ -1770,7 +1770,23 @@ function initUI() {
     if (p3) p3.value = p3Name;
     if (p4) p4.value = p4Name;
 
-    if (h1) h1.value = ph[p1Name] !== undefined ? ph[p1Name] : '';
+    // Autofill player 1 (user) from calculated index for current course style if not manually set
+    let defaultHcp = '';
+    if (ph[p1Name] !== undefined && ph[p1Name] !== '') {
+      defaultHcp = ph[p1Name];
+    } else {
+      const stats = calculateHandicapIndex();
+      const coursePars = state.selectedCourse ? state.selectedCourse.pars : null;
+      const totalPar = coursePars ? coursePars.reduce((sum, p) => sum + p, 0) : 72;
+      const holesCount = state.selectedCourse ? state.selectedCourse.holesCount : 18;
+      const isPar3 = (totalPar / holesCount) < 3.5;
+      const calcIndex = isPar3 ? stats.par3.handicap : stats.normal.handicap;
+      if (calcIndex && calcIndex !== 'NH') {
+        defaultHcp = Math.round(parseFloat(calcIndex));
+      }
+    }
+
+    if (h1) h1.value = defaultHcp;
     if (h2) h2.value = p2Name && ph[p2Name] !== undefined ? ph[p2Name] : '';
     if (h3) h3.value = p3Name && ph[p3Name] !== undefined ? ph[p3Name] : '';
     if (h4) h4.value = p4Name && ph[p4Name] !== undefined ? ph[p4Name] : '';
@@ -5557,15 +5573,14 @@ function escapeHTML(str) {
 }
 
 // Handicap calculation and History Renderer
-function calculateHandicapIndex() {
-  if (!state.history || state.history.length === 0) {
+function calculateHandicapForRounds(rounds) {
+  if (!rounds || rounds.length === 0) {
     return { handicap: 'NH', totalRounds: 0, avgScore: '-', avgPutts: '-' };
   }
 
-  const rounds = state.history;
   const totalRounds = rounds.length;
   
-  // Calculate average score and average putts across all rounds
+  // Calculate average score and average putts across these rounds
   const totalScoresSum = rounds.reduce((sum, r) => sum + r.totalScore, 0);
   const totalPuttsSum = rounds.reduce((sum, r) => sum + r.totalPutts, 0);
   const avgScore = Math.round(totalScoresSum / totalRounds);
@@ -5573,7 +5588,7 @@ function calculateHandicapIndex() {
 
   // Calculate WHS differential for each round
   const differentials = rounds.map(r => {
-    const rating = r.rating || 72.0;
+    const rating = r.rating || (r.numHoles === 9 ? 36.0 : 72.0);
     const slope = r.slope || 113;
     // Differential = (Score - Rating) * 113 / Slope
     return parseFloat((((r.totalScore - rating) * 113) / slope).toFixed(1));
@@ -5607,7 +5622,7 @@ function calculateHandicapIndex() {
   if (totalRounds > 20) {
     const last20Rounds = rounds.slice(-20);
     diffsToSlice = last20Rounds.map(r => {
-      const rating = r.rating || 72.0;
+      const rating = r.rating || (r.numHoles === 9 ? 36.0 : 72.0);
       const slope = r.slope || 113;
       return parseFloat((((r.totalScore - rating) * 113) / slope).toFixed(1));
     });
@@ -5626,18 +5641,58 @@ function calculateHandicapIndex() {
   return { handicap: displayHandicap, totalRounds, avgScore, avgPutts };
 }
 
+function calculateHandicapIndex() {
+  if (!state.history || state.history.length === 0) {
+    return {
+      normal: { handicap: 'NH', totalRounds: 0, avgScore: '-', avgPutts: '-' },
+      par3: { handicap: 'NH', totalRounds: 0, avgScore: '-', avgPutts: '-' }
+    };
+  }
+
+  const normalRounds = state.history.filter(r => {
+    const numHoles = r.numHoles || 18;
+    const totalPar = r.totalPar || (numHoles * 4);
+    return (totalPar / numHoles) >= 3.5;
+  });
+
+  const par3Rounds = state.history.filter(r => {
+    const numHoles = r.numHoles || 18;
+    const totalPar = r.totalPar || (numHoles * 4);
+    return (totalPar / numHoles) < 3.5;
+  });
+
+  return {
+    normal: calculateHandicapForRounds(normalRounds),
+    par3: calculateHandicapForRounds(par3Rounds)
+  };
+}
+
 function renderHistoryTab() {
   const stats = calculateHandicapIndex();
-  document.getElementById('handicap-badge-val').textContent = stats.handicap;
-  document.getElementById('handicap-total-rounds').textContent = stats.totalRounds;
-  document.getElementById('handicap-avg-score').textContent = stats.avgScore;
-  document.getElementById('handicap-avg-putts').textContent = stats.avgPutts;
+  
+  // Normal Handicap
+  document.getElementById('handicap-badge-val').textContent = stats.normal.handicap;
+  document.getElementById('handicap-total-rounds').textContent = stats.normal.totalRounds;
+  document.getElementById('handicap-avg-score').textContent = stats.normal.avgScore;
+  document.getElementById('handicap-avg-putts').textContent = stats.normal.avgPutts;
+
+  // Par 3 Handicap
+  const par3Badge = document.getElementById('handicap-par3-badge-val');
+  const par3Rounds = document.getElementById('handicap-par3-total-rounds');
+  const par3AvgScore = document.getElementById('handicap-par3-avg-score');
+  const par3AvgPutts = document.getElementById('handicap-par3-avg-putts');
+  
+  if (par3Badge) par3Badge.textContent = stats.par3.handicap;
+  if (par3Rounds) par3Rounds.textContent = stats.par3.totalRounds;
+  if (par3AvgScore) par3AvgScore.textContent = stats.par3.avgScore;
+  if (par3AvgPutts) par3AvgPutts.textContent = stats.par3.avgPutts;
 
   const descEl = document.getElementById('handicap-description');
-  if (stats.totalRounds === 0) {
+  const totalBothRounds = stats.normal.totalRounds + stats.par3.totalRounds;
+  if (totalBothRounds === 0) {
     descEl.textContent = 'Play at least 1 round to establish your GolfCaddie handicap.';
-  } else if (stats.totalRounds < 3) {
-    descEl.textContent = `Handicap index estimated from ${stats.totalRounds} round(s). Play 3+ rounds for a standard index.`;
+  } else if (totalBothRounds < 3) {
+    descEl.textContent = `Handicap index estimated from your rounds. Play 3+ rounds for a standard index.`;
   } else {
     descEl.textContent = 'Official USGA WHS index calculated based on your historical round differentials.';
   }

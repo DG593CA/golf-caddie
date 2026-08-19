@@ -89,7 +89,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-CbBRMMIw.js"></script>
+    <script type="module" crossorigin src="./assets/index-4mNbsBJL.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-QD3gRXY4.css">
   </head>
   <body>
@@ -617,24 +617,34 @@
         <div id="history-tab-content" class="tab-content hidden">
           <!-- Handicap Index Hero Card -->
           <div class="handicap-hero-card">
-            <span class="handicap-label">Handicap Index</span>
-            <div id="handicap-badge-val" class="handicap-value-badge">NH</div>
-            <p id="handicap-description" class="switch-subtext">Play at least 1 round to establish your GolfCaddie handicap.</p>
-            <div class="handicap-sub-stats">
-              <div class="handicap-sub-stat-item">
-                <span class="handicap-sub-stat-lbl">Rounds</span>
-                <span id="handicap-total-rounds" class="handicap-sub-stat-val">0</span>
+            <span class="handicap-label" style="margin-bottom: 1.25rem;">My Handicap Indexes</span>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; width: 100%; max-width: 550px; margin-bottom: 0.5rem;">
+              <!-- Normal Handicap Column -->
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1.25rem 1rem; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <span style="font-size: 0.75rem; color: var(--gold); font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Regular Courses</span>
+                <div id="handicap-badge-val" class="handicap-value-badge" style="font-size: 2.5rem; margin: 0 0 0.5rem 0;">NH</div>
+                <div style="margin-top: 0.5rem; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.25rem; align-items: center; width: 100%; border-top: 1px solid var(--border-light); padding-top: 0.5rem;">
+                  <div style="color: var(--color-secondary);">Rounds: <strong id="handicap-total-rounds" style="color: var(--color-primary);">0</strong></div>
+                  <div style="color: var(--color-secondary);">Avg Score: <strong id="handicap-avg-score" style="color: var(--color-primary);">-</strong></div>
+                  <div style="color: var(--color-secondary);">Avg Putts: <strong id="handicap-avg-putts" style="color: var(--color-primary);">-</strong></div>
+                </div>
               </div>
-              <div class="handicap-sub-stat-item" style="border-left: 1px solid var(--border-light); padding-left: 2rem;">
-                <span class="handicap-sub-stat-lbl">Avg Score</span>
-                <span id="handicap-avg-score" class="handicap-sub-stat-val">-</span>
-              </div>
-              <div class="handicap-sub-stat-item" style="border-left: 1px solid var(--border-light); padding-left: 2rem;">
-                <span class="handicap-sub-stat-lbl">Avg Putts</span>
-                <span id="handicap-avg-putts" class="handicap-sub-stat-val">-</span>
+
+              <!-- Par 3 Handicap Column -->
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1.25rem 1rem; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <span style="font-size: 0.75rem; color: var(--emerald-glow); font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Par 3 Courses</span>
+                <div id="handicap-par3-badge-val" class="handicap-value-badge" style="font-size: 2.5rem; color: var(--emerald-glow); text-shadow: 0 0 15px rgba(16, 185, 129, 0.2); margin: 0 0 0.5rem 0;">NH</div>
+                <div style="margin-top: 0.5rem; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.25rem; align-items: center; width: 100%; border-top: 1px solid var(--border-light); padding-top: 0.5rem;">
+                  <div style="color: var(--color-secondary);">Rounds: <strong id="handicap-par3-total-rounds" style="color: var(--color-primary);">0</strong></div>
+                  <div style="color: var(--color-secondary);">Avg Score: <strong id="handicap-par3-avg-score" style="color: var(--color-primary);">-</strong></div>
+                  <div style="color: var(--color-secondary);">Avg Putts: <strong id="handicap-par3-avg-putts" style="color: var(--color-primary);">-</strong></div>
+                </div>
               </div>
             </div>
-            <button type="button" id="btn-history-start-new" class="btn btn-success btn-md" style="margin-top: 1.5rem; width: 100%; max-width: 250px;">
+
+            <p id="handicap-description" class="switch-subtext" style="margin-top: 0.75rem; max-width: 480px; text-align: center; line-height: 1.4;">Track separate handicaps for different course styles to keep your stats accurate.</p>
+            <button type="button" id="btn-history-start-new" class="btn btn-success btn-md" style="margin-top: 1.25rem; width: 100%; max-width: 250px;">
               ⛳ Start New Round
             </button>
           </div>
